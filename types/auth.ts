@@ -1,22 +1,22 @@
 // 로그인 요청 타입
 export interface LoginRequest {
-  email: string; // @ 포함 이메일
-  password: string; // 8자 이상 영문+숫자+특수문자
-  remember: boolean; // 장기간 로그인 유지 여부
+  email: string;
+  password: string;
+  remember: boolean;
 }
 
 // 사용자 정보 타입
 export interface LoginUser {
-  id: string; // 사용자 ID (예: "user_abc123")
-  name: string; // 사용자 이름 (예: "김미미")
-  role: string; // 사용자 역할 (예: "creator")
+  id: string;
+  name: string;
+  role: string;
 }
 
 // 토큰 정보 타입
 export interface LoginToken {
-  access_token: string; // JWT 액세스 토큰
-  refresh_token: string; // JWT 리프레시 토큰
-  expires_in: number; // 토큰 만료 시간 (초 단위)
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
 }
 
 // 로그인 성공 응답 데이터 타입
@@ -32,8 +32,8 @@ export interface LoginSuccessResponse {
 
 // 로그인 에러 정보 타입
 export interface LoginError {
-  code: LoginErrorCode; // 에러 코드
-  message: string; // 에러 메시지
+  code: LoginErrorCode;
+  message: string;
 }
 
 // 로그인 실패 응답 타입
@@ -43,9 +43,9 @@ export interface LoginErrorResponse {
 
 // 로그인 에러 코드 열거형
 export enum LoginErrorCode {
-  INVALID_CREDENTIALS = "AUTH_001", // 잘못된 자격 증명
-  LOCKED_ACCOUNT = "AUTH_002", // 잠긴 계정
-  UNSUPPORTED_PROVIDER = "AUTH_003", // 지원하지 않는 소셜 공급자
+  INVALID_CREDENTIALS = "AUTH_001",
+  LOCKED_ACCOUNT = "AUTH_002",
+  UNSUPPORTED_PROVIDER = "AUTH_003",
 }
 
 // 로그인 에러 코드별 HTTP 상태 코드 매핑
@@ -93,7 +93,7 @@ export interface UseLoginReturn {
 export interface StoredAuthData {
   accessToken: string;
   refreshToken: string;
-  expiresAt: string; // ISO 문자열
+  expiresAt: string;
   user: LoginUser;
   remember: boolean;
 }
@@ -110,11 +110,83 @@ export interface User {
 }
 
 // 회원가입 요청 타입
-export interface SignupRequest {
+export interface RegisterRequest {
+  email: string;
+  password: string;
   name: string;
+  agree_terms: boolean;
+  agree_privacy: boolean;
+  agree_marketing?: boolean;
+}
+
+// 회원가입 성공 응답 타입
+export interface RegisterResponse {
+  success: true;
+  data: {
+    message: string;
+    user_id: number;
+    email: string;
+  };
+}
+
+// 회원가입 에러 응답 타입
+export interface RegisterErrorResponse {
+  success: false;
+  error: {
+    code: string;
+    message: string;
+    details?: any;
+  };
+}
+
+// 회원가입 에러 코드 열거형
+export enum RegisterErrorCodes {
+  VALIDATION_ERROR = "VALIDATION_ERROR",
+  EMAIL_ALREADY_EXISTS = "EMAIL_ALREADY_EXISTS",
+  WEAK_PASSWORD = "WEAK_PASSWORD",
+  TERMS_NOT_AGREED = "TERMS_NOT_AGREED",
+  INTERNAL_ERROR = "INTERNAL_ERROR",
+}
+
+// 회원가입 에러 메시지 매핑
+export const REGISTER_ERROR_MESSAGES: Record<RegisterErrorCodes, string> = {
+  [RegisterErrorCodes.VALIDATION_ERROR]: "입력 정보를 확인해주세요",
+  [RegisterErrorCodes.EMAIL_ALREADY_EXISTS]: "이미 사용 중인 이메일입니다",
+  [RegisterErrorCodes.WEAK_PASSWORD]: "비밀번호 정책을 확인해주세요",
+  [RegisterErrorCodes.TERMS_NOT_AGREED]: "필수 약관에 동의해주세요",
+  [RegisterErrorCodes.INTERNAL_ERROR]:
+    "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요",
+};
+
+// 이메일 중복 확인 응답 타입
+export interface CheckEmailResponse {
+  success: true;
+  data: {
+    available: boolean;
+    message: string;
+  };
+}
+
+// 회원가입 폼 컴포넌트 Props
+export interface SignupFormProps {
+  onSuccess?: (data: RegisterResponse["data"]) => void;
+  onError?: (error: RegisterErrorResponse["error"]) => void;
+  redirectTo?: string;
+  className?: string;
+}
+
+// 회원가입 폼 상태 타입
+export interface SignupFormState {
   email: string;
   password: string;
   confirmPassword: string;
+  name: string;
+  agree_terms: boolean;
+  agree_privacy: boolean;
+  agree_marketing: boolean;
+  isLoading: boolean;
+  emailChecked: boolean;
+  emailAvailable: boolean;
 }
 
 // 회원가입 응답 타입
@@ -157,20 +229,12 @@ export interface TokenPayload {
   exp: number;
 }
 
-// 회원가입 폼 컴포넌트 Props
-export interface SignupFormProps {
-  onSuccess?: (data: SignupResponse) => void;
-  onError?: (error: string) => void;
-  redirectTo?: string;
-  className?: string;
-}
-
 // 인증 컨텍스트 타입
 export interface AuthContextType {
   user: User | null;
   login: (email: string, password: string, remember: boolean) => Promise<void>;
   logout: () => void;
-  signup: (data: SignupRequest) => Promise<SignupResponse>;
+  signup: (data: RegisterRequest) => Promise<SignupResponse>;
   refreshToken: () => Promise<void>;
   isLoading: boolean;
   isAuthenticated: boolean;
