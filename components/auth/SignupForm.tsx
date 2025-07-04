@@ -276,14 +276,11 @@ const SignupForm: React.FC<SignupFormProps> = ({
             type="password"
             value={formData.password}
             onChange={handleInputChange}
-            placeholder="비밀번호를 입력하세요"
+            placeholder="8자 이상, 영문+숫자+특수문자 포함"
             className="w-full h-[35px] px-3 bg-transparent border border-neutral-500 rounded-flamingo-xs text-neutral-0 placeholder-neutral-500 focus:outline-none focus:border-primary transition-colors text-sm"
             required
             disabled={formData.isLoading}
           />
-          <p className="text-neutral-400 text-xs mt-1">
-            8자 이상, 영문+숫자+특수문자 포함
-          </p>
         </div>
 
         <div className="mb-[10px]">
@@ -399,7 +396,7 @@ const SignupForm: React.FC<SignupFormProps> = ({
       </form>
 
       <div className="absolute bottom-[20px] left-1/2 transform -translate-x-1/2">
-        <Link href="/login" className="text-neutral-300 text-sm">
+        <Link href="/login" className="text-neutral-300">
           이미 계정이 있으신가요?
           <span className="text-primary"> 로그인</span>
         </Link>
