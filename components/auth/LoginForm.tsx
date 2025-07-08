@@ -13,6 +13,7 @@ import {
   validatePasswordWithMessage,
 } from "@/utils/validation";
 import { showToast } from "@/utils/toast";
+import { authApi } from "@/lib/api/auth";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { ChangeEvent, FormEvent, useState } from "react";
@@ -78,14 +79,27 @@ const LoginForm: React.FC<LoginFormProps> = ({
     );
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
-    e.preventDefault();
+  const handleKeyDown = (e: React.KeyboardEvent): void => {
+    if (
+      e.key === "Enter" &&
+      !isLoading &&
+      formData.email &&
+      formData.password
+    ) {
+      handleSubmit();
+    }
+  };
+
+  const handleSubmit = async (): Promise<void> => {
+    if (isLoading) return;
+
     setIsLoading(true);
 
     try {
       const emailValidation = validateEmailWithMessage(formData.email);
       if (!emailValidation.isValid) {
         showToast.error(emailValidation.message || "이메일을 확인해주세요.");
+        setIsLoading(false);
         return;
       }
 
@@ -94,54 +108,35 @@ const LoginForm: React.FC<LoginFormProps> = ({
         showToast.error(
           passwordValidation.message || "비밀번호를 확인해주세요."
         );
+        setIsLoading(false);
         return;
       }
 
-      const response = await fetch("/api/v1/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
+      const data = await authApi.login(formData);
 
-      if (response.ok) {
-        const data: LoginSuccessResponse = await response.json();
+      storeAuthData(data.data, formData.remember);
 
-        storeAuthData(data.data, formData.remember);
+      showToast.success("로그인이 완료되었습니다!");
 
-        showToast.success("로그인이 완료되었습니다!");
-
-        if (onSuccess) {
-          onSuccess(data.data);
-        }
-
-        router.push(redirectTo);
-      } else {
-        const errorData: LoginErrorResponse = await response.json();
-        const errorMessage = getErrorMessage(errorData);
-
-        showToast.error(errorMessage);
-
-        if (onError) {
-          onError(errorData.error);
-        }
+      if (onSuccess) {
+        onSuccess(data.data);
       }
-    } catch (err) {
+
+      setTimeout(() => {
+        router.push(redirectTo);
+      }, 1000);
+    } catch (err: any) {
       console.error("로그인 오류:", err);
 
       const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.";
+        err.response?.data?.error?.message ||
+        err.message ||
+        "서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.";
 
       showToast.error(errorMessage);
 
-      if (onError) {
-        onError({
-          code: "NETWORK_ERROR" as LoginErrorCode,
-          message: errorMessage,
-        });
+      if (onError && err.response?.data?.error) {
+        onError(err.response.data.error);
       }
     } finally {
       setIsLoading(false);
@@ -150,7 +145,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
 
   return (
     <div className={`w-[350px] ${className}`}>
-      <form onSubmit={handleSubmit} className="space-y-[8px]">
+      <form className="space-y-[8px]" onKeyDown={handleKeyDown}>
         <div className="mb-[8px]">
           <label
             htmlFor="email"
@@ -212,7 +207,8 @@ const LoginForm: React.FC<LoginFormProps> = ({
         </div>
 
         <button
-          type="submit"
+          type="button"
+          onClick={handleSubmit}
           disabled={isLoading || !formData.email || !formData.password}
           className="w-full h-[55px] bg-primary text-neutral-0 font-bold rounded-flamingo-sm hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed animate-fade-in"
         >
