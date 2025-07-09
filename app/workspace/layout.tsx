@@ -57,7 +57,7 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
       {!leftVisible && (
         <button
           onClick={() => setLeftVisible(true)}
-          className="absolute top-4 left-4 z-30 p-2 bg-white border rounded shadow-sm hover:bg-gray-50"
+          className="absolute top-4 left-4 z-30 text-neutral-100 p-2 bg-neutral-900 border rounded shadow-sm hover:bg-primary-500"
         >
           →
         </button>
@@ -65,15 +65,15 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
       {leftVisible && (
         <>
           <div
-            className="absolute top-0 left-0 h-full bg-white border-r z-20 overflow-hidden"
+            className="absolute top-0 left-0 h-full bg-neutral-900 border-r z-20 overflow-hidden"
             style={{ width: leftWidth }}
           >
-            <div className="p-4">
+            <div className="p-4 text-neutral-100">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold">Left Sidebar</h3>
                 <button
                   onClick={() => setLeftVisible(false)}
-                  className="p-1 hover:bg-gray-100 rounded"
+                  className="p-1 hover:bg-primary-500 rounded"
                 >
                   ←
                 </button>
@@ -82,8 +82,8 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
             </div>
           </div>
           <div
-            className={`absolute top-0 h-full w-1 bg-gray-200 hover:bg-blue-400 cursor-col-resize z-30 ${
-              isDragging === "left" ? "bg-blue-400" : ""
+            className={`absolute top-0 h-full w-1 bg-gray-200 hover:bg-primary-500 cursor-col-resize z-30 ${
+              isDragging === "left" ? "bg-primary-500" : ""
             }`}
             style={{ left: leftWidth }}
             onMouseDown={handleMouseDown("left")}
@@ -94,7 +94,7 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
       {!rightVisible && (
         <button
           onClick={() => setRightVisible(true)}
-          className="absolute top-4 right-4 z-30 p-2 bg-white border rounded shadow-sm hover:bg-gray-50"
+          className="absolute top-4 right-4 z-30 p-2 text-neutral-100 bg-neutral-900 border rounded shadow-sm hover:bg-primary-500"
         >
           ←
         </button>
@@ -102,22 +102,22 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
       {rightVisible && (
         <>
           <div
-            className={`absolute top-0 h-full w-1 bg-gray-200 hover:bg-blue-400 cursor-col-resize z-30 ${
-              isDragging === "right" ? "bg-blue-400" : ""
+            className={`absolute top-0 h-full w-1 bg-gray-200 hover:bg-primary-500 cursor-col-resize z-30 ${
+              isDragging === "right" ? "bg-primary-500" : ""
             }`}
             style={{ right: rightWidth }}
             onMouseDown={handleMouseDown("right")}
           />
           <div
-            className="absolute top-0 right-0 h-full bg-white border-l z-20 overflow-hidden"
+            className="absolute top-0 right-0 h-full bg-neutral-900 border-l z-20 overflow-hidden"
             style={{ width: rightWidth }}
           >
-            <div className="p-4">
+            <div className="p-4 text-neutral-100">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold">Right Sidebar</h3>
                 <button
                   onClick={() => setRightVisible(false)}
-                  className="p-1 hover:bg-gray-100 rounded"
+                  className="p-1 hover:bg-primary-500 rounded"
                 >
                   →
                 </button>
