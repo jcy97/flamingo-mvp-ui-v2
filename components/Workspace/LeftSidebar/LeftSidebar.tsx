@@ -2,6 +2,7 @@
 
 import AddButton from "@/components/Common/Button/AddButton";
 import Page from "./Page/Page";
+import { ArrowLeftToLine, ArrowRightToLine } from "lucide-react";
 
 interface LeftSidebarProps {
   width: number;
@@ -24,9 +25,9 @@ export function LeftSidebar({
     return (
       <button
         onClick={onToggle}
-        className="absolute top-4 left-4 z-30 text-neutral-100 p-2 bg-neutral-900 border rounded shadow-sm hover:bg-primary-500"
+        className="absolute top-4 left-0 z-30 text-neutral-100 p-1 bg-neutral-900 cursor-pointer border rounded shadow-sm hover:bg-primary-500"
       >
-        →
+        <ArrowRightToLine size={16} />
       </button>
     );
   }
@@ -42,9 +43,9 @@ export function LeftSidebar({
             <h3 className="font-semibold">Left Sidebar</h3>
             <button
               onClick={onToggle}
-              className="p-1 hover:bg-primary-500 rounded"
+              className="p-1 hover:bg-primary-500 rounded cursor-pointer"
             >
-              ←
+              <ArrowLeftToLine size={16} />
             </button>
           </div>
           {/* 페이지 영역 */}

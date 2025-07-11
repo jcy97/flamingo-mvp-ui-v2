@@ -1,5 +1,7 @@
 "use client";
 
+import { ArrowLeftToLine, ArrowRightToLine } from "lucide-react";
+
 interface RightSidebarProps {
   width: number;
   visible: boolean;
@@ -21,9 +23,9 @@ export function RightSidebar({
     return (
       <button
         onClick={onToggle}
-        className="absolute top-4 right-4 z-30 p-2 text-neutral-100 bg-neutral-900 border rounded shadow-sm hover:bg-primary-500"
+        className="absolute top-4 right-0 z-30 p-1 text-neutral-100 bg-neutral-900 border rounded cursor-pointer shadow-sm hover:bg-primary-500"
       >
-        ←
+        <ArrowLeftToLine size={16} />
       </button>
     );
   }
@@ -46,9 +48,9 @@ export function RightSidebar({
             <h3 className="font-semibold">Right Sidebar</h3>
             <button
               onClick={onToggle}
-              className="p-1 hover:bg-primary-500 rounded"
+              className="p-1 hover:bg-primary-500 rounded cursor-pointer"
             >
-              →
+              <ArrowRightToLine size={16} />
             </button>
           </div>
           {children}
