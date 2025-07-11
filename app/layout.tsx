@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import ToastProvider from "@/components/providers/ToastProvider";
+import ToastProvider from "@/components/Providers/ToastProvider";
 
 export const metadata: Metadata = {
   title: "Flamingo MVP V2",
