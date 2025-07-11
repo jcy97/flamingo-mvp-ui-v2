@@ -5,15 +5,9 @@ import { useCallback, useRef, useState } from "react";
 
 interface WorkspaceLayoutProps {
   children: React.ReactNode;
-  leftSidebarContent?: React.ReactNode;
-  rightSidebarContent?: React.ReactNode;
 }
 
-export default function WorkspaceLayout({
-  children,
-  leftSidebarContent,
-  rightSidebarContent,
-}: WorkspaceLayoutProps) {
+export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
   const [leftWidth, setLeftWidth] = useState<number>(240);
   const [rightWidth, setRightWidth] = useState<number>(280);
   const [leftVisible, setLeftVisible] = useState<boolean>(true);
@@ -128,19 +122,14 @@ export default function WorkspaceLayout({
         isDragging={isDragging === "left"}
         onToggle={toggleLeftSidebar}
         onMouseDown={handleMouseDown("left")}
-      >
-        {leftSidebarContent}
-      </LeftSidebar>
-
+      />
       <RightSidebar
         width={rightWidth}
         visible={rightVisible}
         isDragging={isDragging === "right"}
         onToggle={toggleRightSidebar}
         onMouseDown={handleMouseDown("right")}
-      >
-        {rightSidebarContent}
-      </RightSidebar>
+      />
     </div>
   );
 }
