@@ -3,6 +3,7 @@
 import AddButton from "@/components/Common/Button/AddButton";
 import Page from "./Page/Page";
 import { ArrowLeftToLine, ArrowRightToLine } from "lucide-react";
+import Separator from "@/components/Common/Separator";
 
 interface LeftSidebarProps {
   width: number;
@@ -38,8 +39,8 @@ export function LeftSidebar({
         className="absolute top-0 left-0 h-full bg-neutral-900 border-r z-20 overflow-hidden"
         style={{ width }}
       >
-        <div className="p-4 text-neutral-100 flex flex-col">
-          <div className="flex items-center justify-between mb-4">
+        <div className="p-4 text-neutral-100 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
             <h3 className="font-semibold">Left Sidebar</h3>
             <button
               onClick={onToggle}
@@ -48,8 +49,10 @@ export function LeftSidebar({
               <ArrowLeftToLine size={16} />
             </button>
           </div>
+          <Separator />
           {/* 페이지 영역 */}
           <Page />
+          <Separator />
         </div>
       </div>
       <div
