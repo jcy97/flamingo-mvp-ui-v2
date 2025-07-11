@@ -8,6 +8,7 @@ import {
   CheckEmailResponse,
   SignupFormProps,
   SignupFormState,
+  UserType,
 } from "@/types/auth";
 import {
   validateEmailWithMessage,
@@ -16,6 +17,7 @@ import {
   validatePasswordConfirm,
 } from "@/utils/validation";
 import { showToast } from "@/utils/toast";
+import { authApi } from "@/lib/api/auth";
 import { usePopup } from "@/hooks/usePopup";
 import { TERMS_OF_SERVICE, PRIVACY_POLICY } from "@/constants/termsTemplates";
 import Modal from "@/components/common/Modal";
@@ -38,6 +40,7 @@ const SignupForm: React.FC<SignupFormProps> = ({
     password: "",
     confirmPassword: "",
     name: "",
+    user_type: "artist",
     agree_terms: false,
     agree_privacy: false,
     agree_marketing: false,
@@ -85,28 +88,20 @@ const SignupForm: React.FC<SignupFormProps> = ({
     }
 
     try {
-      const response = await fetch(
-        `/api/v1/auth/check-email?email=${encodeURIComponent(formData.email)}`
-      );
+      const data = await authApi.checkEmail(formData.email);
 
-      if (response.ok) {
-        const data: CheckEmailResponse = await response.json();
+      setFormData((prev) => ({
+        ...prev,
+        emailChecked: true,
+        emailAvailable: data.data.available,
+      }));
 
-        setFormData((prev) => ({
-          ...prev,
-          emailChecked: true,
-          emailAvailable: data.data.available,
-        }));
-
-        if (data.data.available) {
-          showToast.success("사용 가능한 이메일입니다!");
-        } else {
-          showToast.error("이미 사용 중인 이메일입니다.");
-        }
+      if (data.data.available) {
+        showToast.success("사용 가능한 이메일입니다!");
       } else {
-        showToast.error("이메일 확인 중 오류가 발생했습니다.");
+        showToast.error("이미 사용 중인 이메일입니다.");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("이메일 확인 오류:", error);
       showToast.error("이메일 확인 중 오류가 발생했습니다.");
     }
@@ -171,54 +166,33 @@ const SignupForm: React.FC<SignupFormProps> = ({
         email: formData.email,
         password: formData.password,
         name: formData.name,
+        user_type: formData.user_type,
         agree_terms: formData.agree_terms,
         agree_privacy: formData.agree_privacy,
         agree_marketing: formData.agree_marketing,
       };
 
-      const response = await fetch("/api/v1/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(registerData),
-      });
+      const data = await authApi.register(registerData);
 
-      if (response.ok) {
-        const data: RegisterResponse = await response.json();
+      showToast.success("회원가입이 완료되었습니다! 이메일을 확인해주세요.");
 
-        showToast.success("회원가입이 완료되었습니다! 이메일을 확인해주세요.");
-
-        if (onSuccess) {
-          onSuccess(data.data);
-        }
-
-        router.push(redirectTo);
-      } else {
-        const errorData: RegisterErrorResponse = await response.json();
-        const errorMessage = getErrorMessage(errorData);
-
-        showToast.error(errorMessage);
-
-        if (onError) {
-          onError(errorData.error);
-        }
+      if (onSuccess) {
+        onSuccess(data.data);
       }
-    } catch (err) {
+
+      router.push(redirectTo);
+    } catch (err: any) {
       console.error("회원가입 오류:", err);
 
       const errorMessage =
-        err instanceof Error
-          ? err.message
-          : "서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.";
+        err.response?.data?.error?.message ||
+        err.message ||
+        "서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.";
 
       showToast.error(errorMessage);
 
-      if (onError) {
-        onError({
-          code: "INTERNAL_ERROR" as RegisterErrorCodes,
-          message: errorMessage,
-        });
+      if (onError && err.response?.data?.error) {
+        onError(err.response.data.error);
       }
     } finally {
       setFormData((prev) => ({ ...prev, isLoading: false }));
@@ -338,6 +312,28 @@ const SignupForm: React.FC<SignupFormProps> = ({
               required
               disabled={formData.isLoading}
             />
+          </div>
+
+          <div className="mb-[10px]">
+            <label
+              htmlFor="user_type"
+              className="block text-neutral-300 font-medium mb-2 text-sm"
+            >
+              사용자 유형 *
+            </label>
+            <select
+              id="user_type"
+              name="user_type"
+              value={formData.user_type}
+              onChange={handleInputChange}
+              className="w-full h-[35px] px-3 bg-neutral-700 border border-neutral-500 rounded-flamingo-xs text-neutral-0 focus:outline-none focus:border-primary transition-colors text-sm"
+              required
+              disabled={formData.isLoading}
+            >
+              <option value="artist">아티스트</option>
+              <option value="student">학생</option>
+              <option value="teacher">선생님</option>
+            </select>
           </div>
 
           <div className="mb-[16px] space-y-2">

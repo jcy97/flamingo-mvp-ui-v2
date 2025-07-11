@@ -1,61 +1,51 @@
-// 로그인 요청 타입
 export interface LoginRequest {
   email: string;
   password: string;
   remember: boolean;
 }
 
-// 사용자 정보 타입
 export interface LoginUser {
   id: string;
   name: string;
   role: string;
 }
 
-// 토큰 정보 타입
 export interface LoginToken {
   access_token: string;
   refresh_token: string;
   expires_in: number;
 }
 
-// 로그인 성공 응답 데이터 타입
 export interface LoginSuccessData {
   user: LoginUser;
   token: LoginToken;
 }
 
-// 로그인 성공 응답 타입
 export interface LoginSuccessResponse {
   data: LoginSuccessData;
 }
 
-// 로그인 에러 정보 타입
 export interface LoginError {
   code: LoginErrorCode;
   message: string;
 }
 
-// 로그인 실패 응답 타입
 export interface LoginErrorResponse {
   error: LoginError;
 }
 
-// 로그인 에러 코드 열거형
 export enum LoginErrorCode {
   INVALID_CREDENTIALS = "AUTH_001",
   LOCKED_ACCOUNT = "AUTH_002",
   UNSUPPORTED_PROVIDER = "AUTH_003",
 }
 
-// 로그인 에러 코드별 HTTP 상태 코드 매핑
 export const LOGIN_ERROR_STATUS: Record<LoginErrorCode, number> = {
   [LoginErrorCode.INVALID_CREDENTIALS]: 401,
   [LoginErrorCode.LOCKED_ACCOUNT]: 423,
   [LoginErrorCode.UNSUPPORTED_PROVIDER]: 400,
 };
 
-// 로그인 에러 코드별 기본 메시지
 export const LOGIN_ERROR_MESSAGES: Record<LoginErrorCode, string> = {
   [LoginErrorCode.INVALID_CREDENTIALS]: "인증 정보가 일치하지 않습니다",
   [LoginErrorCode.LOCKED_ACCOUNT]:
@@ -63,7 +53,6 @@ export const LOGIN_ERROR_MESSAGES: Record<LoginErrorCode, string> = {
   [LoginErrorCode.UNSUPPORTED_PROVIDER]: "지원하지 않는 로그인 방식입니다",
 };
 
-// 로그인 폼 상태 타입
 export interface LoginFormState {
   email: string;
   password: string;
@@ -72,7 +61,6 @@ export interface LoginFormState {
   error: string;
 }
 
-// 로그인 폼 컴포넌트 Props 타입
 export interface LoginFormProps {
   onSuccess?: (data: LoginSuccessData) => void;
   onError?: (error: LoginError) => void;
@@ -80,7 +68,6 @@ export interface LoginFormProps {
   className?: string;
 }
 
-// 로그인 훅 반환 타입
 export interface UseLoginReturn {
   formState: LoginFormState;
   setFormState: React.Dispatch<React.SetStateAction<LoginFormState>>;
@@ -89,7 +76,6 @@ export interface UseLoginReturn {
   clearError: () => void;
 }
 
-// 로컬 스토리지 토큰 저장 타입
 export interface StoredAuthData {
   accessToken: string;
   refreshToken: string;
@@ -98,28 +84,29 @@ export interface StoredAuthData {
   remember: boolean;
 }
 
-// 일반 사용자 관련 타입
 export interface User {
   id: string;
   email: string;
   name: string;
   role: string;
+  user_type?: string;
   avatar?: string;
   createdAt?: string;
   updatedAt?: string;
 }
 
-// 회원가입 요청 타입
+export type UserType = "artist" | "student" | "teacher";
+
 export interface RegisterRequest {
   email: string;
   password: string;
   name: string;
+  user_type: UserType;
   agree_terms: boolean;
   agree_privacy: boolean;
   agree_marketing?: boolean;
 }
 
-// 회원가입 성공 응답 타입
 export interface RegisterResponse {
   success: true;
   data: {
@@ -129,7 +116,6 @@ export interface RegisterResponse {
   };
 }
 
-// 회원가입 에러 응답 타입
 export interface RegisterErrorResponse {
   success: false;
   error: {
@@ -139,7 +125,6 @@ export interface RegisterErrorResponse {
   };
 }
 
-// 회원가입 에러 코드 열거형
 export enum RegisterErrorCodes {
   VALIDATION_ERROR = "VALIDATION_ERROR",
   EMAIL_ALREADY_EXISTS = "EMAIL_ALREADY_EXISTS",
@@ -148,7 +133,6 @@ export enum RegisterErrorCodes {
   INTERNAL_ERROR = "INTERNAL_ERROR",
 }
 
-// 회원가입 에러 메시지 매핑
 export const REGISTER_ERROR_MESSAGES: Record<RegisterErrorCodes, string> = {
   [RegisterErrorCodes.VALIDATION_ERROR]: "입력 정보를 확인해주세요",
   [RegisterErrorCodes.EMAIL_ALREADY_EXISTS]: "이미 사용 중인 이메일입니다",
@@ -158,7 +142,6 @@ export const REGISTER_ERROR_MESSAGES: Record<RegisterErrorCodes, string> = {
     "서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요",
 };
 
-// 이메일 중복 확인 응답 타입
 export interface CheckEmailResponse {
   success: true;
   data: {
@@ -167,7 +150,6 @@ export interface CheckEmailResponse {
   };
 }
 
-// 회원가입 폼 컴포넌트 Props
 export interface SignupFormProps {
   onSuccess?: (data: RegisterResponse["data"]) => void;
   onError?: (error: RegisterErrorResponse["error"]) => void;
@@ -175,12 +157,12 @@ export interface SignupFormProps {
   className?: string;
 }
 
-// 회원가입 폼 상태 타입
 export interface SignupFormState {
   email: string;
   password: string;
   confirmPassword: string;
   name: string;
+  user_type: UserType;
   agree_terms: boolean;
   agree_privacy: boolean;
   agree_marketing: boolean;
@@ -189,14 +171,12 @@ export interface SignupFormState {
   emailAvailable: boolean;
 }
 
-// 회원가입 응답 타입
 export interface SignupResponse {
   success: boolean;
   message: string;
   user?: User;
 }
 
-// 인증 상태 타입
 export interface AuthState {
   isAuthenticated: boolean;
   user: User | null;
@@ -205,14 +185,12 @@ export interface AuthState {
   isLoading: boolean;
 }
 
-// 일반 폼 상태 타입
 export interface FormState {
   isLoading: boolean;
   error: string;
   success: string;
 }
 
-// 일반 API 에러 응답 타입
 export interface ApiError {
   error: {
     code: string;
@@ -220,7 +198,6 @@ export interface ApiError {
   };
 }
 
-// 토큰 페이로드 타입 (JWT)
 export interface TokenPayload {
   userId: string;
   email: string;
@@ -229,7 +206,6 @@ export interface TokenPayload {
   exp: number;
 }
 
-// 인증 컨텍스트 타입
 export interface AuthContextType {
   user: User | null;
   login: (email: string, password: string, remember: boolean) => Promise<void>;
@@ -240,14 +216,12 @@ export interface AuthContextType {
   isAuthenticated: boolean;
 }
 
-// 보호된 라우트 Props
 export interface ProtectedRouteProps {
   children: React.ReactNode;
   redirectTo?: string;
   requiredRole?: string;
 }
 
-// 세션 타입
 export interface Session {
   user: User;
   accessToken: string;
