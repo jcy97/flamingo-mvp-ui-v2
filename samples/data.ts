@@ -4,18 +4,61 @@ import { Page } from "@/types/page";
 
 // 샘플 데이터 생성
 const sampleData = {
-  // 메인 페이지 데이터
-  page: {
-    id: "page-001",
-    projectId: "proj-webtoon-001",
-    name: "Episode 1 - The Beginning",
-    order: 1,
-    createdAt: new Date("2024-01-15T09:00:00Z"),
-    updatedAt: new Date("2024-01-20T14:30:00Z"),
-  } as Page,
+  // 여러 페이지 데이터
+  pages: [
+    {
+      id: "page-001",
+      projectId: "proj-webtoon-001",
+      name: "Episode 1 - The Beginning",
+      order: 1,
+      createdAt: new Date("2024-01-15T09:00:00Z"),
+      updatedAt: new Date("2024-01-20T14:30:00Z"),
+    },
+    {
+      id: "page-002",
+      projectId: "proj-webtoon-001",
+      name: "Episode 2 - The Journey",
+      order: 2,
+      createdAt: new Date("2024-01-16T10:00:00Z"),
+      updatedAt: new Date("2024-01-21T16:00:00Z"),
+    },
+    {
+      id: "page-003",
+      projectId: "proj-webtoon-001",
+      name: "Episode 3 - The Battle",
+      order: 3,
+      createdAt: new Date("2024-01-17T11:00:00Z"),
+      updatedAt: new Date("2024-01-22T18:00:00Z"),
+    },
+    {
+      id: "page-004",
+      projectId: "proj-webtoon-001",
+      name: "Episode 3 - The Battle",
+      order: 3,
+      createdAt: new Date("2024-01-17T11:00:00Z"),
+      updatedAt: new Date("2024-01-22T18:00:00Z"),
+    },
+    {
+      id: "page-005",
+      projectId: "proj-webtoon-001",
+      name: "Episode 3 - The Battle",
+      order: 3,
+      createdAt: new Date("2024-01-17T11:00:00Z"),
+      updatedAt: new Date("2024-01-22T18:00:00Z"),
+    },
+    {
+      id: "page-006",
+      projectId: "proj-webtoon-001",
+      name: "Episode 3 - The Battle",
+      order: 3,
+      createdAt: new Date("2024-01-17T11:00:00Z"),
+      updatedAt: new Date("2024-01-22T18:00:00Z"),
+    },
+  ] as Page[],
 
-  // 캔버스 데이터 (3개의 서로 다른 장면)
+  // 캔버스 데이터 (각 페이지별로 분배)
   canvases: [
+    // Page 1의 캔버스들
     {
       id: "canvas-001",
       pageId: "page-001",
@@ -49,11 +92,59 @@ const sampleData = {
       createdAt: new Date("2024-01-15T11:30:00Z"),
       updatedAt: new Date("2024-01-20T14:30:00Z"),
     },
+
+    // Page 2의 캔버스들
+    {
+      id: "canvas-004",
+      pageId: "page-002",
+      name: "Journey Begins",
+      order: 1,
+      width: 800,
+      height: 450,
+      unit: "px" as SizeUnit,
+      createdAt: new Date("2024-01-16T10:15:00Z"),
+      updatedAt: new Date("2024-01-21T15:00:00Z"),
+    },
+    {
+      id: "canvas-005",
+      pageId: "page-002",
+      name: "Meeting Allies",
+      order: 2,
+      width: 800,
+      height: 400,
+      unit: "px" as SizeUnit,
+      createdAt: new Date("2024-01-16T11:00:00Z"),
+      updatedAt: new Date("2024-01-21T16:00:00Z"),
+    },
+
+    // Page 3의 캔버스들
+    {
+      id: "canvas-006",
+      pageId: "page-003",
+      name: "Battle Preparation",
+      order: 1,
+      width: 800,
+      height: 500,
+      unit: "px" as SizeUnit,
+      createdAt: new Date("2024-01-17T11:15:00Z"),
+      updatedAt: new Date("2024-01-22T17:00:00Z"),
+    },
+    {
+      id: "canvas-007",
+      pageId: "page-003",
+      name: "Epic Battle",
+      order: 2,
+      width: 800,
+      height: 600,
+      unit: "px" as SizeUnit,
+      createdAt: new Date("2024-01-17T12:00:00Z"),
+      updatedAt: new Date("2024-01-22T18:00:00Z"),
+    },
   ] as Canvas[],
 
   // 레이어 데이터 (각 캔버스의 구성 요소들)
   layers: [
-    // Canvas 1의 레이어들
+    // Canvas 1의 레이어들 (Page 1)
     {
       id: "layer-001",
       canvasId: "canvas-001",
@@ -131,7 +222,7 @@ const sampleData = {
       updatedAt: new Date("2024-01-15T11:30:00Z"),
     },
 
-    // Canvas 2의 레이어들
+    // Canvas 2의 레이어들 (Page 1)
     {
       id: "layer-004",
       canvasId: "canvas-002",
@@ -156,67 +247,8 @@ const sampleData = {
     {
       id: "layer-005",
       canvasId: "canvas-002",
-      name: "Furniture",
-      order: 2,
-      type: "brush" as LayerType,
-      blendMode: "normal" as BlendMode,
-      opacity: 100,
-      isVisible: true,
-      isLocked: false,
-      data: {
-        strokes: [
-          {
-            id: "stroke-003",
-            points: [
-              { x: 50, y: 300, pressure: 0.7 },
-              { x: 250, y: 300, pressure: 0.8 },
-              { x: 250, y: 350, pressure: 0.7 },
-              { x: 50, y: 350, pressure: 0.6 },
-            ],
-            brushSize: 2,
-            brushColor: "#8B4513",
-            brushOpacity: 100,
-            timestamp: Date.now() - 2700000,
-          },
-        ],
-      },
-      createdAt: new Date("2024-01-15T10:15:00Z"),
-      updatedAt: new Date("2024-01-15T10:45:00Z"),
-    },
-    {
-      id: "layer-006",
-      canvasId: "canvas-002",
-      name: "Character 2",
-      order: 3,
-      type: "brush" as LayerType,
-      blendMode: "normal" as BlendMode,
-      opacity: 100,
-      isVisible: true,
-      isLocked: false,
-      data: {
-        strokes: [
-          {
-            id: "stroke-004",
-            points: [
-              { x: 300, y: 150, pressure: 0.9 },
-              { x: 305, y: 145, pressure: 0.8 },
-              { x: 310, y: 140, pressure: 0.7 },
-            ],
-            brushSize: 3,
-            brushColor: "#000000",
-            brushOpacity: 100,
-            timestamp: Date.now() - 2400000,
-          },
-        ],
-      },
-      createdAt: new Date("2024-01-15T10:30:00Z"),
-      updatedAt: new Date("2024-01-15T11:15:00Z"),
-    },
-    {
-      id: "layer-007",
-      canvasId: "canvas-002",
       name: "Text Dialog",
-      order: 4,
+      order: 2,
       type: "text" as LayerType,
       blendMode: "normal" as BlendMode,
       opacity: 100,
@@ -232,9 +264,9 @@ const sampleData = {
       updatedAt: new Date("2024-01-15T11:30:00Z"),
     },
 
-    // Canvas 3의 레이어들
+    // Canvas 3의 레이어들 (Page 1)
     {
-      id: "layer-008",
+      id: "layer-006",
       canvasId: "canvas-003",
       name: "Action Background",
       order: 1,
@@ -246,7 +278,7 @@ const sampleData = {
       data: {
         strokes: [
           {
-            id: "stroke-005",
+            id: "stroke-003",
             points: [
               { x: 0, y: 0, pressure: 0.6 },
               { x: 800, y: 0, pressure: 0.6 },
@@ -264,7 +296,7 @@ const sampleData = {
       updatedAt: new Date("2024-01-15T12:00:00Z"),
     },
     {
-      id: "layer-009",
+      id: "layer-007",
       canvasId: "canvas-003",
       name: "Action Effects",
       order: 2,
@@ -276,7 +308,7 @@ const sampleData = {
       data: {
         strokes: [
           {
-            id: "stroke-006",
+            id: "stroke-004",
             points: [
               { x: 400, y: 190, pressure: 1.0 },
               { x: 450, y: 140, pressure: 0.8 },
@@ -292,11 +324,31 @@ const sampleData = {
       createdAt: new Date("2024-01-15T11:45:00Z"),
       updatedAt: new Date("2024-01-15T12:15:00Z"),
     },
+
+    // Canvas 4의 레이어들 (Page 2)
     {
-      id: "layer-010",
-      canvasId: "canvas-003",
-      name: "Action Character",
-      order: 3,
+      id: "layer-008",
+      canvasId: "canvas-004",
+      name: "Mountain Background",
+      order: 1,
+      type: "image" as LayerType,
+      blendMode: "normal" as BlendMode,
+      opacity: 100,
+      isVisible: true,
+      isLocked: false,
+      data: {
+        imageUrl: "https://example.com/backgrounds/mountain.jpg",
+        imageWidth: 800,
+        imageHeight: 450,
+      },
+      createdAt: new Date("2024-01-16T10:15:00Z"),
+      updatedAt: new Date("2024-01-16T10:45:00Z"),
+    },
+    {
+      id: "layer-009",
+      canvasId: "canvas-004",
+      name: "Hero Character",
+      order: 2,
       type: "brush" as LayerType,
       blendMode: "normal" as BlendMode,
       opacity: 100,
@@ -305,7 +357,7 @@ const sampleData = {
       data: {
         strokes: [
           {
-            id: "stroke-007",
+            id: "stroke-005",
             points: [
               { x: 200, y: 200, pressure: 0.9 },
               { x: 220, y: 180, pressure: 1.0 },
@@ -318,8 +370,189 @@ const sampleData = {
           },
         ],
       },
-      createdAt: new Date("2024-01-15T12:00:00Z"),
-      updatedAt: new Date("2024-01-15T12:30:00Z"),
+      createdAt: new Date("2024-01-16T10:30:00Z"),
+      updatedAt: new Date("2024-01-16T11:00:00Z"),
+    },
+
+    // Canvas 5의 레이어들 (Page 2)
+    {
+      id: "layer-010",
+      canvasId: "canvas-005",
+      name: "Village Background",
+      order: 1,
+      type: "shape" as LayerType,
+      blendMode: "normal" as BlendMode,
+      opacity: 100,
+      isVisible: true,
+      isLocked: false,
+      data: {
+        shapeType: "rectangle",
+        shapeProperties: {
+          fillColor: "#90EE90",
+          strokeColor: "#228B22",
+          strokeWidth: 2,
+        },
+      },
+      createdAt: new Date("2024-01-16T11:00:00Z"),
+      updatedAt: new Date("2024-01-16T11:30:00Z"),
+    },
+    {
+      id: "layer-011",
+      canvasId: "canvas-005",
+      name: "Ally Characters",
+      order: 2,
+      type: "brush" as LayerType,
+      blendMode: "normal" as BlendMode,
+      opacity: 100,
+      isVisible: true,
+      isLocked: false,
+      data: {
+        strokes: [
+          {
+            id: "stroke-006",
+            points: [
+              { x: 300, y: 150, pressure: 0.7 },
+              { x: 320, y: 140, pressure: 0.8 },
+              { x: 340, y: 130, pressure: 0.6 },
+            ],
+            brushSize: 3,
+            brushColor: "#0000FF",
+            brushOpacity: 100,
+            timestamp: Date.now() - 900000,
+          },
+        ],
+      },
+      createdAt: new Date("2024-01-16T11:15:00Z"),
+      updatedAt: new Date("2024-01-16T11:45:00Z"),
+    },
+
+    // Canvas 6의 레이어들 (Page 3)
+    {
+      id: "layer-012",
+      canvasId: "canvas-006",
+      name: "Battle Arena",
+      order: 1,
+      type: "image" as LayerType,
+      blendMode: "normal" as BlendMode,
+      opacity: 100,
+      isVisible: true,
+      isLocked: false,
+      data: {
+        imageUrl: "https://example.com/backgrounds/arena.jpg",
+        imageWidth: 800,
+        imageHeight: 500,
+      },
+      createdAt: new Date("2024-01-17T11:15:00Z"),
+      updatedAt: new Date("2024-01-17T11:45:00Z"),
+    },
+    {
+      id: "layer-013",
+      canvasId: "canvas-006",
+      name: "Warriors",
+      order: 2,
+      type: "brush" as LayerType,
+      blendMode: "normal" as BlendMode,
+      opacity: 100,
+      isVisible: true,
+      isLocked: false,
+      data: {
+        strokes: [
+          {
+            id: "stroke-007",
+            points: [
+              { x: 400, y: 250, pressure: 0.9 },
+              { x: 420, y: 230, pressure: 1.0 },
+              { x: 440, y: 210, pressure: 0.8 },
+            ],
+            brushSize: 5,
+            brushColor: "#8B0000",
+            brushOpacity: 100,
+            timestamp: Date.now() - 600000,
+          },
+        ],
+      },
+      createdAt: new Date("2024-01-17T11:30:00Z"),
+      updatedAt: new Date("2024-01-17T12:00:00Z"),
+    },
+
+    // Canvas 7의 레이어들 (Page 3)
+    {
+      id: "layer-014",
+      canvasId: "canvas-007",
+      name: "Epic Battle Background",
+      order: 1,
+      type: "brush" as LayerType,
+      blendMode: "normal" as BlendMode,
+      opacity: 100,
+      isVisible: true,
+      isLocked: false,
+      data: {
+        strokes: [
+          {
+            id: "stroke-008",
+            points: [
+              { x: 0, y: 0, pressure: 0.8 },
+              { x: 800, y: 0, pressure: 0.8 },
+              { x: 800, y: 600, pressure: 0.8 },
+              { x: 0, y: 600, pressure: 0.8 },
+            ],
+            brushSize: 60,
+            brushColor: "#FF0000",
+            brushOpacity: 40,
+            timestamp: Date.now() - 300000,
+          },
+        ],
+      },
+      createdAt: new Date("2024-01-17T12:00:00Z"),
+      updatedAt: new Date("2024-01-17T12:30:00Z"),
+    },
+    {
+      id: "layer-015",
+      canvasId: "canvas-007",
+      name: "Battle Effects",
+      order: 2,
+      type: "brush" as LayerType,
+      blendMode: "screen" as BlendMode,
+      opacity: 95,
+      isVisible: true,
+      isLocked: false,
+      data: {
+        strokes: [
+          {
+            id: "stroke-009",
+            points: [
+              { x: 400, y: 300, pressure: 1.0 },
+              { x: 450, y: 250, pressure: 0.9 },
+              { x: 500, y: 200, pressure: 0.7 },
+            ],
+            brushSize: 30,
+            brushColor: "#FFFFFF",
+            brushOpacity: 90,
+            timestamp: Date.now() - 100000,
+          },
+        ],
+      },
+      createdAt: new Date("2024-01-17T12:15:00Z"),
+      updatedAt: new Date("2024-01-17T12:45:00Z"),
+    },
+    {
+      id: "layer-016",
+      canvasId: "canvas-007",
+      name: "Victory Text",
+      order: 3,
+      type: "text" as LayerType,
+      blendMode: "normal" as BlendMode,
+      opacity: 100,
+      isVisible: true,
+      isLocked: false,
+      data: {
+        textContent: "승리!",
+        fontSize: 32,
+        fontFamily: "NotoSansKR",
+        textColor: "#FFD700",
+      },
+      createdAt: new Date("2024-01-17T12:30:00Z"),
+      updatedAt: new Date("2024-01-17T13:00:00Z"),
     },
   ] as Layer[],
 };
@@ -328,6 +561,10 @@ const sampleData = {
 export default sampleData;
 
 // 유틸리티 함수들
+export const getPagesForProject = (projectId: string) => {
+  return sampleData.pages.filter((page) => page.projectId === projectId);
+};
+
 export const getCanvasesForPage = (pageId: string) => {
   return sampleData.canvases.filter((canvas) => canvas.pageId === pageId);
 };
@@ -336,10 +573,24 @@ export const getLayersForCanvas = (canvasId: string) => {
   return sampleData.layers.filter((layer) => layer.canvasId === canvasId);
 };
 
-export const getPageStructure = () => {
+export const getFullProjectStructure = (projectId: string) => {
+  const pages = getPagesForProject(projectId);
+  return pages.map((page) => ({
+    ...page,
+    canvases: getCanvasesForPage(page.id).map((canvas) => ({
+      ...canvas,
+      layers: getLayersForCanvas(canvas.id),
+    })),
+  }));
+};
+
+export const getPageStructure = (pageId: string) => {
+  const page = sampleData.pages.find((p) => p.id === pageId);
+  if (!page) return null;
+
   return {
-    page: sampleData.page,
-    canvases: sampleData.canvases.map((canvas) => ({
+    page,
+    canvases: getCanvasesForPage(pageId).map((canvas) => ({
       ...canvas,
       layers: getLayersForCanvas(canvas.id),
     })),
@@ -347,11 +598,16 @@ export const getPageStructure = () => {
 };
 
 console.log("샘플 데이터 구조:", {
-  page: sampleData.page.name,
+  projectId: "proj-webtoon-001",
+  pageCount: sampleData.pages.length,
   canvasCount: sampleData.canvases.length,
   totalLayers: sampleData.layers.length,
-  layersByCanvas: sampleData.canvases.map((canvas) => ({
-    canvasName: canvas.name,
-    layerCount: getLayersForCanvas(canvas.id).length,
+  pageStructure: sampleData.pages.map((page) => ({
+    pageName: page.name,
+    canvasCount: getCanvasesForPage(page.id).length,
+    layerCount: getCanvasesForPage(page.id).reduce(
+      (total, canvas) => total + getLayersForCanvas(canvas.id).length,
+      0
+    ),
   })),
 });
