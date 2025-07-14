@@ -1,6 +1,7 @@
 "use client";
 import { LeftSidebar } from "@/components/Workspace/LeftSidebar/LeftSidebar";
 import { RightSidebar } from "@/components/Workspace/RightSidebar/RightSidebar";
+import Toolsbar from "@/components/Workspace/Toolsbar/Toolsbar";
 import { useCallback, useRef, useState } from "react";
 
 interface WorkspaceLayoutProps {
@@ -114,7 +115,7 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
-      <div className="w-full h-full bg-gray-100">{children}</div>
+      <div>{children}</div>
 
       <LeftSidebar
         width={leftWidth}
@@ -130,6 +131,7 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
         onToggle={toggleRightSidebar}
         onMouseDown={handleMouseDown("right")}
       />
+      <Toolsbar />
     </div>
   );
 }

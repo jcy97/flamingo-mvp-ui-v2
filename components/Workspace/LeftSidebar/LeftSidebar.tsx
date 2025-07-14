@@ -61,7 +61,7 @@ export function LeftSidebar({
         </div>
       </div>
       <div
-        className={`absolute top-0 h-full w-1 bg-gray-200 hover:bg-primary-500 cursor-col-resize z-30 ${
+        className={`absolute top-0 h-full w-1 hover:bg-primary-500 cursor-col-resize z-30 ${
           isDragging ? "bg-primary-500" : ""
         }`}
         style={{ left: width }}
