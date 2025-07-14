@@ -1,6 +1,11 @@
 "use client";
 
 import { ArrowLeftToLine, ArrowRightToLine } from "lucide-react";
+import Connection from "./Communication/Connection/Connection";
+import Conference from "./Communication/Conference/Conference";
+import Separator from "@/components/Common/Separator";
+import Properties from "./Properties/Properties";
+import Layer from "./Layer/Layer";
 
 interface RightSidebarProps {
   width: number;
@@ -43,9 +48,8 @@ export function RightSidebar({
         className="absolute top-0 right-0 h-full bg-neutral-900 border-l z-20 overflow-hidden"
         style={{ width }}
       >
-        <div className="p-4 text-neutral-100">
+        <div className="flex flex-col p-4 text-neutral-100">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold">Right Sidebar</h3>
             <button
               onClick={onToggle}
               className="p-1 hover:bg-primary-500 rounded cursor-pointer"
@@ -53,7 +57,12 @@ export function RightSidebar({
               <ArrowRightToLine size={16} />
             </button>
           </div>
-          {children}
+          <Connection />
+          <Conference />
+          <Separator />
+          <Properties />
+          <Separator />
+          <Layer />
         </div>
       </div>
     </>
