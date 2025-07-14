@@ -33,3 +33,67 @@ export const autoSelectFirstCanvasAtom = atom(null, (get, set) => {
     set(currentCanvasIdAtom, null);
   }
 });
+
+// Add new canvas action
+export const addCanvasAtom = atom(null, (get, set) => {
+  const currentPageId = get(currentPageIdAtom);
+  if (!currentPageId) return;
+
+  const canvases = get(canvasesAtom);
+  const canvasesForCurrentPage = get(canvasesForCurrentPageAtom);
+  const newCanvasId = `canvas-${String(Date.now()).slice(-3)}`;
+
+  const newCanvas: Canvas = {
+    id: newCanvasId,
+    pageId: currentPageId,
+    name: `새 캔버스 ${canvasesForCurrentPage.length + 1}`,
+    order: canvasesForCurrentPage.length + 1,
+    width: 800,
+    height: 400,
+    unit: "px",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const updatedCanvases = [...canvases, newCanvas];
+  sampleData.canvases = updatedCanvases;
+  set(canvasesAtom, updatedCanvases);
+  set(currentCanvasIdAtom, newCanvasId);
+});
+
+// Reorder canvases action
+export const reorderCanvasesAtom = atom(
+  null,
+  (
+    get,
+    set,
+    { dragIndex, hoverIndex }: { dragIndex: number; hoverIndex: number }
+  ) => {
+    const canvases = get(canvasesAtom);
+    const canvasesForCurrentPage = get(canvasesForCurrentPageAtom);
+    const currentPageId = get(currentPageIdAtom);
+
+    if (!currentPageId) return;
+
+    const draggedCanvas = canvasesForCurrentPage[dragIndex];
+    const newCanvasesForPage = [...canvasesForCurrentPage];
+
+    newCanvasesForPage.splice(dragIndex, 1);
+    newCanvasesForPage.splice(hoverIndex, 0, draggedCanvas);
+
+    const reorderedCanvasesForPage = newCanvasesForPage.map(
+      (canvas, index) => ({
+        ...canvas,
+        order: index + 1,
+      })
+    );
+
+    const otherCanvases = canvases.filter(
+      (canvas) => canvas.pageId !== currentPageId
+    );
+    const updatedCanvases = [...otherCanvases, ...reorderedCanvasesForPage];
+
+    sampleData.canvases = updatedCanvases;
+    set(canvasesAtom, updatedCanvases);
+  }
+);
