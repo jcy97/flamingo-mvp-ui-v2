@@ -55,6 +55,42 @@ export const addPageAtom = atom(null, (get, set) => {
   set(currentPageIdAtom, newPageId);
 });
 
+// Update page action
+export const updatePageAtom = atom(
+  null,
+  (get, set, { pageId, name }: { pageId: string; name: string }) => {
+    const pages = get(pagesAtom);
+    const updatedPages = pages.map((page) =>
+      page.id === pageId ? { ...page, name, updatedAt: new Date() } : page
+    );
+
+    sampleData.pages = updatedPages;
+    set(pagesAtom, updatedPages);
+  }
+);
+
+// Delete page action
+export const deletePageAtom = atom(null, (get, set, pageId: string) => {
+  const pages = get(pagesAtom);
+  const currentPageId = get(currentPageIdAtom);
+
+  if (pages.length <= 1) return;
+
+  const updatedPages = pages.filter((page) => page.id !== pageId);
+  const updatedCanvases = sampleData.canvases.filter(
+    (canvas) => canvas.pageId !== pageId
+  );
+
+  sampleData.pages = updatedPages;
+  sampleData.canvases = updatedCanvases;
+
+  set(pagesAtom, updatedPages);
+
+  if (currentPageId === pageId) {
+    set(currentPageIdAtom, updatedPages[0]?.id || null);
+  }
+});
+
 // Reorder pages action
 export const reorderPagesAtom = atom(
   null,

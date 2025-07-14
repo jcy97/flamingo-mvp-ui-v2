@@ -6,6 +6,7 @@ import {
   currentCanvasIdAtom,
   reorderCanvasesAtom,
 } from "@/stores/canvasStore";
+import "@/styles/scrollbar.css";
 
 function CanvasList() {
   const [canvasesForCurrentPage] = useAtom(canvasesForCurrentPageAtom);
@@ -52,7 +53,7 @@ function CanvasList() {
   };
 
   return (
-    <div className="flex flex-col items-center gap-4 h-full overflow-y-auto p-2">
+    <div className="flex flex-col items-center gap-4 h-full overflow-y-auto p-2 custom-scrollbar">
       {canvasesForCurrentPage.map((canvas, index) => (
         <div
           key={canvas.id}

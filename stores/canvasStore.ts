@@ -61,6 +61,42 @@ export const addCanvasAtom = atom(null, (get, set) => {
   set(currentCanvasIdAtom, newCanvasId);
 });
 
+// Update canvas action
+export const updateCanvasAtom = atom(
+  null,
+  (get, set, { canvasId, name }: { canvasId: string; name: string }) => {
+    const canvases = get(canvasesAtom);
+    const updatedCanvases = canvases.map((canvas) =>
+      canvas.id === canvasId
+        ? { ...canvas, name, updatedAt: new Date() }
+        : canvas
+    );
+
+    sampleData.canvases = updatedCanvases;
+    set(canvasesAtom, updatedCanvases);
+  }
+);
+
+// Delete canvas action
+export const deleteCanvasAtom = atom(null, (get, set, canvasId: string) => {
+  const canvases = get(canvasesAtom);
+  const currentCanvasId = get(currentCanvasIdAtom);
+  const canvasesForCurrentPage = get(canvasesForCurrentPageAtom);
+
+  if (canvasesForCurrentPage.length <= 1) return;
+
+  const updatedCanvases = canvases.filter((canvas) => canvas.id !== canvasId);
+  sampleData.canvases = updatedCanvases;
+  set(canvasesAtom, updatedCanvases);
+
+  if (currentCanvasId === canvasId) {
+    const remainingCanvases = updatedCanvases.filter(
+      (canvas) => canvas.pageId === get(currentPageIdAtom)
+    );
+    set(currentCanvasIdAtom, remainingCanvases[0]?.id || null);
+  }
+});
+
 // Reorder canvases action
 export const reorderCanvasesAtom = atom(
   null,

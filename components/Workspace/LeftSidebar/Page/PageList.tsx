@@ -7,6 +7,7 @@ import {
   reorderPagesAtom,
 } from "@/stores/pageStore";
 import { autoSelectFirstCanvasAtom } from "@/stores/canvasStore";
+import "@/styles/scrollbar.css";
 
 function PageList() {
   const [pages] = useAtom(pagesAtom);
@@ -55,7 +56,7 @@ function PageList() {
   };
 
   return (
-    <div className="text-xs text-neutral-100 max-h-[150px] overflow-y-auto">
+    <div className="text-xs text-neutral-100 max-h-[150px] overflow-y-auto custom-scrollbar">
       {pages.map((page, index) => (
         <div key={page.id} className="relative">
           {/* Drop indicator above current item */}
