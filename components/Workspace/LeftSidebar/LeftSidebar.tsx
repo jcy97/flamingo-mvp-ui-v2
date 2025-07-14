@@ -1,10 +1,12 @@
 "use client";
 
-import AddButton from "@/components/Common/Button/AddButton";
 import Page from "./Page/Page";
 import { ArrowLeftToLine, ArrowRightToLine } from "lucide-react";
 import Separator from "@/components/Common/Separator";
 import Canvas from "./Canvas/Canvas";
+import { useEffect } from "react";
+import { useSetAtom } from "jotai";
+import { autoSelectFirstCanvasAtom } from "@/stores/canvasStore";
 
 interface LeftSidebarProps {
   width: number;
@@ -23,6 +25,12 @@ export function LeftSidebar({
   onMouseDown,
   children,
 }: LeftSidebarProps) {
+  const autoSelectFirstCanvas = useSetAtom(autoSelectFirstCanvasAtom);
+
+  useEffect(() => {
+    autoSelectFirstCanvas();
+  }, [autoSelectFirstCanvas]);
+
   if (!visible) {
     return (
       <button

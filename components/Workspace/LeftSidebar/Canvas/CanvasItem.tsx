@@ -5,11 +5,27 @@ import React from "react";
 interface CanvasItemProps {
   data: Canvas;
   isSelected: boolean;
+  onSelect: (canvasId: string) => void;
 }
 
-function CanvasItem({ data, isSelected }: CanvasItemProps): React.ReactElement {
+function CanvasItem({
+  data,
+  isSelected,
+  onSelect,
+}: CanvasItemProps): React.ReactElement {
+  const handleClick = () => {
+    onSelect(data.id);
+  };
+
   return (
-    <div className="w-[85%] aspect-[4/3] min-w-[140px] rounded-xl border border-neutral-500 flex flex-col cursor-pointer hover:border-primary-500 hover:border-2">
+    <div
+      className={`w-[85%] aspect-[4/3] min-w-[140px] rounded-xl border-2 flex flex-col cursor-pointer transition-colors ${
+        isSelected
+          ? "border-primary"
+          : "border-neutral-500 hover:border-primary-500"
+      }`}
+      onClick={handleClick}
+    >
       <div className="h-[20%] min-h-[25px] bg-neutral-700 rounded-tl-xl rounded-tr-xl px-2 flex items-center justify-between">
         <span className="text-ellipsis overflow-hidden whitespace-nowrap flex-1 mr-2 text-sm">
           {data.name}
