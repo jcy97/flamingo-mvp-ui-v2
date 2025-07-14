@@ -41,3 +41,7 @@ yarn-error.log*
 next-env.d.ts
 
 .gitmessage.txt
+
+test.html
+test.css
+test.js
