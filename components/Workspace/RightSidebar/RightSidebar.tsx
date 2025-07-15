@@ -89,7 +89,7 @@ export function RightSidebar({
       />
       <div
         ref={sidebarRef}
-        className="absolute top-0 right-0 h-full bg-neutral-900 border-l z-20 overflow-hidden"
+        className="absolute top-0 right-0 h-full bg-neutral-900 border-l z-20"
         style={{ width }}
       >
         <div className="flex flex-col h-full text-neutral-100">
@@ -103,7 +103,7 @@ export function RightSidebar({
           </div>
 
           <div className="px-4 pb-2 space-y-2">
-            <Connection />
+            <Connection sidebarWidth={width} />
             <Conference />
           </div>
           <Separator />
