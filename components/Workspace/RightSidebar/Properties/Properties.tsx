@@ -4,10 +4,12 @@ import "@/styles/scrollbar.css";
 
 function Properties() {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3 h-full">
       <div className="flex items-center gap-2">
-        <Settings size={14} className="text-neutral-400" />
-        <span className="text-xs font-bold">프로퍼티</span>
+        <div className="flex items-center gap-1 bg-neutral-800 px-2 py-1 rounded">
+          <Settings size={12} className="text-neutral-400" />
+          <span className="text-xs font-medium">프로퍼티</span>
+        </div>
       </div>
       <div className="flex-1 bg-neutral-800 rounded-md p-3 overflow-y-auto custom-scrollbar min-h-0">
         <div className="space-y-3">
@@ -15,7 +17,7 @@ function Properties() {
             <label className="text-xs text-neutral-400 block mb-1">Width</label>
             <input
               type="number"
-              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs"
+              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors"
               placeholder="100"
             />
           </div>
@@ -25,7 +27,7 @@ function Properties() {
             </label>
             <input
               type="number"
-              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs"
+              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors"
               placeholder="100"
             />
           </div>
@@ -35,7 +37,7 @@ function Properties() {
             </label>
             <input
               type="number"
-              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs"
+              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors"
               placeholder="0"
             />
           </div>
@@ -45,7 +47,7 @@ function Properties() {
             </label>
             <input
               type="number"
-              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs"
+              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors"
               placeholder="0"
             />
           </div>
@@ -55,7 +57,7 @@ function Properties() {
             </label>
             <input
               type="number"
-              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs"
+              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors"
               placeholder="0"
             />
           </div>
@@ -63,7 +65,12 @@ function Properties() {
             <label className="text-xs text-neutral-400 block mb-1">
               Opacity
             </label>
-            <input type="range" min="0" max="100" className="w-full" />
+            <input
+              type="range"
+              min="0"
+              max="100"
+              className="w-full accent-primary-500"
+            />
           </div>
           <div>
             <label className="text-xs text-neutral-400 block mb-1">
@@ -71,7 +78,7 @@ function Properties() {
             </label>
             <input
               type="color"
-              className="w-full h-8 bg-neutral-700 border border-neutral-600 rounded"
+              className="w-full h-8 bg-neutral-700 border border-neutral-600 rounded cursor-pointer"
             />
           </div>
           <div>
@@ -80,7 +87,7 @@ function Properties() {
             </label>
             <input
               type="number"
-              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs"
+              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors"
               placeholder="1"
             />
           </div>
@@ -90,7 +97,7 @@ function Properties() {
             </label>
             <input
               type="color"
-              className="w-full h-8 bg-neutral-700 border border-neutral-600 rounded"
+              className="w-full h-8 bg-neutral-700 border border-neutral-600 rounded cursor-pointer"
             />
           </div>
           <div>
@@ -99,7 +106,7 @@ function Properties() {
             </label>
             <input
               type="number"
-              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs"
+              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors"
               placeholder="0"
             />
           </div>
@@ -109,7 +116,7 @@ function Properties() {
             </label>
             <input
               type="number"
-              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs"
+              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors"
               placeholder="0"
             />
           </div>
@@ -119,7 +126,7 @@ function Properties() {
             </label>
             <input
               type="number"
-              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs"
+              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors"
               placeholder="0"
             />
           </div>
@@ -129,7 +136,7 @@ function Properties() {
             </label>
             <input
               type="number"
-              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs"
+              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors"
               placeholder="0"
             />
           </div>
@@ -139,14 +146,14 @@ function Properties() {
             </label>
             <input
               type="color"
-              className="w-full h-8 bg-neutral-700 border border-neutral-600 rounded"
+              className="w-full h-8 bg-neutral-700 border border-neutral-600 rounded cursor-pointer"
             />
           </div>
           <div>
             <label className="text-xs text-neutral-400 block mb-1">
               Font Family
             </label>
-            <select className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs">
+            <select className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors">
               <option>Arial</option>
               <option>Helvetica</option>
               <option>Times New Roman</option>
@@ -158,7 +165,7 @@ function Properties() {
             </label>
             <input
               type="number"
-              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs"
+              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors"
               placeholder="14"
             />
           </div>
@@ -166,7 +173,7 @@ function Properties() {
             <label className="text-xs text-neutral-400 block mb-1">
               Font Weight
             </label>
-            <select className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs">
+            <select className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors">
               <option>Normal</option>
               <option>Bold</option>
               <option>Light</option>
@@ -178,14 +185,14 @@ function Properties() {
             </label>
             <input
               type="color"
-              className="w-full h-8 bg-neutral-700 border border-neutral-600 rounded"
+              className="w-full h-8 bg-neutral-700 border border-neutral-600 rounded cursor-pointer"
             />
           </div>
           <div>
             <label className="text-xs text-neutral-400 block mb-1">
               Text Align
             </label>
-            <select className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs">
+            <select className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors">
               <option>Left</option>
               <option>Center</option>
               <option>Right</option>
@@ -198,7 +205,7 @@ function Properties() {
             </label>
             <input
               type="number"
-              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs"
+              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors"
               placeholder="1.5"
               step="0.1"
             />
@@ -209,7 +216,7 @@ function Properties() {
             </label>
             <input
               type="number"
-              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs"
+              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors"
               placeholder="0"
               step="0.1"
             />

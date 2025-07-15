@@ -16,20 +16,20 @@ function Conference() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-1 hover:bg-neutral-700 rounded p-1 -ml-1"
+            className="flex items-center gap-1 hover:bg-neutral-700 rounded px-2 py-1 transition-colors"
           >
             {isExpanded ? (
               <ChevronDown size={12} className="text-neutral-400" />
             ) : (
               <ChevronRight size={12} className="text-neutral-400" />
             )}
-            <Video size={14} className="text-neutral-400" />
-            <span className="text-xs font-bold">컨퍼런스</span>
+            <Video size={12} className="text-neutral-400" />
+            <span className="text-xs font-medium">컨퍼런스</span>
           </button>
         </div>
         <button
           onClick={handleJoinClick}
-          className="flex items-center gap-1 px-2 py-1 bg-primary-500 hover:bg-primary-700 rounded text-xs transition-colors"
+          className="flex items-center gap-1 px-2 py-1 bg-primary-500 cursor-pointer hover:bg-primary-300 rounded text-xs transition-colors"
         >
           <Play size={10} />
           참가
@@ -48,7 +48,9 @@ function Conference() {
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                 <span className="text-xs text-neutral-300">회의 진행 중</span>
               </div>
-              <div className="text-xs text-neutral-400">참가자 3명</div>
+              <div className="text-xs bg-neutral-700 px-2 py-1 rounded text-neutral-300">
+                참가자 3명
+              </div>
             </div>
           )}
         </div>

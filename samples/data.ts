@@ -1,3 +1,4 @@
+import { User } from "@/types/auth";
 import { Canvas, SizeUnit } from "@/types/canvas";
 import { BlendMode, Layer, LayerType } from "@/types/layer";
 import { Page } from "@/types/page";
@@ -611,3 +612,39 @@ console.log("샘플 데이터 구조:", {
     ),
   })),
 });
+
+export const sampleUsers: User[] = [
+  { id: "1", email: "john@example.com", name: "John Doe", role: "Designer" },
+  { id: "2", email: "jane@example.com", name: "Jane Smith", role: "Developer" },
+  { id: "3", email: "bob@example.com", name: "Bob Johnson", role: "Manager" },
+  {
+    id: "4",
+    email: "alice@example.com",
+    name: "Alice Brown",
+    role: "Designer",
+  },
+  {
+    id: "5",
+    email: "charlie@example.com",
+    name: "Charlie Wilson",
+    role: "Developer",
+  },
+  {
+    id: "6",
+    email: "diana@example.com",
+    name: "Diana Davis",
+    role: "Product Manager",
+  },
+  {
+    id: "7",
+    email: "eve@example.com",
+    name: "Eve Miller",
+    role: "UX Researcher",
+  },
+  {
+    id: "8",
+    email: "frank@example.com",
+    name: "Frank Garcia",
+    role: "Frontend Developer",
+  },
+];

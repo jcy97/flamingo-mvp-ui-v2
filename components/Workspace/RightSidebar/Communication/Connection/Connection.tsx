@@ -1,44 +1,9 @@
 import React, { useState, useMemo } from "react";
-import { Users, ChevronDown, ChevronRight, Share2 } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import ProfileIcon from "@/components/Common/ProfileIcon";
 import { User } from "@/types/auth";
 import "@/styles/scrollbar.css";
-
-const sampleUsers: User[] = [
-  { id: "1", email: "john@example.com", name: "John Doe", role: "Designer" },
-  { id: "2", email: "jane@example.com", name: "Jane Smith", role: "Developer" },
-  { id: "3", email: "bob@example.com", name: "Bob Johnson", role: "Manager" },
-  {
-    id: "4",
-    email: "alice@example.com",
-    name: "Alice Brown",
-    role: "Designer",
-  },
-  {
-    id: "5",
-    email: "charlie@example.com",
-    name: "Charlie Wilson",
-    role: "Developer",
-  },
-  {
-    id: "6",
-    email: "diana@example.com",
-    name: "Diana Davis",
-    role: "Product Manager",
-  },
-  {
-    id: "7",
-    email: "eve@example.com",
-    name: "Eve Miller",
-    role: "UX Researcher",
-  },
-  {
-    id: "8",
-    email: "frank@example.com",
-    name: "Frank Garcia",
-    role: "Frontend Developer",
-  },
-];
+import { sampleUsers } from "@/samples/data";
 
 interface ConnectionProps {
   sidebarWidth?: number;
@@ -48,51 +13,38 @@ function Connection({ sidebarWidth = 300 }: ConnectionProps) {
   const [isExpanded, setIsExpanded] = useState(true);
 
   const maxVisibleUsers = useMemo(() => {
-    const availableWidth = sidebarWidth - 32; // padding 제외
-    const iconSize = 20; // 아이콘 크기
-    const gap = 4; // gap
+    const availableWidth = sidebarWidth - 32;
+    const iconSize = 20;
+    const gap = 4;
     const iconWithGap = iconSize + gap;
     const plusButtonWidth = iconSize + gap;
 
-    // +버튼 공간을 고려한 계산
     const usersPerRow = Math.floor(
       (availableWidth - plusButtonWidth) / iconWithGap
     );
 
-    // 최소 3개는 보장, 최대 제한 없음
     return Math.max(3, usersPerRow);
   }, [sidebarWidth]);
 
   const visibleUsers = sampleUsers.slice(0, maxVisibleUsers);
   const hiddenUsers = sampleUsers.slice(maxVisibleUsers);
 
-  const handleShareClick = () => {
-    console.log("Share workspace");
-  };
-
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-1 hover:bg-neutral-700 rounded p-1 -ml-1"
-          >
-            {isExpanded ? (
-              <ChevronDown size={12} className="text-neutral-400" />
-            ) : (
-              <ChevronRight size={12} className="text-neutral-400" />
-            )}
-            <Users size={14} className="text-neutral-400" />
-            <span className="text-xs font-bold">접속자</span>
-          </button>
-        </div>
+      <div className="flex items-center gap-2">
         <button
-          onClick={handleShareClick}
-          className="flex items-center gap-1 px-2 py-1 bg-secondary-500 hover:bg-secondary-700 rounded text-xs transition-colors"
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="flex items-center gap-1 hover:bg-neutral-700 rounded px-2 py-1 transition-colors"
         >
-          <Share2 size={10} />
-          공유
+          {isExpanded ? (
+            <ChevronDown size={12} className="text-neutral-400" />
+          ) : (
+            <ChevronRight size={12} className="text-neutral-400" />
+          )}
+          <span className="text-xs font-medium">접속자</span>
+          <span className="text-xs bg-neutral-700 px-1 py-0.5 rounded text-neutral-300">
+            {sampleUsers.length}
+          </span>
         </button>
       </div>
 
