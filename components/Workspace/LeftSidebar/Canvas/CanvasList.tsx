@@ -1,26 +1,23 @@
 import React, { useState } from "react";
 import { useAtom, useSetAtom } from "jotai";
-import PageItem from "./PageItem";
+import CanvasItem from "./CanvasItem";
 import {
-  pagesAtom,
-  currentPageIdAtom,
-  reorderPagesAtom,
-} from "@/stores/pageStore";
-import { autoSelectFirstCanvasAtom } from "@/stores/canvasStore";
+  canvasesForCurrentPageAtom,
+  currentCanvasIdAtom,
+  reorderCanvasesAtom,
+} from "@/stores/canvasStore";
 import "@/styles/scrollbar.css";
 
-function PageList() {
-  const [pages] = useAtom(pagesAtom);
-  const [currentPageId, setCurrentPageId] = useAtom(currentPageIdAtom);
-  const autoSelectFirstCanvas = useSetAtom(autoSelectFirstCanvasAtom);
-  const reorderPages = useSetAtom(reorderPagesAtom);
+function CanvasList() {
+  const [canvasesForCurrentPage] = useAtom(canvasesForCurrentPageAtom);
+  const [currentCanvasId, setCurrentCanvasId] = useAtom(currentCanvasIdAtom);
+  const reorderCanvases = useSetAtom(reorderCanvasesAtom);
 
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
-  const handlePageSelect = (pageId: string) => {
-    setCurrentPageId(pageId);
-    autoSelectFirstCanvas();
+  const handleCanvasSelect = (canvasId: string) => {
+    setCurrentCanvasId(canvasId);
   };
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
@@ -48,7 +45,7 @@ function PageList() {
     e.preventDefault();
 
     if (draggedIndex !== null && draggedIndex !== dropIndex) {
-      reorderPages({ dragIndex: draggedIndex, hoverIndex: dropIndex });
+      reorderCanvases({ dragIndex: draggedIndex, hoverIndex: dropIndex });
     }
 
     setDraggedIndex(null);
@@ -56,20 +53,23 @@ function PageList() {
   };
 
   return (
-    <div className="text-xs text-neutral-100 max-h-[150px] overflow-y-auto custom-scrollbar">
-      {pages.map((page, index) => (
-        <div key={page.id} className="relative">
+    <div className="flex flex-col items-center gap-4 h-full overflow-y-auto p-2 custom-scrollbar">
+      {canvasesForCurrentPage.map((canvas, index) => (
+        <div
+          key={canvas.id}
+          className="relative w-full flex flex-col items-center"
+        >
           {/* Drop indicator above current item */}
           {dragOverIndex === index &&
             draggedIndex !== null &&
             draggedIndex !== index && (
-              <div className="h-0.5 bg-primary mb-1 animate-pulse" />
+              <div className="w-[85%] h-1 bg-primary rounded mb-2 animate-pulse" />
             )}
 
-          <PageItem
-            data={page}
-            isSelected={currentPageId === page.id}
-            onSelect={handlePageSelect}
+          <CanvasItem
+            data={canvas}
+            isSelected={currentCanvasId === canvas.id}
+            onSelect={handleCanvasSelect}
             isDragging={draggedIndex === index}
             onDragStart={(e) => handleDragStart(e, index)}
             onDragEnd={handleDragEnd}
@@ -83,4 +83,4 @@ function PageList() {
   );
 }
 
-export default PageList;
+export default CanvasList;
