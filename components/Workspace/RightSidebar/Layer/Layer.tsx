@@ -19,29 +19,41 @@ function Layer() {
   ];
 
   return (
-    <div className="flex flex-col gap-2 h-full">
+    <div className="flex flex-col gap-3 h-full">
       <div className="flex items-center gap-2">
-        <Layers size={14} className="text-neutral-400" />
-        <span className="text-xs font-bold">레이어</span>
+        <div className="flex items-center gap-1 bg-neutral-800 px-2 py-1 rounded">
+          <Layers size={12} className="text-neutral-400" />
+          <span className="text-xs font-medium">레이어</span>
+        </div>
       </div>
       <div className="flex-1 bg-neutral-800 rounded-md p-2 overflow-y-auto custom-scrollbar">
         <div className="space-y-1">
           {layers.map((layer, index) => (
             <div
               key={layer.id}
-              className="flex items-center gap-2 p-2 rounded hover:bg-neutral-700 cursor-pointer transition-colors"
+              className="flex items-center gap-2 p-2 rounded hover:bg-neutral-700 cursor-pointer transition-colors group"
             >
               <div className="flex items-center gap-1">
-                <button className="p-0.5 hover:bg-neutral-600 rounded">
+                <button className="p-0.5 hover:bg-neutral-600 rounded transition-colors">
                   {layer.visible ? (
-                    <Eye size={12} className="text-neutral-400" />
+                    <Eye
+                      size={12}
+                      className="text-neutral-400 group-hover:text-neutral-300"
+                    />
                   ) : (
-                    <EyeOff size={12} className="text-neutral-500" />
+                    <EyeOff
+                      size={12}
+                      className="text-neutral-500 group-hover:text-neutral-400"
+                    />
                   )}
                 </button>
-                {layer.locked && <Lock size={10} className="text-yellow-500" />}
+                {layer.locked && (
+                  <Lock size={10} className="text-yellow-500 opacity-80" />
+                )}
               </div>
-              <span className="flex-1 text-xs truncate">{layer.name}</span>
+              <span className="flex-1 text-xs truncate text-neutral-300 group-hover:text-neutral-200">
+                {layer.name}
+              </span>
             </div>
           ))}
         </div>

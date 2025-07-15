@@ -1,12 +1,13 @@
 "use client";
 
-import { ArrowLeftToLine, ArrowRightToLine } from "lucide-react";
+import { ArrowLeftToLine, ArrowRightToLine, Users, Share2 } from "lucide-react";
 import Connection from "./Communication/Connection/Connection";
 import Conference from "./Communication/Conference/Conference";
 import Properties from "./Properties/Properties";
 import Layer from "./Layer/Layer";
 import { useState, useCallback, useRef, useEffect } from "react";
 import "@/styles/scrollbar.css";
+import Separator from "@/components/Common/Separator";
 
 interface RightSidebarProps {
   width: number;
@@ -28,11 +29,16 @@ export function RightSidebar({
   const [propertiesHeight, setPropertiesHeight] = useState(60);
   const [isDraggingSeparator, setIsDraggingSeparator] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const isNarrow = width < 250;
 
   const handleSeparatorMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     setIsDraggingSeparator(true);
   }, []);
+
+  const handleShareClick = () => {
+    console.log("Share workspace");
+  };
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -70,7 +76,7 @@ export function RightSidebar({
     return (
       <button
         onClick={onToggle}
-        className="absolute top-4 right-0 z-30 p-1 text-neutral-100 bg-neutral-900 border rounded cursor-pointer shadow-sm hover:bg-primary-500"
+        className="absolute top-4 right-0 z-30 p-2 text-neutral-100 bg-neutral-900 border border-neutral-700 rounded-l cursor-pointer shadow-lg hover:bg-primary-500 hover:border-primary-500 transition-colors"
       >
         <ArrowLeftToLine size={16} />
       </button>
@@ -80,30 +86,53 @@ export function RightSidebar({
   return (
     <>
       <div
-        className={`absolute top-0 h-full w-1 hover:bg-primary-500 cursor-col-resize z-30 ${
-          isDragging ? "bg-primary-500" : ""
+        className={`absolute top-0 h-full w-1 hover:bg-primary-500 cursor-col-resize z-30 transition-colors ${
+          isDragging ? "bg-primary-500" : "bg-neutral-700"
         }`}
         style={{ right: width }}
         onMouseDown={onMouseDown}
       />
       <div
         ref={sidebarRef}
-        className="absolute top-0 right-0 h-full bg-neutral-900 border-l z-20 overflow-hidden"
+        className="absolute top-0 right-0 h-full bg-neutral-900 border-l border-neutral-700 z-20"
         style={{ width }}
       >
         <div className="flex flex-col h-full text-neutral-100">
-          <div className="flex items-center justify-end p-4 pb-2">
-            <button
-              onClick={onToggle}
-              className="p-1 hover:bg-primary-500 rounded cursor-pointer"
-            >
-              <ArrowRightToLine size={16} />
-            </button>
-          </div>
+          <div className="p-3 pb-2 border-b border-neutral-800">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-1 bg-neutral-800 px-2 py-1 rounded">
+                  <Users size={12} className="text-neutral-400 flex-shrink-0" />
+                  {!isNarrow && (
+                    <span className="text-xs font-medium text-neutral-300">
+                      워크스페이스
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  onClick={handleShareClick}
+                  className="flex items-center gap-1 px-2 py-1 bg-secondary-500 cursor-pointer hover:bg-secondary-300 rounded text-xs transition-colors"
+                  title="공유"
+                >
+                  <Share2 size={10} />
+                  {!isNarrow && "공유"}
+                </button>
+                <button
+                  onClick={onToggle}
+                  className="p-1 hover:bg-neutral-700 rounded cursor-pointer transition-colors"
+                  title="사이드바 닫기"
+                >
+                  <ArrowRightToLine size={14} />
+                </button>
+              </div>
+            </div>
 
-          <div className="px-4 pb-2 space-y-2">
-            <Connection />
-            <Conference />
+            <div className="space-y-2">
+              <Connection sidebarWidth={width} />
+              <Conference />
+            </div>
           </div>
 
           <div className="flex-1 flex flex-col min-h-0">
@@ -111,14 +140,14 @@ export function RightSidebar({
               className="overflow-hidden"
               style={{ height: `${propertiesHeight}%` }}
             >
-              <div className="px-4">
+              <div className="px-3 py-2">
                 <Properties />
               </div>
             </div>
 
             <div
-              className={`relative h-1 hover:bg-primary-500 cursor-row-resize mx-4 ${
-                isDraggingSeparator ? "bg-primary-500" : "bg-neutral-600"
+              className={`relative h-1 hover:bg-primary-500 cursor-row-resize mx-3 transition-colors ${
+                isDraggingSeparator ? "bg-primary-500" : "bg-neutral-700"
               }`}
               onMouseDown={handleSeparatorMouseDown}
             >
@@ -129,7 +158,7 @@ export function RightSidebar({
               className="flex-1 overflow-hidden"
               style={{ height: `${100 - propertiesHeight}%` }}
             >
-              <div className="px-4 h-full">
+              <div className="px-3 py-2 h-full">
                 <Layer />
               </div>
             </div>
