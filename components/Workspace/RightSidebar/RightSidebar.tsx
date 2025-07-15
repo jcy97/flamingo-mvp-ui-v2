@@ -7,6 +7,7 @@ import Properties from "./Properties/Properties";
 import Layer from "./Layer/Layer";
 import { useState, useCallback, useRef, useEffect } from "react";
 import "@/styles/scrollbar.css";
+import Separator from "@/components/Common/Separator";
 
 interface RightSidebarProps {
   width: number;
@@ -105,6 +106,7 @@ export function RightSidebar({
             <Connection />
             <Conference />
           </div>
+          <Separator />
 
           <div className="flex-1 flex flex-col min-h-0">
             <div
