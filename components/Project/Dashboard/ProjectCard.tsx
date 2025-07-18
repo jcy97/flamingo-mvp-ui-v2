@@ -70,7 +70,7 @@ function ProjectCard({ project, onDelete }: ProjectCardProps) {
     <div className="relative group">
       <Link
         href={`/workspace?projectId=${project.id}`}
-        className="block bg-neutral-800 rounded-lg overflow-hidden hover:bg-neutral-700 hover:border-primary-500 hover:border-2 transition-colors"
+        className="block bg-neutral-800 border border-neutral-800 rounded-lg overflow-hidden hover:bg-neutral-700 hover:border-primary-500 hover:border-2 transition-colors"
       >
         <div className="aspect-[4/3] bg-neutral-700 relative overflow-hidden">
           {project.thumbnail ? (

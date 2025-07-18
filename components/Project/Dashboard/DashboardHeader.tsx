@@ -46,7 +46,7 @@ function DashboardHeader({ onSearch, onCreateProject }: DashboardHeaderProps) {
             placeholder="프로젝트 검색..."
             value={searchQuery}
             onChange={handleSearchChange}
-            className="w-full bg-neutral-700 border border-neutral-600 rounded-lg pl-10 pr-4 py-3 text-neutral-100 placeholder-neutral-400 focus:outline-none focus:border-primary-500 transition-colors"
+            className="w-full bg-neutral-800 border border-neutral-600 rounded-lg pl-10 pr-4 py-3 text-neutral-100 placeholder-neutral-400 focus:outline-none focus:border-primary-500 transition-colors"
           />
         </div>
       </div>
