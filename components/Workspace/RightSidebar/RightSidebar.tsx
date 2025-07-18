@@ -148,7 +148,7 @@ export function RightSidebar({
               className="overflow-hidden"
               style={{ height: `${propertiesHeight}%` }}
             >
-              <div className="px-3 py-2">
+              <div className="px-3 py-2 h-full">
                 <Properties />
               </div>
             </div>
