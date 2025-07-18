@@ -5,6 +5,9 @@ import Connection from "./Communication/Connection/Connection";
 import Conference from "./Communication/Conference/Conference";
 import Properties from "./Properties/Properties";
 import Layer from "./Layer/Layer";
+import ShareModal from "./ShareModal";
+import Modal from "@/components/Common/Modal";
+import { usePopup } from "@/hooks/usePopup";
 import { useState, useCallback, useRef, useEffect } from "react";
 import "@/styles/scrollbar.css";
 import Separator from "@/components/Common/Separator";
@@ -28,6 +31,7 @@ export function RightSidebar({
 }: RightSidebarProps) {
   const [propertiesHeight, setPropertiesHeight] = useState(60);
   const [isDraggingSeparator, setIsDraggingSeparator] = useState(false);
+  const { popup, openPopup, closePopup } = usePopup();
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isNarrow = width < 250;
 
@@ -37,7 +41,11 @@ export function RightSidebar({
   }, []);
 
   const handleShareClick = () => {
-    console.log("Share workspace");
+    openPopup({
+      title: "워크스페이스 공유",
+      content: <ShareModal />,
+      size: "sm",
+    });
   };
 
   useEffect(() => {
@@ -140,7 +148,7 @@ export function RightSidebar({
               className="overflow-hidden"
               style={{ height: `${propertiesHeight}%` }}
             >
-              <div className="px-3 py-2">
+              <div className="px-3 py-2 h-full">
                 <Properties />
               </div>
             </div>
@@ -165,6 +173,16 @@ export function RightSidebar({
           </div>
         </div>
       </div>
+
+      <Modal
+        isOpen={popup.isOpen}
+        onClose={closePopup}
+        title={popup.title}
+        size={popup.size}
+        showCloseButton={popup.showCloseButton}
+      >
+        {popup.content}
+      </Modal>
     </>
   );
 }
