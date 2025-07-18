@@ -34,7 +34,7 @@ function DashboardHeader({ onSearch, onCreateProject }: DashboardHeaderProps) {
   }, []);
 
   return (
-    <div className="flex items-center justify-between mb-8">
+    <div className="flex items-center justify-between mb-5">
       <div className="flex-1 max-w-md">
         <div className="relative">
           <Search
