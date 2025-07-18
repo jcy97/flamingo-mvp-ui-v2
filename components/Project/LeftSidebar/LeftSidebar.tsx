@@ -12,7 +12,7 @@ function LeftSidebar() {
   return (
     <div className="fixed left-0 top-0 h-screen w-[280px] bg-neutral-900 flex flex-col z-10">
       <div className="flex flex-col p-6 flex-1">
-        <div className="flex items-center mb-8">
+        <div className="flex items-center justify-center mb-8">
           <Image src="/logo.png" alt="Flamingo Logo" width={160} height={80} />
         </div>
 
