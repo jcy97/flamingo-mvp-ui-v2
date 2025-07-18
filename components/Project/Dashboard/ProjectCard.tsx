@@ -7,6 +7,7 @@ import { Edit2, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
+import Tooltip from "./Tooltip";
 
 interface ProjectCardProps {
   project: Project;
@@ -116,9 +117,11 @@ function ProjectCard({ project, onDelete }: ProjectCardProps) {
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
-            <h3 className="font-semibold text-neutral-100 mb-2 truncate">
-              {project.name}
-            </h3>
+            <Tooltip content={project.name}>
+              <h3 className="font-semibold text-neutral-100 mb-2 truncate cursor-pointer">
+                {project.name}
+              </h3>
+            </Tooltip>
           )}
           <p className="text-sm text-neutral-400">
             {project.updatedAt
