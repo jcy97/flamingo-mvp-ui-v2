@@ -1,10 +1,23 @@
 export interface Project {
   id: string;
   name: string;
+  owner_id: string;
+  deleted_at?: Date;
   thumbnail?: string;
-  createdAt: Date;
-  updatedAt: Date;
   description?: string;
-  isShared?: boolean;
-  collaborators?: string[];
+  updatedAt?: Date;
+}
+
+export interface ProjectCollaborator {
+  project_id: string;
+  user_id: string;
+  role: "owner" | "editor" | "viewer";
+}
+
+export interface ProjectDeletionLog {
+  id: number;
+  project_id: string;
+  deleted_by: string;
+  deleted_at: Date;
+  affected_users: number;
 }

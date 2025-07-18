@@ -18,7 +18,7 @@ function ProjectCard({ project }: ProjectCardProps) {
   return (
     <Link
       href={`/workspace?projectId=${project.id}`}
-      className="block bg-neutral-800 rounded-lg overflow-hidden hover:bg-neutral-700 transition-colors group"
+      className="block bg-neutral-800 rounded-lg overflow-hidden hover:bg-neutral-700 hover:border-primary-500 hover:border-2 transition-colors group"
     >
       <div className="aspect-[4/3] bg-neutral-700 relative overflow-hidden">
         {project.thumbnail ? (
@@ -56,7 +56,9 @@ function ProjectCard({ project }: ProjectCardProps) {
           {project.name}
         </h3>
         <p className="text-sm text-neutral-400">
-          수정됨: {formatDate(project.updatedAt)}
+          {project.updatedAt
+            ? `수정됨: ${formatDate(project.updatedAt)}`
+            : "최근 활동 없음"}
         </p>
       </div>
     </Link>

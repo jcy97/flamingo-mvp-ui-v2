@@ -37,7 +37,7 @@ function DashboardHeader({ onSearch, onCreateProject }: DashboardHeaderProps) {
 
       <button
         onClick={onCreateProject}
-        className="ml-4 flex items-center gap-2 bg-primary-500 hover:bg-primary-600 text-neutral-0 px-4 py-3 rounded-lg transition-colors font-medium"
+        className="ml-4 flex items-center gap-2 cursor-pointer bg-secondary-500 hover:bg-secondary-300 text-neutral-0 px-4 py-3 rounded-lg transition-colors font-medium"
       >
         <Plus size={20} />
         <span>새 프로젝트</span>

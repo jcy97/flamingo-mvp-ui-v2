@@ -2,10 +2,9 @@ import { User } from "@/types/auth";
 import { Canvas, SizeUnit } from "@/types/canvas";
 import { BlendMode, Layer, LayerType } from "@/types/layer";
 import { Page } from "@/types/page";
+import { Project } from "@/types/project";
 
-// 샘플 데이터 생성
 const sampleData = {
-  // 여러 페이지 데이터
   pages: [
     {
       id: "page-001",
@@ -57,9 +56,7 @@ const sampleData = {
     },
   ] as Page[],
 
-  // 캔버스 데이터 (각 페이지별로 분배)
   canvases: [
-    // Page 1의 캔버스들
     {
       id: "canvas-001",
       pageId: "page-001",
@@ -93,8 +90,6 @@ const sampleData = {
       createdAt: new Date("2024-01-15T11:30:00Z"),
       updatedAt: new Date("2024-01-20T14:30:00Z"),
     },
-
-    // Page 2의 캔버스들
     {
       id: "canvas-004",
       pageId: "page-002",
@@ -117,8 +112,6 @@ const sampleData = {
       createdAt: new Date("2024-01-16T11:00:00Z"),
       updatedAt: new Date("2024-01-21T16:00:00Z"),
     },
-
-    // Page 3의 캔버스들
     {
       id: "canvas-006",
       pageId: "page-003",
@@ -143,9 +136,7 @@ const sampleData = {
     },
   ] as Canvas[],
 
-  // 레이어 데이터 (각 캔버스의 구성 요소들)
   layers: [
-    // Canvas 1의 레이어들 (Page 1)
     {
       id: "layer-001",
       canvasId: "canvas-001",
@@ -222,8 +213,6 @@ const sampleData = {
       createdAt: new Date("2024-01-15T10:15:00Z"),
       updatedAt: new Date("2024-01-15T11:30:00Z"),
     },
-
-    // Canvas 2의 레이어들 (Page 1)
     {
       id: "layer-004",
       canvasId: "canvas-002",
@@ -264,8 +253,6 @@ const sampleData = {
       createdAt: new Date("2024-01-15T11:00:00Z"),
       updatedAt: new Date("2024-01-15T11:30:00Z"),
     },
-
-    // Canvas 3의 레이어들 (Page 1)
     {
       id: "layer-006",
       canvasId: "canvas-003",
@@ -325,8 +312,6 @@ const sampleData = {
       createdAt: new Date("2024-01-15T11:45:00Z"),
       updatedAt: new Date("2024-01-15T12:15:00Z"),
     },
-
-    // Canvas 4의 레이어들 (Page 2)
     {
       id: "layer-008",
       canvasId: "canvas-004",
@@ -374,8 +359,6 @@ const sampleData = {
       createdAt: new Date("2024-01-16T10:30:00Z"),
       updatedAt: new Date("2024-01-16T11:00:00Z"),
     },
-
-    // Canvas 5의 레이어들 (Page 2)
     {
       id: "layer-010",
       canvasId: "canvas-005",
@@ -426,8 +409,6 @@ const sampleData = {
       createdAt: new Date("2024-01-16T11:15:00Z"),
       updatedAt: new Date("2024-01-16T11:45:00Z"),
     },
-
-    // Canvas 6의 레이어들 (Page 3)
     {
       id: "layer-012",
       canvasId: "canvas-006",
@@ -475,8 +456,6 @@ const sampleData = {
       createdAt: new Date("2024-01-17T11:30:00Z"),
       updatedAt: new Date("2024-01-17T12:00:00Z"),
     },
-
-    // Canvas 7의 레이어들 (Page 3)
     {
       id: "layer-014",
       canvasId: "canvas-007",
@@ -558,10 +537,8 @@ const sampleData = {
   ] as Layer[],
 };
 
-// 타입 확인을 위한 export
 export default sampleData;
 
-// 유틸리티 함수들
 export const getPagesForProject = (projectId: string) => {
   return sampleData.pages.filter((page) => page.projectId === projectId);
 };
@@ -817,5 +794,50 @@ export const sampleLayers: Layer[] = [
     data: {},
     createdAt: new Date(),
     updatedAt: new Date(),
+  },
+];
+
+export const sampleProjects: Project[] = [
+  {
+    id: "1",
+    name: "웹사이트 디자인 프로젝트",
+    owner_id: "user-1",
+    description: "회사 웹사이트 리뉴얼 디자인",
+    updatedAt: new Date("2024-01-20"),
+  },
+  {
+    id: "2",
+    name: "모바일 앱 UI",
+    owner_id: "user-1",
+    description: "쇼핑몰 모바일 앱 UI 디자인",
+    updatedAt: new Date("2024-01-18"),
+  },
+  {
+    id: "3",
+    name: "브랜드 아이덴티티",
+    owner_id: "user-2",
+    description: "새로운 브랜드 로고 및 아이덴티티",
+    updatedAt: new Date("2024-01-16"),
+  },
+  {
+    id: "4",
+    name: "대시보드 디자인",
+    owner_id: "user-1",
+    description: "관리자 대시보드 UI",
+    updatedAt: new Date("2024-01-19"),
+  },
+  {
+    id: "5",
+    name: "소셜 미디어 템플릿",
+    owner_id: "user-3",
+    description: "인스타그램 포스트 템플릿",
+    updatedAt: new Date("2024-01-17"),
+  },
+  {
+    id: "6",
+    name: "프레젠테이션 디자인",
+    owner_id: "user-2",
+    description: "회사 발표용 프레젠테이션",
+    updatedAt: new Date("2024-01-15"),
   },
 ];
