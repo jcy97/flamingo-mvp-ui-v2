@@ -13,6 +13,11 @@ export default function Home() {
       description: "사용자 회원가입 화면",
     },
     {
+      path: "/project",
+      title: "프로젝트 페이지",
+      description: "프로젝트 관리 화면",
+    },
+    {
       path: "/workspace",
       title: "워크스페이스",
       description: "협업 드로잉 보드 메인 화면",
