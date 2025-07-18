@@ -1,7 +1,7 @@
 "use client";
 
 import { Search, Plus } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface DashboardHeaderProps {
   onSearch: (query: string) => void;
@@ -10,12 +10,28 @@ interface DashboardHeaderProps {
 
 function DashboardHeader({ onSearch, onCreateProject }: DashboardHeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
-    onSearch(query);
+
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = setTimeout(() => {
+      onSearch(query);
+    }, 300);
   };
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="flex items-center justify-between mb-8">

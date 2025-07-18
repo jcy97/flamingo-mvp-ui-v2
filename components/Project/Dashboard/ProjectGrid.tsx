@@ -4,9 +4,14 @@ import ProjectCard from "./ProjectCard";
 interface ProjectGridProps {
   projects: Project[];
   searchQuery: string;
+  onDeleteProject: (projectId: string) => void;
 }
 
-function ProjectGrid({ projects, searchQuery }: ProjectGridProps) {
+function ProjectGrid({
+  projects,
+  searchQuery,
+  onDeleteProject,
+}: ProjectGridProps) {
   const filteredProjects = projects.filter((project) =>
     project.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -46,7 +51,11 @@ function ProjectGrid({ projects, searchQuery }: ProjectGridProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
       {filteredProjects.map((project) => (
-        <ProjectCard key={project.id} project={project} />
+        <ProjectCard
+          key={project.id}
+          project={project}
+          onDelete={onDeleteProject}
+        />
       ))}
     </div>
   );

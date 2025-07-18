@@ -2,18 +2,55 @@
 
 import DashboardHeader from "@/components/Project/Dashboard/DashboardHeader";
 import ProjectGrid from "@/components/Project/Dashboard/ProjectGrid";
-import { sampleProjects } from "@/samples/data";
+import CreateProjectModal from "@/components/Project/Dashboard/CreateProjectModal";
+import DeleteProjectModal from "@/components/Project/Dashboard/DeleteProjectModal";
+import Modal from "@/components/Common/Modal";
+import { usePopup } from "@/hooks/usePopup";
+import {
+  projectsAtom,
+  addProjectAtom,
+  deleteProjectAtom,
+} from "@/stores/projectStore";
+import { useAtom } from "jotai";
 import { useState } from "react";
+import { Project } from "@/types/project";
 
 export default function DashboardPage() {
+  const [projects] = useAtom(projectsAtom);
+  const [, addProject] = useAtom(addProjectAtom);
+  const [, deleteProject] = useAtom(deleteProjectAtom);
   const [searchQuery, setSearchQuery] = useState("");
+  const { popup, openPopup, closePopup } = usePopup();
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
   };
 
   const handleCreateProject = () => {
-    console.log("새 프로젝트 생성");
+    openPopup({
+      title: "새 프로젝트 생성",
+      content: (
+        <CreateProjectModal onClose={closePopup} onCreateProject={addProject} />
+      ),
+      size: "md",
+    });
+  };
+
+  const handleDeleteProject = (projectId: string) => {
+    const project = projects.find((p) => p.id === projectId);
+    if (!project) return;
+
+    openPopup({
+      title: "프로젝트 삭제",
+      content: (
+        <DeleteProjectModal
+          project={project}
+          onClose={closePopup}
+          onDeleteProject={deleteProject}
+        />
+      ),
+      size: "md",
+    });
   };
 
   return (
@@ -33,8 +70,22 @@ export default function DashboardPage() {
           onCreateProject={handleCreateProject}
         />
 
-        <ProjectGrid projects={sampleProjects} searchQuery={searchQuery} />
+        <ProjectGrid
+          projects={projects}
+          searchQuery={searchQuery}
+          onDeleteProject={handleDeleteProject}
+        />
       </div>
+
+      <Modal
+        isOpen={popup.isOpen}
+        onClose={closePopup}
+        title={popup.title}
+        size={popup.size}
+        showCloseButton={popup.showCloseButton}
+      >
+        {popup.content}
+      </Modal>
     </div>
   );
 }
