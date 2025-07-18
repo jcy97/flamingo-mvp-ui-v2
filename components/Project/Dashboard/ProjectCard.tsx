@@ -69,43 +69,40 @@ function ProjectCard({ project, onDelete }: ProjectCardProps) {
 
   return (
     <div className="relative group">
-      <Link
-        href={`/workspace?projectId=${project.id}`}
-        className="block bg-neutral-800 border border-neutral-800 rounded-lg overflow-hidden hover:bg-neutral-700 hover:border-primary-500 hover:border-2 transition-colors"
-      >
-        <div className="aspect-[4/3] bg-neutral-700 relative overflow-hidden">
-          {project.thumbnail ? (
-            <Image
-              src={project.thumbnail}
-              alt={project.name}
-              fill
-              className="object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-neutral-600 to-neutral-700">
-              <div className="w-16 h-16 bg-neutral-500 rounded-lg flex items-center justify-center">
-                <svg
-                  width="32"
-                  height="32"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  className="text-neutral-300"
-                >
-                  <path
-                    d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
+      {isEditing ? (
+        <div className="block bg-neutral-800 border border-neutral-800 rounded-lg overflow-hidden hover:bg-neutral-700 hover:border-primary-500 hover:border-2 transition-colors">
+          <div className="aspect-[4/3] bg-neutral-700 relative overflow-hidden">
+            {project.thumbnail ? (
+              <Image
+                src={project.thumbnail}
+                alt={project.name}
+                fill
+                className="object-cover group-hover:scale-105 transition-transform duration-300"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-neutral-600 to-neutral-700">
+                <div className="w-16 h-16 bg-neutral-500 rounded-lg flex items-center justify-center">
+                  <svg
+                    width="32"
+                    height="32"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    className="text-neutral-300"
+                  >
+                    <path
+                      d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
 
-        <div className="p-4">
-          {isEditing ? (
+          <div className="p-4">
             <input
               ref={inputRef}
               type="text"
@@ -114,22 +111,64 @@ function ProjectCard({ project, onDelete }: ProjectCardProps) {
               onBlur={handleEditSubmit}
               onKeyDown={handleKeyDown}
               className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-neutral-100 focus:outline-none focus:border-primary-500"
-              onClick={(e) => e.stopPropagation()}
             />
-          ) : (
+            <p className="text-sm text-neutral-400 mt-2">
+              {project.updatedAt
+                ? `수정됨: ${formatDate(project.updatedAt)}`
+                : "최근 활동 없음"}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <Link
+          href={`/workspace?projectId=${project.id}`}
+          className="block bg-neutral-800 border border-neutral-800 rounded-lg overflow-hidden hover:bg-neutral-700 hover:border-primary-500 hover:border-2 transition-colors"
+        >
+          <div className="aspect-[4/3] bg-neutral-700 relative overflow-hidden">
+            {project.thumbnail ? (
+              <Image
+                src={project.thumbnail}
+                alt={project.name}
+                fill
+                className="object-cover group-hover:scale-105 transition-transform duration-300"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-neutral-600 to-neutral-700">
+                <div className="w-16 h-16 bg-neutral-500 rounded-lg flex items-center justify-center">
+                  <svg
+                    width="32"
+                    height="32"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    className="text-neutral-300"
+                  >
+                    <path
+                      d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="p-4">
             <Tooltip content={project.name}>
               <h3 className="font-semibold text-neutral-100 mb-2 truncate cursor-pointer">
                 {project.name}
               </h3>
             </Tooltip>
-          )}
-          <p className="text-sm text-neutral-400">
-            {project.updatedAt
-              ? `수정됨: ${formatDate(project.updatedAt)}`
-              : "최근 활동 없음"}
-          </p>
-        </div>
-      </Link>
+            <p className="text-sm text-neutral-400">
+              {project.updatedAt
+                ? `수정됨: ${formatDate(project.updatedAt)}`
+                : "최근 활동 없음"}
+            </p>
+          </div>
+        </Link>
+      )}
 
       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
         <button
