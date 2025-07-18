@@ -54,27 +54,31 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="flex-1 min-h-screen bg-neutral-600">
-      <div className="ml-[280px] p-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-neutral-100 mb-2">
-            프로젝트 대시보드
-          </h1>
-          <p className="text-neutral-400">
-            모든 프로젝트를 한 곳에서 관리하세요
-          </p>
+    <div className="flex-1 h-screen bg-neutral-600 flex flex-col">
+      <div className="ml-[280px] flex flex-col h-full">
+        <div className="flex-shrink-0 bg-neutral-700 shadow-lg border-b border-neutral-600 p-6 pb-4">
+          <div className="mb-4">
+            <h1 className="text-2xl font-bold text-neutral-100 mb-1">
+              프로젝트 대시보드
+            </h1>
+            <p className="text-sm text-neutral-400">
+              모든 프로젝트를 한 곳에서 관리하세요
+            </p>
+          </div>
+
+          <DashboardHeader
+            onSearch={handleSearch}
+            onCreateProject={handleCreateProject}
+          />
         </div>
 
-        <DashboardHeader
-          onSearch={handleSearch}
-          onCreateProject={handleCreateProject}
-        />
-
-        <ProjectGrid
-          projects={projects}
-          searchQuery={searchQuery}
-          onDeleteProject={handleDeleteProject}
-        />
+        <div className="flex-1 overflow-y-auto px-8 py-6">
+          <ProjectGrid
+            projects={projects}
+            searchQuery={searchQuery}
+            onDeleteProject={handleDeleteProject}
+          />
+        </div>
       </div>
 
       <Modal
