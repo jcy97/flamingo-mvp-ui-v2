@@ -1,7 +1,5 @@
-import React from "react";
+import { redirect } from "next/navigation";
 
-function page() {
-  return <div>프로젝트 페이지</div>;
+export default function ProjectPage() {
+  redirect("/project/dashboard");
 }
-
-export default page;
