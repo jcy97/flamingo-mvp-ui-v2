@@ -39,7 +39,7 @@ export const authApi = {
 
   refreshToken: async (
     refreshToken: string
-  ): Promise<{ access_token: string; refresh_token: string }> => {
+  ): Promise<{ access_token: string; refreshToken: string }> => {
     return api.post("/api/v1/auth/refresh", { refresh_token: refreshToken });
   },
 

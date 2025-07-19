@@ -92,7 +92,7 @@ const refreshToken = async (): Promise<void> => {
     refresh_token: refreshToken,
   });
 
-  const { access_token, refresh_token: newRefreshToken } = response.data.data;
+  const { access_token, refreshToken: newRefreshToken } = response.data;
 
   localStorage.setItem("flamingo-access-token", access_token);
 
