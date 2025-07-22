@@ -147,18 +147,17 @@ function ColorPicker({ onClose }: ColorPickerProps) {
     "linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)";
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-50">
+    <>
+      <div className="fixed inset-0 z-[9998]" onClick={handleClose} />
       <div
         ref={pickerRef}
-        className="bg-neutral-800 rounded-lg shadow-2xl border border-neutral-600 p-4 w-80"
+        className="fixed z-[9999] bg-neutral-800 rounded-lg shadow-2xl border border-neutral-600 p-4 w-70"
         style={{
-          position: "fixed",
           top: colorPickerState.y,
           left: colorPickerState.x,
           transform: "translate(-50%, -100%)",
         }}
       >
-        {/* 헤더 */}
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-medium text-neutral-200">컬러 선택</h3>
           <button
@@ -169,7 +168,6 @@ function ColorPicker({ onClose }: ColorPickerProps) {
           </button>
         </div>
 
-        {/* 탭 */}
         <div className="flex mb-4 bg-neutral-700 rounded p-1">
           <button
             onClick={() => setActiveTab("picker")}
@@ -207,7 +205,6 @@ function ColorPicker({ onClose }: ColorPickerProps) {
 
         {activeTab === "picker" && (
           <div className="space-y-4">
-            {/* SV 피커 */}
             <div
               ref={svPickerRef}
               className="relative w-full h-48 rounded cursor-crosshair"
@@ -224,7 +221,6 @@ function ColorPicker({ onClose }: ColorPickerProps) {
               />
             </div>
 
-            {/* 색상 슬라이더 */}
             <div
               ref={hueSliderRef}
               className="relative w-full h-4 rounded cursor-pointer"
@@ -240,7 +236,6 @@ function ColorPicker({ onClose }: ColorPickerProps) {
               />
             </div>
 
-            {/* 컬러 미리보기 및 값 입력 */}
             <div className="flex items-center gap-3">
               <div
                 className="w-12 h-12 rounded border border-neutral-600"
@@ -308,7 +303,6 @@ function ColorPicker({ onClose }: ColorPickerProps) {
           </div>
         )}
 
-        {/* 버튼 */}
         <div className="flex gap-2 mt-4">
           <button
             onClick={handleClose}
@@ -324,7 +318,7 @@ function ColorPicker({ onClose }: ColorPickerProps) {
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

@@ -47,72 +47,69 @@ export function createBrushTexture(
 ): BrushTexture | null {
   if (!app || !app.renderer) return null;
 
-  // 캐시에서 먼저 확인
-  const cached = brushTextureCache.get(settings);
-  if (cached) return cached;
-
-  const size = Math.max(2, settings.size);
-  const radius = size / 2;
-
-  let color;
   try {
-    color = parseInt(settings.color.replace("#", ""), 16);
-    if (isNaN(color)) color = 0x000000;
-  } catch (error) {
-    color = 0x000000;
-  }
+    const size = Math.max(2, Math.min(200, settings.size));
+    const radius = size / 2;
 
-  // 브러쉬 Graphics 생성
-  const brushGraphics = new PIXI.Graphics();
-
-  if (settings.roundness < 1) {
-    // 타원형 브러쉬
-    const radiusX = radius;
-    const radiusY = radius * settings.roundness;
-
-    brushGraphics.beginFill(color);
-    brushGraphics.drawEllipse(radius, radius, radiusX, radiusY);
-    brushGraphics.endFill();
-
-    if (settings.angle !== 0) {
-      brushGraphics.rotation = (settings.angle * Math.PI) / 180;
-    }
-  } else {
-    // 원형 브러쉬
-    brushGraphics.beginFill(color);
-    brushGraphics.drawCircle(radius, radius, radius);
-    brushGraphics.endFill();
-  }
-
-  // 부드러움 적용
-  if (settings.hardness < 0.98) {
-    const blurAmount = (1 - settings.hardness) * radius * 0.5;
+    let color;
     try {
-      const blurFilter = new PIXI.BlurFilter();
-      blurFilter.blur = Math.max(0.1, blurAmount);
-      blurFilter.quality = 2;
-      brushGraphics.filters = [blurFilter];
+      color = parseInt(settings.color.replace("#", ""), 16);
+      if (isNaN(color)) color = 0x000000;
     } catch (error) {
-      console.warn("Blur filter creation failed:", error);
+      color = 0x000000;
     }
-  }
 
-  // RenderTexture에 브러쉬 렌더링
-  const padding = Math.max(10, Math.ceil(radius * 0.5));
-  const textureSize = Math.max(4, size + padding * 2);
+    const padding = Math.max(20, Math.ceil(radius * 0.8));
+    const textureSize = Math.max(8, size + padding * 2);
 
-  try {
     const renderTexture = PIXI.RenderTexture.create({
       width: textureSize,
       height: textureSize,
+      resolution: 1,
     });
 
-    brushGraphics.x = padding;
-    brushGraphics.y = padding;
+    const brushGraphics = new PIXI.Graphics();
+
+    if (settings.roundness < 1) {
+      const radiusX = radius;
+      const radiusY = radius * settings.roundness;
+
+      brushGraphics.beginFill(color, 1);
+      brushGraphics.drawEllipse(
+        textureSize / 2,
+        textureSize / 2,
+        radiusX,
+        radiusY
+      );
+      brushGraphics.endFill();
+
+      if (settings.angle !== 0) {
+        brushGraphics.pivot.set(textureSize / 2, textureSize / 2);
+        brushGraphics.rotation = (settings.angle * Math.PI) / 180;
+        brushGraphics.x = textureSize / 2;
+        brushGraphics.y = textureSize / 2;
+      }
+    } else {
+      brushGraphics.beginFill(color, 1);
+      brushGraphics.drawCircle(textureSize / 2, textureSize / 2, radius);
+      brushGraphics.endFill();
+    }
+
+    if (settings.hardness < 0.98) {
+      const blurAmount = (1 - settings.hardness) * radius * 0.3;
+      try {
+        const blurFilter = new PIXI.BlurFilter();
+        blurFilter.blur = Math.max(0.5, Math.min(10, blurAmount));
+        blurFilter.quality = 1;
+        brushGraphics.filters = [blurFilter];
+      } catch (error) {
+        console.warn("Blur filter creation failed:", error);
+      }
+    }
 
     app.renderer.render(brushGraphics, { renderTexture });
+    brushGraphics.destroy();
 
-    // 재사용할 Sprite 생성
     const sprite = new PIXI.Sprite(renderTexture);
     sprite.anchor.set(0.5, 0.5);
 
@@ -125,16 +122,9 @@ export function createBrushTexture(
       opacity: settings.opacity,
     };
 
-    // 캐시에 저장
-    brushTextureCache.set(settings, texture);
-
-    // 임시 Graphics 정리
-    brushGraphics.destroy();
-
     return texture;
   } catch (error) {
-    console.error("브러쉬 텍스처 생성 실패:", error);
-    brushGraphics.destroy();
+    console.error("Failed to create brush texture:", error);
     return null;
   }
 }
@@ -212,13 +202,10 @@ export function createBrushStamp(
     stamp.x = x;
     stamp.y = y;
 
-    // 플로우와 오패시티 적용
     const finalOpacity = settings.opacity * settings.flow;
     stamp.alpha = Math.max(0, Math.min(1, finalOpacity));
 
-    // 압력 감지가 활성화되어 있다면 추가 처리 가능
     if (settings.pressure) {
-      // 압력에 따른 크기 조절 등 (현재는 기본값)
       stamp.scale.set(1, 1);
     }
 
