@@ -3,3 +3,4 @@ export * from "./canvasStore";
 export * from "./toolsbarStore";
 export * from "./layerStore";
 export * from "./projectStore";
+export * from "./brushStore";
