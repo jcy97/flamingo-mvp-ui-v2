@@ -46,10 +46,9 @@ function BrushProperties() {
   };
 
   const getBrushPreviewStyle = () => {
-    const size = Math.min(brushPreviewSize, 50);
+    const size = Math.min(brushPreviewSize, 60);
     const blur = (1 - brushHardness) * 4;
 
-    // 안전한 색상 처리
     let safeColor = brushColor;
     if (!safeColor || !safeColor.startsWith("#")) {
       safeColor = "#000000";
@@ -72,7 +71,6 @@ function BrushProperties() {
 
   return (
     <div className="flex flex-col gap-4 h-full">
-      {/* 헤더 */}
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1 bg-neutral-800 px-2 py-1 rounded">
           <Paintbrush size={12} className="text-neutral-400" />
@@ -80,25 +78,20 @@ function BrushProperties() {
         </div>
       </div>
 
-      <div className="flex-1 bg-neutral-800 rounded-md p-3 overflow-y-auto custom-scrollbar space-y-4">
-        {/* 브러쉬 미리보기 */}
-        <div className="bg-neutral-700 rounded-lg p-4">
-          <label className="text-xs text-neutral-400 block mb-2">
-            미리보기
-          </label>
-          <div className="flex items-center justify-center h-16 bg-neutral-600 rounded relative">
-            <div style={getBrushPreviewStyle()} />
-          </div>
+      <div className="bg-neutral-700 rounded-lg p-3">
+        <label className="text-xs text-neutral-400 block mb-2">미리보기</label>
+        <div className="flex items-center justify-center h-12 bg-neutral-600 rounded relative">
+          <div style={getBrushPreviewStyle()} />
         </div>
+      </div>
 
-        {/* 기본 설정 */}
+      <div className="flex-1 bg-neutral-800 rounded-md p-3 overflow-y-auto custom-scrollbar space-y-4 min-h-0">
         <div className="space-y-3">
           <h4 className="text-xs font-medium text-neutral-300 flex items-center gap-1">
             <Settings size={10} />
             기본 설정
           </h4>
 
-          {/* 색상 */}
           <div>
             <label className="text-xs text-neutral-400 block mb-2">색상</label>
             <button
@@ -117,7 +110,6 @@ function BrushProperties() {
             </button>
           </div>
 
-          {/* 크기 */}
           <div>
             <label className="text-xs text-neutral-400 block mb-2">
               크기: {brushSize}px
@@ -136,7 +128,6 @@ function BrushProperties() {
             </div>
           </div>
 
-          {/* 경도 */}
           <div>
             <label className="text-xs text-neutral-400 block mb-2">
               경도: {Math.round(brushHardness * 100)}%
@@ -155,7 +146,6 @@ function BrushProperties() {
             </div>
           </div>
 
-          {/* 불투명도 */}
           <div>
             <label className="text-xs text-neutral-400 block mb-2">
               불투명도: {Math.round(brushOpacity * 100)}%
@@ -170,7 +160,6 @@ function BrushProperties() {
             />
           </div>
 
-          {/* 플로우 */}
           <div>
             <label className="text-xs text-neutral-400 block mb-2">
               플로우: {Math.round(brushFlow * 100)}%
@@ -186,14 +175,12 @@ function BrushProperties() {
           </div>
         </div>
 
-        {/* 고급 설정 */}
         <div className="space-y-3">
           <h4 className="text-xs font-medium text-neutral-300 flex items-center gap-1">
             <RotateCw size={10} />
             고급 설정
           </h4>
 
-          {/* 간격 */}
           <div>
             <label className="text-xs text-neutral-400 block mb-2">
               간격: {(brushSpacing * 100).toFixed(0)}%
@@ -208,7 +195,6 @@ function BrushProperties() {
             />
           </div>
 
-          {/* 원형도 */}
           <div>
             <label className="text-xs text-neutral-400 block mb-2">
               원형도: {Math.round(brushRoundness * 100)}%
@@ -225,7 +211,6 @@ function BrushProperties() {
             />
           </div>
 
-          {/* 각도 */}
           <div>
             <label className="text-xs text-neutral-400 block mb-2">
               각도: {brushAngle}°
@@ -240,7 +225,6 @@ function BrushProperties() {
             />
           </div>
 
-          {/* 스무딩 */}
           <div>
             <label className="text-xs text-neutral-400 block mb-2">
               스무딩: {Math.round(brushSmoothing * 100)}%
@@ -257,7 +241,6 @@ function BrushProperties() {
             />
           </div>
 
-          {/* 압력 감도 */}
           <div>
             <label className="flex items-center gap-2 text-xs">
               <input
@@ -271,7 +254,6 @@ function BrushProperties() {
           </div>
         </div>
 
-        {/* 프리셋 저장/로드 */}
         <div className="space-y-2 border-t border-neutral-700 pt-3">
           <button className="w-full px-3 py-2 bg-primary-500 hover:bg-primary-400 rounded text-xs font-medium transition-colors">
             프리셋 저장
