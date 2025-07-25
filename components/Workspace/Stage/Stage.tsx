@@ -56,7 +56,7 @@ function Stage() {
         if (brushEngineRef.current) {
           brushEngineRef.current.updateSettings(settings);
         }
-      }, 100);
+      }, 16);
 
       return () => clearTimeout(timeoutId);
     }

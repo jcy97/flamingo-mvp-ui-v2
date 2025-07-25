@@ -141,9 +141,14 @@ export class BrushEngine {
       stamp.anchor.set(0.5, 0.5);
       stamp.x = point.x;
       stamp.y = point.y;
-
-      const finalOpacity = this.settings.opacity * this.settings.flow;
-      stamp.alpha = Math.max(0.01, Math.min(1, finalOpacity));
+      console.log(this.settings.opacity);
+      if (this.settings.opacity > 0.9) {
+        stamp.alpha = Math.max(0.01, Math.min(1, this.settings.opacity));
+      } else if (this.settings.opacity === 0) {
+        stamp.alpha = 0;
+      } else {
+        stamp.alpha = Math.max(0.01, Math.min(1, this.settings.opacity / 10));
+      }
 
       if (this.settings.pressure && point.pressure !== undefined) {
         const pressureScale = Math.max(0.1, point.pressure);

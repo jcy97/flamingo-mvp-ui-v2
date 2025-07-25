@@ -12,8 +12,8 @@ export interface BrushSettings {
 }
 
 export interface BrushTexture {
-  texture: any; // PIXI.RenderTexture
-  sprite: any; // PIXI.Sprite
+  texture: any;
+  sprite: any;
   size: number;
   color: string;
   hardness: number;
@@ -28,15 +28,15 @@ export interface ColorPickerState {
 }
 
 export interface HSVColor {
-  h: number; // 0-360
-  s: number; // 0-100
-  v: number; // 0-100
+  h: number;
+  s: number;
+  v: number;
 }
 
 export interface RGBColor {
-  r: number; // 0-255
-  g: number; // 0-255
-  b: number; // 0-255
+  r: number;
+  g: number;
+  b: number;
 }
 
 export interface ColorPreset {

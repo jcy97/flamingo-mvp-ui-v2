@@ -130,9 +130,7 @@ export function createBrushTexture(
 }
 
 export function applyGammaCorrection(opacity: number): number {
-  const gamma = 2.2;
-  const minVisible = 0.07;
-  return minVisible + (1 - minVisible) * Math.pow(opacity, gamma);
+  return opacity;
 }
 
 export function calculateSpacing(size: number, spacing: number): number {
@@ -202,8 +200,7 @@ export function createBrushStamp(
     stamp.x = x;
     stamp.y = y;
 
-    const finalOpacity = settings.opacity * settings.flow;
-    stamp.alpha = Math.max(0, Math.min(1, finalOpacity));
+    stamp.alpha = Math.max(0, Math.min(1, settings.opacity));
 
     if (settings.pressure) {
       stamp.scale.set(1, 1);
