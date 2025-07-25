@@ -1,3 +1,4 @@
+// Stage.tsx
 "use client";
 import React, { useCallback, useEffect, useRef } from "react";
 import { useAtom } from "jotai";
@@ -20,12 +21,10 @@ function Stage() {
   const getCanvasCoordinates = useCallback(
     (clientX: number, clientY: number) => {
       if (!appRef.current) return { x: 0, y: 0 };
-
       const canvas = appRef.current.canvas;
       const rect = canvas.getBoundingClientRect();
       const scaleX = 800 / rect.width;
       const scaleY = 600 / rect.height;
-
       return {
         x: (clientX - rect.left) * scaleX,
         y: (clientY - rect.top) * scaleY,
@@ -51,13 +50,11 @@ function Stage() {
         selectedToolIdRef.current === ToolbarItemIDs.ERASER
           ? { ...brushSettingsRef.current, color: "#FFFFFF" }
           : brushSettingsRef.current;
-
       const timeoutId = setTimeout(() => {
         if (brushEngineRef.current) {
           brushEngineRef.current.updateSettings(settings);
         }
       }, 16);
-
       return () => clearTimeout(timeoutId);
     }
   }, [brushSettings, selectedToolId]);
@@ -89,7 +86,7 @@ function Stage() {
         brushEngineRef.current = new BrushEngine(app, brushSettings);
         brushEngineRef.current.setActiveLayer(drawingLayer);
 
-        const canvas = app.canvas;
+        const canvas = app.canvas as HTMLCanvasElement;
         canvas.style.cursor = "crosshair";
         canvas.style.display = "block";
         canvas.style.width = "100%";
@@ -98,7 +95,6 @@ function Stage() {
         const handleMouseDown = (event: MouseEvent) => {
           event.preventDefault();
           isDrawingRef.current = true;
-
           const coords = getCanvasCoordinates(event.clientX, event.clientY);
           const point: DrawingPoint = {
             x: coords.x,
@@ -106,7 +102,6 @@ function Stage() {
             pressure: 1.0,
             timestamp: Date.now(),
           };
-
           if (brushEngineRef.current) {
             brushEngineRef.current.startStroke(point);
           }
@@ -116,9 +111,7 @@ function Stage() {
           if (!isDrawingRef.current) {
             return;
           }
-
           event.preventDefault();
-
           const coords = getCanvasCoordinates(event.clientX, event.clientY);
           const point: DrawingPoint = {
             x: coords.x,
@@ -126,7 +119,6 @@ function Stage() {
             pressure: 1.0,
             timestamp: Date.now(),
           };
-
           if (brushEngineRef.current) {
             brushEngineRef.current.continueStroke(point);
           }
@@ -134,10 +126,8 @@ function Stage() {
 
         const handleMouseUp = (event: MouseEvent) => {
           if (!isDrawingRef.current) return;
-
           event.preventDefault();
           isDrawingRef.current = false;
-
           if (brushEngineRef.current) {
             brushEngineRef.current.endStroke();
           }
@@ -177,16 +167,13 @@ function Stage() {
     return () => {
       if (appRef.current) {
         const canvas = appRef.current.canvas;
-
         if (brushEngineRef.current) {
           brushEngineRef.current.cleanup();
           brushEngineRef.current = null;
         }
-
         if (canvasRef.current && canvas && canvasRef.current.contains(canvas)) {
           canvasRef.current.removeChild(canvas);
         }
-
         appRef.current.destroy();
         appRef.current = null;
       }

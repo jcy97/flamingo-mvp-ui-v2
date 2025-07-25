@@ -122,7 +122,7 @@ function BrushProperties() {
               onChange={(e) => setBrushSize(parseInt(e.target.value))}
               className="w-full accent-primary-500"
             />
-            <div className="flex justify-between text-xs text-neutral-500 mt-1">
+            <div className="flex justify-between text-xs text-neutral-500">
               <span>1px</span>
               <span>200px</span>
             </div>
@@ -140,7 +140,7 @@ function BrushProperties() {
               onChange={(e) => setBrushHardness(parseInt(e.target.value) / 100)}
               className="w-full accent-primary-500"
             />
-            <div className="flex justify-between text-xs text-neutral-500 mt-1">
+            <div className="flex justify-between text-xs text-neutral-500">
               <span>부드러움</span>
               <span>딱딱함</span>
             </div>
@@ -160,7 +160,7 @@ function BrushProperties() {
             />
           </div>
 
-          <div>
+          {/* <div>
             <label className="text-xs text-neutral-400 block mb-2">
               플로우: {Math.round(brushFlow * 100)}%
             </label>
@@ -172,7 +172,7 @@ function BrushProperties() {
               onChange={(e) => setBrushFlow(parseInt(e.target.value) / 100)}
               className="w-full accent-primary-500"
             />
-          </div>
+          </div> */}
         </div>
 
         <div className="space-y-3">
