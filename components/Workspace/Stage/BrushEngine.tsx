@@ -141,7 +141,6 @@ export class BrushEngine {
       stamp.anchor.set(0.5, 0.5);
       stamp.x = point.x;
       stamp.y = point.y;
-      console.log(this.settings.opacity);
       if (this.settings.opacity > 0.9) {
         stamp.alpha = Math.max(0.01, Math.min(1, this.settings.opacity));
       } else if (this.settings.opacity === 0) {
