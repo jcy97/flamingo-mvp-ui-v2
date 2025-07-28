@@ -1,5 +1,6 @@
 import { Project } from "@/types/project";
 import ProjectCard from "./ProjectCard";
+import { useEffect } from "react";
 
 interface ProjectGridProps {
   projects: Project[];
@@ -17,6 +18,10 @@ function ProjectGrid({
   const filteredProjects = (projects || []).filter((project) =>
     project.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  useEffect(() => {
+    console.log(projects);
+  }, []);
 
   if (filteredProjects.length === 0) {
     return (

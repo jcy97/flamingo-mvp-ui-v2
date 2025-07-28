@@ -24,7 +24,7 @@ function ProjectDashboard() {
     try {
       setIsLoading(true);
       const response = await projectApi.getProjects();
-      setProjects(Array.isArray(response.projects) ? response.projects : []);
+      setProjects(Array.isArray(response.data) ? response.data : []);
     } catch (error: any) {
       setProjects([]);
       showToast.error(

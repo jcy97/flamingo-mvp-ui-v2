@@ -60,7 +60,7 @@ function ProjectCard({ project, onDelete, onUpdate }: ProjectCardProps) {
       const response = await projectApi.updateProject(project.id, {
         name: trimmedName,
       });
-      onUpdate(response.project);
+      onUpdate(response.data);
       showToast.success("프로젝트 이름이 수정되었습니다.");
     } catch (error: any) {
       showToast.error(error.message || "프로젝트 수정에 실패했습니다.");
@@ -134,8 +134,10 @@ function ProjectCard({ project, onDelete, onUpdate }: ProjectCardProps) {
               className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-neutral-100 focus:outline-none focus:border-primary-500 disabled:opacity-50"
             />
             <p className="text-sm text-neutral-400 mt-2">
-              {project.updatedAt
-                ? `수정됨: ${formatDate(project.updatedAt)}`
+              {project.updated_at
+                ? `수정됨: ${formatDate(project.updated_at)}`
+                : project.created_at
+                ? `생성됨: ${formatDate(project.created_at)}`
                 : "최근 활동 없음"}
             </p>
           </div>
@@ -183,8 +185,10 @@ function ProjectCard({ project, onDelete, onUpdate }: ProjectCardProps) {
               </h3>
             </Tooltip>
             <p className="text-sm text-neutral-400">
-              {project.updatedAt
-                ? `수정됨: ${formatDate(project.updatedAt)}`
+              {project.updated_at
+                ? `수정됨: ${formatDate(project.updated_at)}`
+                : project.created_at
+                ? `생성됨: ${formatDate(project.created_at)}`
                 : "최근 활동 없음"}
             </p>
           </div>

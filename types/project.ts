@@ -5,8 +5,8 @@ export interface Project {
   deleted_at?: string | null;
   thumbnail?: string;
   description?: string;
-  updatedAt?: string;
-  createdAt?: string;
+  updated_at?: string;
+  created_at?: string;
 }
 
 export interface ProjectCollaborator {

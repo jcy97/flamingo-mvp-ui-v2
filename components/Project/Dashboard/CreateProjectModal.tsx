@@ -26,7 +26,7 @@ function CreateProjectModal({
         name: projectName.trim(),
       });
 
-      onCreateProject(response.project);
+      onCreateProject(response.data);
       showToast.success("프로젝트가 생성되었습니다.");
       onClose();
     } catch (error: any) {

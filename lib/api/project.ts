@@ -13,14 +13,13 @@ interface ProjectUpdateRequest {
 }
 
 interface ProjectListResponse {
-  projects: Project[];
-  total: number;
-  page: number;
-  limit: number;
+  success: boolean;
+  data: Project[];
 }
 
 interface ProjectResponse {
-  project: Project;
+  success: boolean;
+  data: Project;
 }
 
 export const projectApi = {
