@@ -139,11 +139,7 @@ export const REGISTER_ERROR_MESSAGES: Record<RegisterErrorCodes, string> = {
 };
 
 export interface CheckEmailResponse {
-  success: true;
-  data: {
-    available: boolean;
-    message: string;
-  };
+  available: boolean;
 }
 
 export interface SignupFormProps {

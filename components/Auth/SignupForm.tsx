@@ -93,10 +93,10 @@ const SignupForm: React.FC<SignupFormProps> = ({
       setFormData((prev) => ({
         ...prev,
         emailChecked: true,
-        emailAvailable: data.data.available,
+        emailAvailable: data.available,
       }));
 
-      if (data.data.available) {
+      if (data.available) {
         showToast.success("사용 가능한 이메일입니다!");
       } else {
         showToast.error("이미 사용 중인 이메일입니다.");
