@@ -1,8 +1,8 @@
 "use client";
 
 import { Project } from "@/types/project";
-import { updateProjectAtom } from "@/stores/projectStore";
-import { useAtom } from "jotai";
+import { projectApi } from "@/lib/api";
+import { showToast } from "@/utils/toast";
 import { Edit2, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -12,20 +12,21 @@ import Tooltip from "./Tooltip";
 interface ProjectCardProps {
   project: Project;
   onDelete: (projectId: string) => void;
+  onUpdate: (project: Project) => void;
 }
 
-function ProjectCard({ project, onDelete }: ProjectCardProps) {
-  const [, updateProject] = useAtom(updateProjectAtom);
+function ProjectCard({ project, onDelete, onUpdate }: ProjectCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(project.name);
+  const [isUpdating, setIsUpdating] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const formatDate = (date: Date) => {
+  const formatDate = (dateString: string) => {
     return new Intl.DateTimeFormat("ko-KR", {
       year: "numeric",
       month: "short",
       day: "numeric",
-    }).format(date);
+    }).format(new Date(dateString));
   };
 
   const handleEditClick = (e: React.MouseEvent) => {
@@ -41,18 +42,37 @@ function ProjectCard({ project, onDelete }: ProjectCardProps) {
     onDelete(project.id);
   };
 
-  const handleEditSubmit = () => {
+  const handleEditSubmit = async () => {
     const trimmedName = editName.trim();
-    if (trimmedName) {
-      updateProject({ projectId: project.id, name: trimmedName });
-    } else {
+    if (!trimmedName) {
       setEditName(project.name);
+      setIsEditing(false);
+      return;
     }
-    setIsEditing(false);
+
+    if (trimmedName === project.name) {
+      setIsEditing(false);
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      const response = await projectApi.updateProject(project.id, {
+        name: trimmedName,
+      });
+      onUpdate(response.data);
+      showToast.success("프로젝트 이름이 수정되었습니다.");
+    } catch (error: any) {
+      showToast.error(error.message || "프로젝트 수정에 실패했습니다.");
+      setEditName(project.name);
+    } finally {
+      setIsUpdating(false);
+      setIsEditing(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !isUpdating) {
       handleEditSubmit();
     } else if (e.key === "Escape") {
       setEditName(project.name);
@@ -110,11 +130,14 @@ function ProjectCard({ project, onDelete }: ProjectCardProps) {
               onChange={(e) => setEditName(e.target.value)}
               onBlur={handleEditSubmit}
               onKeyDown={handleKeyDown}
-              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-neutral-100 focus:outline-none focus:border-primary-500"
+              disabled={isUpdating}
+              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-neutral-100 focus:outline-none focus:border-primary-500 disabled:opacity-50"
             />
             <p className="text-sm text-neutral-400 mt-2">
-              {project.updatedAt
-                ? `수정됨: ${formatDate(project.updatedAt)}`
+              {project.updated_at
+                ? `수정됨: ${formatDate(project.updated_at)}`
+                : project.created_at
+                ? `생성됨: ${formatDate(project.created_at)}`
                 : "최근 활동 없음"}
             </p>
           </div>
@@ -162,8 +185,10 @@ function ProjectCard({ project, onDelete }: ProjectCardProps) {
               </h3>
             </Tooltip>
             <p className="text-sm text-neutral-400">
-              {project.updatedAt
-                ? `수정됨: ${formatDate(project.updatedAt)}`
+              {project.updated_at
+                ? `수정됨: ${formatDate(project.updated_at)}`
+                : project.created_at
+                ? `생성됨: ${formatDate(project.created_at)}`
                 : "최근 활동 없음"}
             </p>
           </div>
@@ -173,7 +198,8 @@ function ProjectCard({ project, onDelete }: ProjectCardProps) {
       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
         <button
           onClick={handleEditClick}
-          className="p-2 bg-neutral-900 bg-opacity-80 rounded-lg hover:bg-opacity-100 transition-all"
+          disabled={isUpdating}
+          className="p-2 bg-neutral-900 bg-opacity-80 rounded-lg hover:bg-opacity-100 transition-all disabled:opacity-50"
         >
           <Edit2
             size={16}
@@ -182,7 +208,8 @@ function ProjectCard({ project, onDelete }: ProjectCardProps) {
         </button>
         <button
           onClick={handleDeleteClick}
-          className="p-2 bg-neutral-900 bg-opacity-80 rounded-lg hover:bg-opacity-100 transition-all"
+          disabled={isUpdating}
+          className="p-2 bg-neutral-900 bg-opacity-80 rounded-lg hover:bg-opacity-100 transition-all disabled:opacity-50"
         >
           <Trash2 size={16} className="text-red-400 hover:text-red-300" />
         </button>

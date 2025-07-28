@@ -8,9 +8,9 @@ import {
   ZoomIn,
   ZoomOut,
   Hand,
+  Pen,
 } from "lucide-react";
 
-// 상수 정의
 export const ToolbarItemIDs = {
   SELECT: "select",
   ZOOM_IN: "zoomin",
@@ -23,7 +23,6 @@ export const ToolbarItemIDs = {
   COMMENT: "comment",
 };
 
-// 툴바 항목 정의
 export const toolbarItems: ToolsbarItem[] = [
   {
     id: ToolbarItemIDs.SELECT,
@@ -60,6 +59,11 @@ export const toolbarItems: ToolsbarItem[] = [
         icon: ZoomOut,
       },
     ],
+  },
+  {
+    id: ToolbarItemIDs.PEN,
+    label: "Pen",
+    icon: Pen,
   },
   {
     id: ToolbarItemIDs.BRUSH,

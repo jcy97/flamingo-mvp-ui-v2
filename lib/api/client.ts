@@ -40,8 +40,13 @@ const createApiClient = (): AxiosInstance => {
     (response) => response,
     async (error) => {
       const originalRequest = error.config;
+      const isLoginRequest = originalRequest.url?.includes("/auth/login");
 
-      if (error.response?.status === 401 && !originalRequest._retry) {
+      if (
+        error.response?.status === 401 &&
+        !originalRequest._retry &&
+        !isLoginRequest
+      ) {
         originalRequest._retry = true;
 
         try {
@@ -58,6 +63,28 @@ const createApiClient = (): AxiosInstance => {
             !window.location.pathname.includes("/login")
           ) {
             window.location.href = "/login";
+          }
+        }
+      }
+
+      if (error.response?.data) {
+        const responseData = error.response.data;
+        if (
+          responseData &&
+          typeof responseData === "object" &&
+          responseData.error
+        ) {
+          const apiError = responseData.error;
+          if (
+            apiError &&
+            typeof apiError === "object" &&
+            apiError.code &&
+            apiError.message
+          ) {
+            const customError = new Error(apiError.message);
+            (customError as any).code = apiError.code;
+            (customError as any).details = apiError.details;
+            return Promise.reject(customError);
           }
         }
       }
