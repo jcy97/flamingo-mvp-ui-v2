@@ -7,22 +7,18 @@ export interface LoginRequest {
 export interface LoginUser {
   id: string;
   name: string;
-  role: string;
+  user_type: string;
 }
 
 export interface LoginToken {
   access_token: string;
-  refresh_token: string;
-  expires_in: number;
-}
-
-export interface LoginSuccessData {
-  user: LoginUser;
-  token: LoginToken;
+  refreshToken: string;
+  expires_in?: number;
 }
 
 export interface LoginSuccessResponse {
-  data: LoginSuccessData;
+  user: LoginUser;
+  token: LoginToken;
 }
 
 export interface LoginError {
@@ -62,7 +58,7 @@ export interface LoginFormState {
 }
 
 export interface LoginFormProps {
-  onSuccess?: (data: LoginSuccessData) => void;
+  onSuccess?: (data: LoginSuccessResponse) => void;
   onError?: (error: LoginError) => void;
   redirectTo?: string;
   className?: string;

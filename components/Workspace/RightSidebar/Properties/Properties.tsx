@@ -1,13 +1,76 @@
 import React from "react";
-import { Settings } from "lucide-react";
+import { useAtom } from "jotai";
+import { selectedToolIdAtom } from "@/stores/toolsbarStore";
+import { ToolbarItemIDs } from "@/constants/toolsbarItems";
+import BrushProperties from "./BrushProperties/BrushProperties";
 import "@/styles/scrollbar.css";
 
 function Properties() {
+  const [selectedToolId] = useAtom(selectedToolIdAtom);
+
+  // 선택된 도구에 따라 다른 프로퍼티 패널 표시
+  const renderProperties = () => {
+    switch (selectedToolId) {
+      case ToolbarItemIDs.BRUSH:
+      case ToolbarItemIDs.ERASER:
+        return <BrushProperties />;
+
+      case ToolbarItemIDs.TEXT:
+        return <TextProperties />;
+
+      case ToolbarItemIDs.SELECT:
+        return <SelectionProperties />;
+
+      default:
+        return <GeneralProperties />;
+    }
+  };
+
+  return renderProperties();
+}
+
+// 텍스트 도구 프로퍼티 (추후 구현)
+function TextProperties() {
   return (
     <div className="flex flex-col gap-3 h-full">
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1 bg-neutral-800 px-2 py-1 rounded">
-          <Settings size={12} className="text-neutral-400" />
+          <span className="text-xs font-medium">텍스트</span>
+        </div>
+      </div>
+      <div className="flex-1 bg-neutral-800 rounded-md p-3">
+        <div className="text-xs text-neutral-500 text-center py-8">
+          텍스트 도구 프로퍼티
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 선택 도구 프로퍼티 (추후 구현)
+function SelectionProperties() {
+  return (
+    <div className="flex flex-col gap-3 h-full">
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 bg-neutral-800 px-2 py-1 rounded">
+          <span className="text-xs font-medium">선택</span>
+        </div>
+      </div>
+      <div className="flex-1 bg-neutral-800 rounded-md p-3">
+        <div className="text-xs text-neutral-500 text-center py-8">
+          선택 도구 프로퍼티
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 기본 프로퍼티 (기존 코드 유지)
+function GeneralProperties() {
+  return (
+    <div className="flex flex-col gap-3 h-full">
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 bg-neutral-800 px-2 py-1 rounded">
           <span className="text-xs font-medium">프로퍼티</span>
         </div>
       </div>
@@ -70,155 +133,6 @@ function Properties() {
               min="0"
               max="100"
               className="w-full accent-primary-500"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-neutral-400 block mb-1">
-              Background Color
-            </label>
-            <input
-              type="color"
-              className="w-full h-8 bg-neutral-700 border border-neutral-600 rounded cursor-pointer"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-neutral-400 block mb-1">
-              Border Width
-            </label>
-            <input
-              type="number"
-              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors"
-              placeholder="1"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-neutral-400 block mb-1">
-              Border Color
-            </label>
-            <input
-              type="color"
-              className="w-full h-8 bg-neutral-700 border border-neutral-600 rounded cursor-pointer"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-neutral-400 block mb-1">
-              Border Radius
-            </label>
-            <input
-              type="number"
-              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors"
-              placeholder="0"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-neutral-400 block mb-1">
-              Shadow X
-            </label>
-            <input
-              type="number"
-              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors"
-              placeholder="0"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-neutral-400 block mb-1">
-              Shadow Y
-            </label>
-            <input
-              type="number"
-              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors"
-              placeholder="0"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-neutral-400 block mb-1">
-              Shadow Blur
-            </label>
-            <input
-              type="number"
-              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors"
-              placeholder="0"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-neutral-400 block mb-1">
-              Shadow Color
-            </label>
-            <input
-              type="color"
-              className="w-full h-8 bg-neutral-700 border border-neutral-600 rounded cursor-pointer"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-neutral-400 block mb-1">
-              Font Family
-            </label>
-            <select className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors">
-              <option>Arial</option>
-              <option>Helvetica</option>
-              <option>Times New Roman</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-neutral-400 block mb-1">
-              Font Size
-            </label>
-            <input
-              type="number"
-              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors"
-              placeholder="14"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-neutral-400 block mb-1">
-              Font Weight
-            </label>
-            <select className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors">
-              <option>Normal</option>
-              <option>Bold</option>
-              <option>Light</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-neutral-400 block mb-1">
-              Text Color
-            </label>
-            <input
-              type="color"
-              className="w-full h-8 bg-neutral-700 border border-neutral-600 rounded cursor-pointer"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-neutral-400 block mb-1">
-              Text Align
-            </label>
-            <select className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors">
-              <option>Left</option>
-              <option>Center</option>
-              <option>Right</option>
-              <option>Justify</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-neutral-400 block mb-1">
-              Line Height
-            </label>
-            <input
-              type="number"
-              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors"
-              placeholder="1.5"
-              step="0.1"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-neutral-400 block mb-1">
-              Letter Spacing
-            </label>
-            <input
-              type="number"
-              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs focus:border-primary-500 focus:outline-none transition-colors"
-              placeholder="0"
-              step="0.1"
             />
           </div>
         </div>

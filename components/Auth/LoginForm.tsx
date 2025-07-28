@@ -21,7 +21,7 @@ import React, { ChangeEvent, FormEvent, useState } from "react";
 const LoginForm: React.FC<LoginFormProps> = ({
   onSuccess,
   onError,
-  redirectTo = "/dashboard",
+  redirectTo = "/project/dashboard",
   className = "",
 }) => {
   const router = useRouter();
@@ -44,14 +44,14 @@ const LoginForm: React.FC<LoginFormProps> = ({
   };
 
   const storeAuthData = (
-    data: LoginSuccessResponse["data"],
+    data: LoginSuccessResponse,
     remember: boolean
   ): void => {
     const authData: StoredAuthData = {
       accessToken: data.token.access_token,
-      refreshToken: data.token.refresh_token,
+      refreshToken: data.token.refreshToken,
       expiresAt: new Date(
-        Date.now() + data.token.expires_in * 1000
+        Date.now() + (data.token.expires_in || 3600) * 1000
       ).toISOString(),
       user: data.user,
       remember,
@@ -114,12 +114,12 @@ const LoginForm: React.FC<LoginFormProps> = ({
 
       const data = await authApi.login(formData);
 
-      storeAuthData(data.data, formData.remember);
+      storeAuthData(data, formData.remember);
 
       showToast.success("로그인이 완료되었습니다!");
 
       if (onSuccess) {
-        onSuccess(data.data);
+        onSuccess(data);
       }
 
       setTimeout(() => {

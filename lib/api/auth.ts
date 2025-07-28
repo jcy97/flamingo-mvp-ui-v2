@@ -23,15 +23,6 @@ export const authApi = {
   },
 
   logout: async (): Promise<void> => {
-    const authData =
-      localStorage.getItem("flamingo-auth") ||
-      sessionStorage.getItem("flamingo-auth");
-
-    if (authData) {
-      const { refreshToken } = JSON.parse(authData);
-      await api.post("/api/v1/auth/logout", { refresh_token: refreshToken });
-    }
-
     localStorage.removeItem("flamingo-auth");
     localStorage.removeItem("flamingo-access-token");
     sessionStorage.removeItem("flamingo-auth");
@@ -39,7 +30,7 @@ export const authApi = {
 
   refreshToken: async (
     refreshToken: string
-  ): Promise<{ access_token: string; refresh_token: string }> => {
+  ): Promise<{ access_token: string; refreshToken: string }> => {
     return api.post("/api/v1/auth/refresh", { refresh_token: refreshToken });
   },
 

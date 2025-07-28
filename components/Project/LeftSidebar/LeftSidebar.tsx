@@ -4,10 +4,21 @@ import { projectMenuItems } from "@/constants/projectMenus";
 import { LogOut } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { showToast } from "@/utils/toast";
+import UserProfile from "./UserProfile";
 
 function LeftSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    localStorage.removeItem("flamingo-auth");
+    localStorage.removeItem("flamingo-access-token");
+    sessionStorage.removeItem("flamingo-auth");
+    showToast.success("로그아웃되었습니다.");
+    router.push("/login");
+  };
 
   return (
     <div className="fixed left-0 top-0 h-screen w-[280px] bg-neutral-900 flex flex-col z-10">
@@ -53,11 +64,18 @@ function LeftSidebar() {
           </ul>
         </nav>
 
-        <div className="border-t border-neutral-700 pt-4">
-          <button className="flex items-center gap-3 px-4 py-3 text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 rounded-lg transition-colors w-full">
-            <LogOut size={20} />
-            <span className="font-medium">Log out</span>
-          </button>
+        <div className="mt-auto">
+          <UserProfile onLogout={handleLogout} />
+
+          <div className="border-t border-neutral-700 pt-4">
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-3 px-4 py-3 text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800 rounded-lg transition-colors w-full"
+            >
+              <LogOut size={20} />
+              <span className="font-medium">로그아웃</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -61,11 +61,6 @@ export const toolbarItems: ToolsbarItem[] = [
       },
     ],
   },
-  // {
-  //   id: ToolbarItemIDs.PEN,
-  //   label: "Pen",
-  //   icon: Pencil,
-  // },
   {
     id: ToolbarItemIDs.BRUSH,
     label: "Brush",
