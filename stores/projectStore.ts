@@ -1,8 +1,7 @@
-import { atom } from "jotai";
 import { Project } from "@/types/project";
-import { sampleProjects } from "@/samples/data";
+import { atom } from "jotai";
 
-export const projectsAtom = atom<Project[]>(sampleProjects);
+export const projectsAtom = atom<Project[]>([]);
 
 export const addProjectAtom = atom(null, (get, set, name: string) => {
   const projects = get(projectsAtom);
@@ -13,7 +12,7 @@ export const addProjectAtom = atom(null, (get, set, name: string) => {
     name,
     owner_id: "user-1",
     description: "",
-    updatedAt: new Date(),
+    updated_at: new Date().toISOString(),
   };
 
   const updatedProjects = [newProject, ...projects];
