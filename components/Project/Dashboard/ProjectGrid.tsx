@@ -5,14 +5,16 @@ interface ProjectGridProps {
   projects: Project[];
   searchQuery: string;
   onDeleteProject: (projectId: string) => void;
+  onUpdateProject: (project: Project) => void;
 }
 
 function ProjectGrid({
   projects,
   searchQuery,
   onDeleteProject,
+  onUpdateProject,
 }: ProjectGridProps) {
-  const filteredProjects = projects.filter((project) =>
+  const filteredProjects = (projects || []).filter((project) =>
     project.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -55,6 +57,7 @@ function ProjectGrid({
           key={project.id}
           project={project}
           onDelete={onDeleteProject}
+          onUpdate={onUpdateProject}
         />
       ))}
     </div>

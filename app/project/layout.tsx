@@ -10,7 +10,7 @@ function ProjectLayout({ children }: ProjectLayoutProps) {
   return (
     <div className="min-h-screen bg-neutral-600">
       <LeftSidebar />
-      {children}
+      <div className="ml-[280px]">{children}</div>
     </div>
   );
 }
