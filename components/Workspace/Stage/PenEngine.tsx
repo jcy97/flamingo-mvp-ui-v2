@@ -60,7 +60,12 @@ export class PenEngine {
     }
     const width = this.app.renderer.width;
     const height = this.app.renderer.height;
-    this.renderTexture = PIXI.RenderTexture.create({ width, height });
+    const resolution = this.app.renderer.resolution;
+    this.renderTexture = PIXI.RenderTexture.create({
+      width,
+      height,
+      resolution: resolution,
+    });
     this.rtSprite = new PIXI.Sprite(this.renderTexture);
     this.activeLayer.addChild(this.rtSprite);
     this.currentStrokeContainer = new PIXI.Container();
