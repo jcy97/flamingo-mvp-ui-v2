@@ -3,14 +3,17 @@ import { useAtom } from "jotai";
 import { selectedToolIdAtom } from "@/stores/toolsbarStore";
 import { ToolbarItemIDs } from "@/constants/toolsbarItems";
 import BrushProperties from "./BrushProperties/BrushProperties";
+import PenProperties from "./PenProperties/PenProperties";
 import "@/styles/scrollbar.css";
 
 function Properties() {
   const [selectedToolId] = useAtom(selectedToolIdAtom);
 
-  // 선택된 도구에 따라 다른 프로퍼티 패널 표시
   const renderProperties = () => {
     switch (selectedToolId) {
+      case ToolbarItemIDs.PEN:
+        return <PenProperties />;
+
       case ToolbarItemIDs.BRUSH:
       case ToolbarItemIDs.ERASER:
         return <BrushProperties />;
@@ -29,7 +32,6 @@ function Properties() {
   return renderProperties();
 }
 
-// 텍스트 도구 프로퍼티 (추후 구현)
 function TextProperties() {
   return (
     <div className="flex flex-col gap-3 h-full">
@@ -47,7 +49,6 @@ function TextProperties() {
   );
 }
 
-// 선택 도구 프로퍼티 (추후 구현)
 function SelectionProperties() {
   return (
     <div className="flex flex-col gap-3 h-full">
@@ -65,7 +66,6 @@ function SelectionProperties() {
   );
 }
 
-// 기본 프로퍼티 (기존 코드 유지)
 function GeneralProperties() {
   return (
     <div className="flex flex-col gap-3 h-full">

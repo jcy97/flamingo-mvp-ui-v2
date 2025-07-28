@@ -1,21 +1,26 @@
-// Stage.tsx
 "use client";
 import React, { useCallback, useEffect, useRef } from "react";
 import { useAtom } from "jotai";
 import * as PIXI from "pixi.js";
-import { BrushEngine, DrawingPoint } from "./BrushEngine";
+import { BrushEngine, DrawingPoint as BrushDrawingPoint } from "./BrushEngine";
+import { PenEngine, DrawingPoint as PenDrawingPoint } from "./PenEngine";
 import { brushSettingsAtom } from "@/stores/brushStore";
+import { penSettingsAtom } from "@/stores/penStore";
 import { selectedToolIdAtom } from "@/stores/toolsbarStore";
 import { ToolbarItemIDs } from "@/constants/toolsbarItems";
+
+type DrawingPoint = BrushDrawingPoint | PenDrawingPoint;
 
 function Stage() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application | null>(null);
   const brushEngineRef = useRef<BrushEngine | null>(null);
+  const penEngineRef = useRef<PenEngine | null>(null);
   const isDrawingRef = useRef<boolean>(false);
   const currentLayerRef = useRef<PIXI.Container | null>(null);
 
   const [brushSettings] = useAtom(brushSettingsAtom);
+  const [penSettings] = useAtom(penSettingsAtom);
   const [selectedToolId] = useAtom(selectedToolIdAtom);
 
   const getCanvasCoordinates = useCallback(
@@ -34,11 +39,16 @@ function Stage() {
   );
 
   const brushSettingsRef = useRef(brushSettings);
+  const penSettingsRef = useRef(penSettings);
   const selectedToolIdRef = useRef(selectedToolId);
 
   useEffect(() => {
     brushSettingsRef.current = brushSettings;
   }, [brushSettings]);
+
+  useEffect(() => {
+    penSettingsRef.current = penSettings;
+  }, [penSettings]);
 
   useEffect(() => {
     selectedToolIdRef.current = selectedToolId;
@@ -58,6 +68,17 @@ function Stage() {
       return () => clearTimeout(timeoutId);
     }
   }, [brushSettings, selectedToolId]);
+
+  useEffect(() => {
+    if (penEngineRef.current && !isDrawingRef.current) {
+      const timeoutId = setTimeout(() => {
+        if (penEngineRef.current) {
+          penEngineRef.current.updateSettings(penSettingsRef.current);
+        }
+      }, 16);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [penSettings]);
 
   useEffect(() => {
     if (!canvasRef.current || appRef.current) return;
@@ -86,6 +107,9 @@ function Stage() {
         brushEngineRef.current = new BrushEngine(app, brushSettings);
         brushEngineRef.current.setActiveLayer(drawingLayer);
 
+        penEngineRef.current = new PenEngine(app, penSettings);
+        penEngineRef.current.setActiveLayer(drawingLayer);
+
         const canvas = app.canvas as HTMLCanvasElement;
         canvas.style.cursor = "crosshair";
         canvas.style.display = "block";
@@ -102,7 +126,15 @@ function Stage() {
             pressure: 1.0,
             timestamp: Date.now(),
           };
-          if (brushEngineRef.current) {
+
+          const currentTool = selectedToolIdRef.current;
+          if (currentTool === ToolbarItemIDs.PEN && penEngineRef.current) {
+            penEngineRef.current.startStroke(point);
+          } else if (
+            (currentTool === ToolbarItemIDs.BRUSH ||
+              currentTool === ToolbarItemIDs.ERASER) &&
+            brushEngineRef.current
+          ) {
             brushEngineRef.current.startStroke(point);
           }
         };
@@ -119,7 +151,15 @@ function Stage() {
             pressure: 1.0,
             timestamp: Date.now(),
           };
-          if (brushEngineRef.current) {
+
+          const currentTool = selectedToolIdRef.current;
+          if (currentTool === ToolbarItemIDs.PEN && penEngineRef.current) {
+            penEngineRef.current.continueStroke(point);
+          } else if (
+            (currentTool === ToolbarItemIDs.BRUSH ||
+              currentTool === ToolbarItemIDs.ERASER) &&
+            brushEngineRef.current
+          ) {
             brushEngineRef.current.continueStroke(point);
           }
         };
@@ -128,14 +168,31 @@ function Stage() {
           if (!isDrawingRef.current) return;
           event.preventDefault();
           isDrawingRef.current = false;
-          if (brushEngineRef.current) {
+
+          const currentTool = selectedToolIdRef.current;
+          if (currentTool === ToolbarItemIDs.PEN && penEngineRef.current) {
+            penEngineRef.current.endStroke();
+          } else if (
+            (currentTool === ToolbarItemIDs.BRUSH ||
+              currentTool === ToolbarItemIDs.ERASER) &&
+            brushEngineRef.current
+          ) {
             brushEngineRef.current.endStroke();
           }
         };
 
         const handleMouseLeave = () => {
-          if (isDrawingRef.current && brushEngineRef.current) {
-            brushEngineRef.current.endStroke();
+          if (isDrawingRef.current) {
+            const currentTool = selectedToolIdRef.current;
+            if (currentTool === ToolbarItemIDs.PEN && penEngineRef.current) {
+              penEngineRef.current.endStroke();
+            } else if (
+              (currentTool === ToolbarItemIDs.BRUSH ||
+                currentTool === ToolbarItemIDs.ERASER) &&
+              brushEngineRef.current
+            ) {
+              brushEngineRef.current.endStroke();
+            }
           }
           isDrawingRef.current = false;
         };
@@ -170,6 +227,10 @@ function Stage() {
         if (brushEngineRef.current) {
           brushEngineRef.current.cleanup();
           brushEngineRef.current = null;
+        }
+        if (penEngineRef.current) {
+          penEngineRef.current.cleanup();
+          penEngineRef.current = null;
         }
         if (canvasRef.current && canvas && canvasRef.current.contains(canvas)) {
           canvasRef.current.removeChild(canvas);
