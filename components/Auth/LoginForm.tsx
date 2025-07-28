@@ -129,14 +129,15 @@ const LoginForm: React.FC<LoginFormProps> = ({
       console.error("로그인 오류:", err);
 
       const errorMessage =
-        err.response?.data?.error?.message ||
-        err.message ||
-        "서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.";
+        err.message || "서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.";
 
       showToast.error(errorMessage);
 
-      if (onError && err.response?.data?.error) {
-        onError(err.response.data.error);
+      if (onError && err.code) {
+        onError({
+          code: err.code,
+          message: err.message,
+        });
       }
     } finally {
       setIsLoading(false);

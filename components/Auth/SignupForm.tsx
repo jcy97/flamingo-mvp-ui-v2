@@ -103,7 +103,7 @@ const SignupForm: React.FC<SignupFormProps> = ({
       }
     } catch (error: any) {
       console.error("이메일 확인 오류:", error);
-      showToast.error("이메일 확인 중 오류가 발생했습니다.");
+      showToast.error(error.message || "이메일 확인 중 오류가 발생했습니다.");
     }
   };
 
@@ -185,14 +185,16 @@ const SignupForm: React.FC<SignupFormProps> = ({
       console.error("회원가입 오류:", err);
 
       const errorMessage =
-        err.response?.data?.error?.message ||
-        err.message ||
-        "서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.";
+        err.message || "서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.";
 
       showToast.error(errorMessage);
 
-      if (onError && err.response?.data?.error) {
-        onError(err.response.data.error);
+      if (onError && err.code) {
+        onError({
+          code: err.code,
+          message: err.message,
+          details: err.details,
+        });
       }
     } finally {
       setFormData((prev) => ({ ...prev, isLoading: false }));
@@ -299,7 +301,7 @@ const SignupForm: React.FC<SignupFormProps> = ({
               htmlFor="name"
               className="block text-neutral-300 font-medium mb-2 text-sm"
             >
-              이름 *
+              닉네임 *
             </label>
             <input
               id="name"
@@ -307,7 +309,7 @@ const SignupForm: React.FC<SignupFormProps> = ({
               type="text"
               value={formData.name}
               onChange={handleInputChange}
-              placeholder="이름을 입력하세요"
+              placeholder="닉네임을 입력하세요"
               className="w-full h-[35px] px-3 bg-transparent border border-neutral-500 rounded-flamingo-xs text-neutral-0 placeholder-neutral-500 focus:outline-none focus:border-primary transition-colors text-sm"
               required
               disabled={formData.isLoading}
