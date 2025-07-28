@@ -18,6 +18,7 @@ function Stage() {
   const penEngineRef = useRef<PenEngine | null>(null);
   const isDrawingRef = useRef<boolean>(false);
   const currentLayerRef = useRef<PIXI.Container | null>(null);
+  const lastPointerEventRef = useRef<PointerEvent | null>(null);
 
   const [brushSettings] = useAtom(brushSettingsAtom);
   const [penSettings] = useAtom(penSettingsAtom);
@@ -37,6 +38,16 @@ function Stage() {
     },
     []
   );
+
+  const getPressure = useCallback((event: PointerEvent): number => {
+    if (event.pointerType === "pen" && event.pressure > 0) {
+      return event.pressure;
+    }
+    if (event.pointerType === "touch" && event.pressure > 0) {
+      return event.pressure;
+    }
+    return Math.random() * 0.3 + 0.5;
+  }, []);
 
   const brushSettingsRef = useRef(brushSettings);
   const penSettingsRef = useRef(penSettings);
@@ -115,15 +126,19 @@ function Stage() {
         canvas.style.display = "block";
         canvas.style.width = "100%";
         canvas.style.height = "100%";
+        canvas.style.touchAction = "none";
 
-        const handleMouseDown = (event: MouseEvent) => {
+        const handlePointerDown = (event: PointerEvent) => {
           event.preventDefault();
+          canvas.setPointerCapture(event.pointerId);
+          lastPointerEventRef.current = event;
           isDrawingRef.current = true;
           const coords = getCanvasCoordinates(event.clientX, event.clientY);
+          const pressure = getPressure(event);
           const point: DrawingPoint = {
             x: coords.x,
             y: coords.y,
-            pressure: 1.0,
+            pressure: pressure,
             timestamp: Date.now(),
           };
 
@@ -139,16 +154,18 @@ function Stage() {
           }
         };
 
-        const handleMouseMove = (event: MouseEvent) => {
+        const handlePointerMove = (event: PointerEvent) => {
           if (!isDrawingRef.current) {
             return;
           }
           event.preventDefault();
+          lastPointerEventRef.current = event;
           const coords = getCanvasCoordinates(event.clientX, event.clientY);
+          const pressure = getPressure(event);
           const point: DrawingPoint = {
             x: coords.x,
             y: coords.y,
-            pressure: 1.0,
+            pressure: pressure,
             timestamp: Date.now(),
           };
 
@@ -164,9 +181,10 @@ function Stage() {
           }
         };
 
-        const handleMouseUp = (event: MouseEvent) => {
+        const handlePointerUp = (event: PointerEvent) => {
           if (!isDrawingRef.current) return;
           event.preventDefault();
+          canvas.releasePointerCapture(event.pointerId);
           isDrawingRef.current = false;
 
           const currentTool = selectedToolIdRef.current;
@@ -181,7 +199,7 @@ function Stage() {
           }
         };
 
-        const handleMouseLeave = () => {
+        const handlePointerLeave = () => {
           if (isDrawingRef.current) {
             const currentTool = selectedToolIdRef.current;
             if (currentTool === ToolbarItemIDs.PEN && penEngineRef.current) {
@@ -197,22 +215,24 @@ function Stage() {
           isDrawingRef.current = false;
         };
 
-        canvas.addEventListener("mousedown", handleMouseDown, {
+        canvas.addEventListener("pointerdown", handlePointerDown, {
           passive: false,
         });
-        canvas.addEventListener("mousemove", handleMouseMove, {
+        canvas.addEventListener("pointermove", handlePointerMove, {
           passive: false,
         });
-        canvas.addEventListener("mouseup", handleMouseUp, { passive: false });
-        canvas.addEventListener("mouseleave", handleMouseLeave, {
+        canvas.addEventListener("pointerup", handlePointerUp, {
+          passive: false,
+        });
+        canvas.addEventListener("pointerleave", handlePointerLeave, {
           passive: false,
         });
 
         return () => {
-          canvas.removeEventListener("mousedown", handleMouseDown);
-          canvas.removeEventListener("mousemove", handleMouseMove);
-          canvas.removeEventListener("mouseup", handleMouseUp);
-          canvas.removeEventListener("mouseleave", handleMouseLeave);
+          canvas.removeEventListener("pointerdown", handlePointerDown);
+          canvas.removeEventListener("pointermove", handlePointerMove);
+          canvas.removeEventListener("pointerup", handlePointerUp);
+          canvas.removeEventListener("pointerleave", handlePointerLeave);
         };
       } catch (error) {
         console.error("Drawing engine initialization failed", error);

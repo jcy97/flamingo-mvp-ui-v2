@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from "react";
 import { useAtom } from "jotai";
+import { getStroke } from "perfect-freehand";
 import { penSettingsAtom } from "@/stores/penStore";
 
 function PenPreview() {
@@ -18,16 +19,13 @@ function PenPreview() {
 
     ctx.clearRect(0, 0, width, height);
 
-    ctx.fillStyle = penSettings.color;
-    ctx.globalAlpha = penSettings.opacity;
-
     const startX = width * 0.15;
     const endX = width * 0.85;
     const centerY = height * 0.5;
     const amplitude = height * 0.25;
 
-    const points: Array<{ x: number; y: number; size: number }> = [];
-    const steps = 120;
+    const points: number[][] = [];
+    const steps = 80;
 
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
@@ -36,25 +34,50 @@ function PenPreview() {
       const sineWave = Math.sin(t * Math.PI * 2.5) * amplitude;
       const y = centerY + sineWave * (1 - Math.abs(t - 0.5) * 1.5);
 
-      let size = penSettings.size;
-
-      if (t < 0.05) {
-        size *= Math.max(0.8, t / 0.05);
-      } else if (t > 0.95) {
-        size *= Math.max(0.8, (1 - t) / 0.05);
+      let pressure = 0.5;
+      if (penSettings.pressure) {
+        if (t < 0.1) {
+          pressure = t * 5;
+        } else if (t > 0.9) {
+          pressure = (1 - t) * 10;
+        } else {
+          const velocity = Math.abs(Math.cos(t * Math.PI * 2.5));
+          pressure = Math.max(0.2, 0.8 - velocity * 0.3);
+        }
       }
 
-      const velocity = Math.abs(Math.cos(t * Math.PI * 2.5) * 2);
-      size *= Math.max(0.9, 1 - velocity * 0.1);
-
-      points.push({ x, y, size: Math.max(penSettings.size * 0.8, size) });
+      points.push([x, y, pressure]);
     }
 
-    points.forEach((point) => {
+    const options = {
+      size: penSettings.size * 3,
+      thinning: penSettings.pressure ? 0.6 : 0,
+      smoothing: penSettings.smoothing,
+      streamline: 0.5,
+      easing: (t: number) => t,
+      start: {
+        taper: 0,
+        easing: (t: number) => t,
+      },
+      end: {
+        taper: 20,
+        easing: (t: number) => t,
+      },
+    };
+
+    const stroke = getStroke(points, options);
+
+    if (stroke.length > 0) {
+      ctx.fillStyle = penSettings.color;
+      ctx.globalAlpha = penSettings.opacity;
       ctx.beginPath();
-      ctx.arc(point.x, point.y, point.size / 2, 0, Math.PI * 2);
+      ctx.moveTo(stroke[0][0], stroke[0][1]);
+      for (let i = 1; i < stroke.length; i++) {
+        ctx.lineTo(stroke[i][0], stroke[i][1]);
+      }
+      ctx.closePath();
       ctx.fill();
-    });
+    }
   }, [penSettings]);
 
   return (
