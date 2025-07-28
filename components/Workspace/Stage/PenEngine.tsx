@@ -18,7 +18,8 @@ export class PenEngine {
   private activeLayer: PIXI.Container | null = null;
   private renderTexture: PIXI.RenderTexture | null = null;
   private rtSprite: PIXI.Sprite | null = null;
-  private strokeGraphics: PIXI.Graphics | null = null;
+  private currentStrokeGraphics: PIXI.Graphics | null = null;
+  private currentStrokeContainer: PIXI.Container | null = null;
 
   constructor(app: PIXI.Application, initialSettings: PenSettings) {
     this.app = app;
@@ -45,88 +46,103 @@ export class PenEngine {
       this.renderTexture.destroy();
       this.renderTexture = null;
     }
-    const { width, height } = this.app.renderer;
+    if (this.currentStrokeContainer) {
+      this.activeLayer.removeChild(this.currentStrokeContainer);
+      this.currentStrokeContainer.destroy();
+      this.currentStrokeContainer = null;
+    }
+    const width = this.app.renderer.width;
+    const height = this.app.renderer.height;
     this.renderTexture = PIXI.RenderTexture.create({ width, height });
     this.rtSprite = new PIXI.Sprite(this.renderTexture);
     this.activeLayer.addChild(this.rtSprite);
+    this.currentStrokeContainer = new PIXI.Container();
+    this.activeLayer.addChild(this.currentStrokeContainer);
   }
 
   public startStroke(point: DrawingPoint): void {
-    if (!this.activeLayer) return;
+    if (!this.activeLayer || !this.currentStrokeContainer) return;
     this.isDrawing = true;
-    this.currentStroke = [[point.x, point.y, point.pressure || 0.5]];
-    this.updateStroke();
+    this.currentStroke = [
+      [point.x, point.y, point.pressure !== undefined ? point.pressure : 0.5],
+    ];
+    if (this.currentStrokeGraphics) {
+      this.currentStrokeContainer.removeChild(this.currentStrokeGraphics);
+      this.currentStrokeGraphics.destroy();
+    }
+    this.currentStrokeGraphics = new PIXI.Graphics();
+    this.currentStrokeContainer.addChild(this.currentStrokeGraphics);
+    this.updateCurrentStroke();
   }
 
   public continueStroke(point: DrawingPoint): void {
     if (!this.isDrawing || !this.activeLayer) return;
-    this.currentStroke.push([point.x, point.y, point.pressure || 0.5]);
-    this.updateStroke();
+    this.currentStroke.push([
+      point.x,
+      point.y,
+      point.pressure !== undefined ? point.pressure : 0.5,
+    ]);
+    this.updateCurrentStroke();
   }
 
   public endStroke(): void {
+    if (!this.isDrawing) return;
+    this.commitCurrentStroke();
     this.isDrawing = false;
     this.currentStroke = [];
-    this.strokeGraphics = null;
+    if (this.currentStrokeGraphics && this.currentStrokeContainer) {
+      this.currentStrokeContainer.removeChild(this.currentStrokeGraphics);
+      this.currentStrokeGraphics.destroy();
+      this.currentStrokeGraphics = null;
+    }
   }
 
   public isCurrentlyDrawing(): boolean {
     return this.isDrawing;
   }
 
-  private updateStroke(): void {
-    if (!this.renderTexture || this.currentStroke.length < 2) return;
-
+  private updateCurrentStroke(): void {
+    if (!this.currentStrokeGraphics || this.currentStroke.length < 2) return;
     const options = {
       size: this.settings.size * 4,
       thinning: this.settings.pressure ? 0.6 : 0,
       smoothing: this.settings.smoothing,
       streamline: 0.5,
       easing: (t: number) => t,
-      start: {
-        taper: 0,
-        easing: (t: number) => t,
-      },
+      start: { taper: 0, easing: (t: number) => t },
       end: {
         taper: this.currentStroke.length < 10 ? 0 : 20,
         easing: (t: number) => t,
       },
     };
-
     const stroke = getStroke(this.currentStroke, options);
+    if (stroke.length < 2) return;
+    this.currentStrokeGraphics.clear();
+    const color = Number("0x" + this.settings.color.replace("#", ""));
+    this.currentStrokeGraphics.beginFill(color, this.settings.opacity);
+    const flatPoints = stroke.flat();
+    this.currentStrokeGraphics.drawPolygon(flatPoints);
+    this.currentStrokeGraphics.endFill();
+  }
 
-    if (this.strokeGraphics) {
-      this.strokeGraphics.destroy();
-    }
-
-    this.strokeGraphics = new PIXI.Graphics();
-
-    const color = parseInt(this.settings.color.replace("#", ""), 16);
-    this.strokeGraphics.beginFill(color, this.settings.opacity);
-
-    if (stroke.length > 0) {
-      this.strokeGraphics.moveTo(stroke[0][0], stroke[0][1]);
-      for (let i = 1; i < stroke.length; i++) {
-        this.strokeGraphics.lineTo(stroke[i][0], stroke[i][1]);
-      }
-      this.strokeGraphics.closePath();
-    }
-
-    this.strokeGraphics.endFill();
-
+  private commitCurrentStroke(): void {
+    if (!this.renderTexture || !this.currentStrokeGraphics) return;
     this.app.renderer.render({
-      container: this.strokeGraphics,
+      container: this.currentStrokeGraphics,
       target: this.renderTexture,
       clear: false,
-      transform: undefined,
     });
   }
 
   public cleanup(): void {
     this.endStroke();
-    if (this.strokeGraphics) {
-      this.strokeGraphics.destroy();
-      this.strokeGraphics = null;
+    if (this.currentStrokeGraphics) {
+      this.currentStrokeGraphics.destroy();
+      this.currentStrokeGraphics = null;
+    }
+    if (this.currentStrokeContainer) {
+      this.currentStrokeContainer.destroy();
+      this.currentStrokeContainer = null;
     }
     if (this.rtSprite) {
       this.rtSprite.destroy();
