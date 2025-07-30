@@ -108,6 +108,47 @@ export const brushSmoothingAtom = atom(
   }
 );
 
+export const brushScatterXAtom = atom(
+  (get) => get(brushSettingsAtom).scatterX,
+  (get, set, newScatterX: number) => {
+    const currentSettings = get(brushSettingsAtom);
+    set(brushSettingsAtom, {
+      ...currentSettings,
+      scatterX: Math.max(0, Math.min(50, newScatterX)),
+    });
+  }
+);
+
+export const brushScatterYAtom = atom(
+  (get) => get(brushSettingsAtom).scatterY,
+  (get, set, newScatterY: number) => {
+    const currentSettings = get(brushSettingsAtom);
+    set(brushSettingsAtom, {
+      ...currentSettings,
+      scatterY: Math.max(0, Math.min(50, newScatterY)),
+    });
+  }
+);
+
+export const brushTextureOpacityAtom = atom(
+  (get) => get(brushSettingsAtom).textureOpacity,
+  (get, set, newTextureOpacity: number) => {
+    const currentSettings = get(brushSettingsAtom);
+    set(brushSettingsAtom, {
+      ...currentSettings,
+      textureOpacity: Math.max(0, Math.min(1, newTextureOpacity)),
+    });
+  }
+);
+
+export const brushBlendModeAtom = atom(
+  (get) => get(brushSettingsAtom).blendMode,
+  (get, set, newBlendMode: string) => {
+    const currentSettings = get(brushSettingsAtom);
+    set(brushSettingsAtom, { ...currentSettings, blendMode: newBlendMode });
+  }
+);
+
 export const colorPickerStateAtom = atom<ColorPickerState>({
   isOpen: false,
   x: 0,

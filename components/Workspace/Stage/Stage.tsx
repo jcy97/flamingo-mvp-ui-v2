@@ -69,7 +69,11 @@ function Stage() {
     if (brushEngineRef.current && !isDrawingRef.current) {
       const settings =
         selectedToolIdRef.current === ToolbarItemIDs.ERASER
-          ? { ...brushSettingsRef.current, color: "#FFFFFF" }
+          ? {
+              ...brushSettingsRef.current,
+              color: "#FFFFFF",
+              blendMode: "erase",
+            }
           : brushSettingsRef.current;
       const timeoutId = setTimeout(() => {
         if (brushEngineRef.current) {

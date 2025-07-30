@@ -6,7 +6,7 @@ export class BrushTextureCache {
   private maxCacheSize = 50;
 
   private generateCacheKey(settings: BrushSettings): string {
-    return `${settings.size}_${settings.color}_${settings.hardness}_${settings.opacity}_${settings.roundness}_${settings.angle}`;
+    return `${settings.size}_${settings.color}_${settings.hardness}_${settings.opacity}_${settings.roundness}_${settings.angle}_${settings.textureOpacity}`;
   }
 
   get(settings: BrushSettings): BrushTexture | null {
@@ -41,6 +41,119 @@ export class BrushTextureCache {
 
 export const brushTextureCache = new BrushTextureCache();
 
+export class GraphicsPool {
+  private pool: PIXI.Graphics[] = [];
+  private active = new Set<PIXI.Graphics>();
+  private maxPoolSize: number;
+
+  constructor(maxPoolSize = 100) {
+    this.maxPoolSize = maxPoolSize;
+  }
+
+  acquire(): PIXI.Graphics {
+    let graphics: PIXI.Graphics;
+    if (this.pool.length > 0) {
+      graphics = this.pool.pop()!;
+    } else {
+      graphics = new PIXI.Graphics();
+    }
+    this.active.add(graphics);
+    return graphics;
+  }
+
+  release(graphics: PIXI.Graphics): void {
+    if (this.active.has(graphics)) {
+      this.active.delete(graphics);
+      graphics.clear();
+      graphics.removeChildren();
+
+      if (this.pool.length < this.maxPoolSize) {
+        this.pool.push(graphics);
+      } else {
+        graphics.destroy();
+      }
+    }
+  }
+
+  releaseAll(): void {
+    for (const graphics of this.active) {
+      graphics.clear();
+      graphics.removeChildren();
+      if (this.pool.length < this.maxPoolSize) {
+        this.pool.push(graphics);
+      } else {
+        graphics.destroy();
+      }
+    }
+    this.active.clear();
+  }
+
+  cleanup(): void {
+    this.releaseAll();
+    this.pool.forEach((graphics) => graphics.destroy());
+    this.pool = [];
+  }
+}
+
+export class VelocityTracker {
+  private points: Array<{ x: number; y: number; timestamp: number }> = [];
+  private maxSamples: number;
+
+  constructor(maxSamples = 5) {
+    this.maxSamples = maxSamples;
+  }
+
+  addPoint(x: number, y: number, timestamp: number): void {
+    this.points.push({ x, y, timestamp });
+
+    if (this.points.length > this.maxSamples) {
+      this.points.shift();
+    }
+  }
+
+  getCurrentVelocity(): number {
+    if (this.points.length < 2) return 0;
+
+    const latest = this.points[this.points.length - 1];
+    const previous = this.points[this.points.length - 2];
+
+    const dx = latest.x - previous.x;
+    const dy = latest.y - previous.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    const timeDiff = latest.timestamp - previous.timestamp;
+
+    return timeDiff > 0 ? (distance / timeDiff) * 1000 : 0;
+  }
+
+  getAverageVelocity(): number {
+    if (this.points.length < 2) return 0;
+
+    let totalVelocity = 0;
+    let count = 0;
+
+    for (let i = 1; i < this.points.length; i++) {
+      const curr = this.points[i];
+      const prev = this.points[i - 1];
+
+      const dx = curr.x - prev.x;
+      const dy = curr.y - prev.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const timeDiff = curr.timestamp - prev.timestamp;
+
+      if (timeDiff > 0) {
+        totalVelocity += (distance / timeDiff) * 1000;
+        count++;
+      }
+    }
+
+    return count > 0 ? totalVelocity / count : 0;
+  }
+
+  reset(): void {
+    this.points = [];
+  }
+}
+
 export function createBrushTexture(
   app: PIXI.Application,
   settings: BrushSettings
@@ -74,7 +187,7 @@ export function createBrushTexture(
       const radiusX = radius;
       const radiusY = radius * settings.roundness;
 
-      brushGraphics.beginFill(color, 1);
+      brushGraphics.beginFill(color, settings.textureOpacity);
       brushGraphics.drawEllipse(
         textureSize / 2,
         textureSize / 2,
@@ -90,7 +203,7 @@ export function createBrushTexture(
         brushGraphics.y = textureSize / 2;
       }
     } else {
-      brushGraphics.beginFill(color, 1);
+      brushGraphics.beginFill(color, settings.textureOpacity);
       brushGraphics.drawCircle(textureSize / 2, textureSize / 2, radius);
       brushGraphics.endFill();
     }
@@ -127,10 +240,6 @@ export function createBrushTexture(
     console.error("Failed to create brush texture:", error);
     return null;
   }
-}
-
-export function applyGammaCorrection(opacity: number): number {
-  return opacity;
 }
 
 export function calculateSpacing(size: number, spacing: number): number {
@@ -185,30 +294,52 @@ export function smoothPath(
   return smoothed;
 }
 
-export function createBrushStamp(
-  container: PIXI.Container,
-  x: number,
-  y: number,
-  brushTexture: BrushTexture,
-  settings: BrushSettings
-): void {
-  if (!brushTexture.texture) return;
+export function calculateScatter(
+  scatterX: number,
+  scatterY: number
+): { x: number; y: number } {
+  return {
+    x: (Math.random() - 0.5) * scatterX,
+    y: (Math.random() - 0.5) * scatterY,
+  };
+}
 
-  try {
-    const stamp = new PIXI.Sprite(brushTexture.texture);
-    stamp.anchor.set(0.5, 0.5);
-    stamp.x = x;
-    stamp.y = y;
+export function applyPressureSensitivity(
+  baseValue: number,
+  pressure: number,
+  sensitivity: number
+): number {
+  return baseValue * (1 - sensitivity * (1 - pressure));
+}
 
-    stamp.alpha = Math.max(0, Math.min(1, settings.opacity));
+export function applyVelocitySensitivity(
+  baseValue: number,
+  velocity: number,
+  maxVelocity: number,
+  sensitivity: number
+): number {
+  const normalizedVelocity = Math.min(velocity / maxVelocity, 1);
+  return baseValue * (1 - sensitivity * normalizedVelocity);
+}
 
-    if (settings.pressure) {
-      stamp.scale.set(1, 1);
-    }
-
-    container.addChild(stamp);
-  } catch (error) {
-    console.warn("Failed to create brush stamp:", error);
+export function getBlendMode(mode: string): string {
+  switch (mode) {
+    case "multiply":
+      return "multiply";
+    case "screen":
+      return "screen";
+    case "overlay":
+      return "overlay";
+    case "add":
+      return "add";
+    case "subtract":
+      return "subtract";
+    case "difference":
+      return "difference";
+    case "erase":
+      return "erase";
+    default:
+      return "normal";
   }
 }
 
