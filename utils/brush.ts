@@ -5,17 +5,19 @@ export class BrushTextureCache {
   private cache = new Map<string, BrushTexture>();
   private maxCacheSize = 50;
 
-  private generateCacheKey(settings: BrushSettings): string {
-    return `${settings.size}_${settings.color}_${settings.hardness}_${settings.opacity}_${settings.roundness}_${settings.angle}_${settings.textureOpacity}`;
+  private generateCacheKey(settings: BrushSettings, imageUrl?: string): string {
+    return `${settings.size}_${settings.color}_${settings.hardness}_${
+      settings.opacity
+    }_${settings.roundness}_${settings.angle}_${imageUrl || ""}`;
   }
 
-  get(settings: BrushSettings): BrushTexture | null {
-    const key = this.generateCacheKey(settings);
+  get(settings: BrushSettings, imageUrl?: string): BrushTexture | null {
+    const key = this.generateCacheKey(settings, imageUrl);
     return this.cache.get(key) || null;
   }
 
-  set(settings: BrushSettings, texture: BrushTexture): void {
-    const key = this.generateCacheKey(settings);
+  set(settings: BrushSettings, texture: BrushTexture, imageUrl?: string): void {
+    const key = this.generateCacheKey(settings, imageUrl);
 
     if (this.cache.size >= this.maxCacheSize) {
       const firstKey = this.cache.keys().next().value;
@@ -41,119 +43,7 @@ export class BrushTextureCache {
 
 export const brushTextureCache = new BrushTextureCache();
 
-export class GraphicsPool {
-  private pool: PIXI.Graphics[] = [];
-  private active = new Set<PIXI.Graphics>();
-  private maxPoolSize: number;
-
-  constructor(maxPoolSize = 100) {
-    this.maxPoolSize = maxPoolSize;
-  }
-
-  acquire(): PIXI.Graphics {
-    let graphics: PIXI.Graphics;
-    if (this.pool.length > 0) {
-      graphics = this.pool.pop()!;
-    } else {
-      graphics = new PIXI.Graphics();
-    }
-    this.active.add(graphics);
-    return graphics;
-  }
-
-  release(graphics: PIXI.Graphics): void {
-    if (this.active.has(graphics)) {
-      this.active.delete(graphics);
-      graphics.clear();
-      graphics.removeChildren();
-
-      if (this.pool.length < this.maxPoolSize) {
-        this.pool.push(graphics);
-      } else {
-        graphics.destroy();
-      }
-    }
-  }
-
-  releaseAll(): void {
-    for (const graphics of this.active) {
-      graphics.clear();
-      graphics.removeChildren();
-      if (this.pool.length < this.maxPoolSize) {
-        this.pool.push(graphics);
-      } else {
-        graphics.destroy();
-      }
-    }
-    this.active.clear();
-  }
-
-  cleanup(): void {
-    this.releaseAll();
-    this.pool.forEach((graphics) => graphics.destroy());
-    this.pool = [];
-  }
-}
-
-export class VelocityTracker {
-  private points: Array<{ x: number; y: number; timestamp: number }> = [];
-  private maxSamples: number;
-
-  constructor(maxSamples = 5) {
-    this.maxSamples = maxSamples;
-  }
-
-  addPoint(x: number, y: number, timestamp: number): void {
-    this.points.push({ x, y, timestamp });
-
-    if (this.points.length > this.maxSamples) {
-      this.points.shift();
-    }
-  }
-
-  getCurrentVelocity(): number {
-    if (this.points.length < 2) return 0;
-
-    const latest = this.points[this.points.length - 1];
-    const previous = this.points[this.points.length - 2];
-
-    const dx = latest.x - previous.x;
-    const dy = latest.y - previous.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    const timeDiff = latest.timestamp - previous.timestamp;
-
-    return timeDiff > 0 ? (distance / timeDiff) * 1000 : 0;
-  }
-
-  getAverageVelocity(): number {
-    if (this.points.length < 2) return 0;
-
-    let totalVelocity = 0;
-    let count = 0;
-
-    for (let i = 1; i < this.points.length; i++) {
-      const curr = this.points[i];
-      const prev = this.points[i - 1];
-
-      const dx = curr.x - prev.x;
-      const dy = curr.y - prev.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      const timeDiff = curr.timestamp - prev.timestamp;
-
-      if (timeDiff > 0) {
-        totalVelocity += (distance / timeDiff) * 1000;
-        count++;
-      }
-    }
-
-    return count > 0 ? totalVelocity / count : 0;
-  }
-
-  reset(): void {
-    this.points = [];
-  }
-}
-
+// 1. 벡터(원/타원/블러) 브러쉬 텍스쳐 생성
 export function createBrushTexture(
   app: PIXI.Application,
   settings: BrushSettings
@@ -186,8 +76,7 @@ export function createBrushTexture(
     if (settings.roundness < 1) {
       const radiusX = radius;
       const radiusY = radius * settings.roundness;
-
-      brushGraphics.beginFill(color, settings.textureOpacity);
+      brushGraphics.beginFill(color, 1);
       brushGraphics.drawEllipse(
         textureSize / 2,
         textureSize / 2,
@@ -203,7 +92,7 @@ export function createBrushTexture(
         brushGraphics.y = textureSize / 2;
       }
     } else {
-      brushGraphics.beginFill(color, settings.textureOpacity);
+      brushGraphics.beginFill(color, 1);
       brushGraphics.drawCircle(textureSize / 2, textureSize / 2, radius);
       brushGraphics.endFill();
     }
@@ -226,7 +115,7 @@ export function createBrushTexture(
     const sprite = new PIXI.Sprite(renderTexture);
     sprite.anchor.set(0.5, 0.5);
 
-    const texture: BrushTexture = {
+    return {
       texture: renderTexture,
       sprite,
       size,
@@ -234,12 +123,54 @@ export function createBrushTexture(
       hardness: settings.hardness,
       opacity: settings.opacity,
     };
-
-    return texture;
   } catch (error) {
     console.error("Failed to create brush texture:", error);
     return null;
   }
+}
+
+// 2. 이미지 기반(거친 질감 등) 브러쉬 텍스쳐 생성 (비동기)
+export async function createImageBrushTexture(
+  app: PIXI.Application,
+  imageUrl: string,
+  settings: BrushSettings
+): Promise<BrushTexture | null> {
+  try {
+    const { size, opacity } = settings;
+    // PixiJS v7 Assets 사용, v6 이하는 PIXI.Texture.from(imageUrl)
+    const baseTexture = await PIXI.Assets.load(imageUrl);
+    const sprite = new PIXI.Sprite(baseTexture);
+    sprite.anchor.set(0.5);
+
+    sprite.width = size;
+    sprite.height = size;
+    sprite.alpha = opacity;
+
+    const renderTexture = PIXI.RenderTexture.create({
+      width: size,
+      height: size,
+      resolution: 1,
+    });
+
+    app.renderer.render(sprite, { renderTexture });
+    sprite.destroy();
+
+    return {
+      texture: renderTexture,
+      sprite: new PIXI.Sprite(renderTexture),
+      size,
+      color: "#000000", // 의미 없음 (이미지 기반)
+      hardness: 1,
+      opacity,
+    };
+  } catch (e) {
+    console.error("이미지 브러쉬 텍스쳐 생성 실패:", e);
+    return null;
+  }
+}
+
+export function applyGammaCorrection(opacity: number): number {
+  return opacity;
 }
 
 export function calculateSpacing(size: number, spacing: number): number {
@@ -257,14 +188,12 @@ export function interpolateStroke(
   const distance = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
   const steps = Math.max(1, Math.ceil(distance / spacing));
   const points: Array<{ x: number; y: number; pressure?: number }> = [];
-
   for (let i = 0; i <= steps; i++) {
     const t = steps === 0 ? 0 : i / steps;
     const x = x1 + (x2 - x1) * t;
     const y = y1 + (y2 - y1) * t;
     points.push({ x, y });
   }
-
   return points;
 }
 
@@ -273,73 +202,46 @@ export function smoothPath(
   smoothing: number
 ): Array<{ x: number; y: number }> {
   if (points.length < 3 || smoothing === 0) return points;
-
   const smoothed: Array<{ x: number; y: number }> = [];
   smoothed.push(points[0]);
-
   for (let i = 1; i < points.length - 1; i++) {
     const prev = points[i - 1];
     const current = points[i];
     const next = points[i + 1];
-
     const smoothedX =
       current.x + (prev.x + next.x - 2 * current.x) * smoothing * 0.5;
     const smoothedY =
       current.y + (prev.y + next.y - 2 * current.y) * smoothing * 0.5;
-
     smoothed.push({ x: smoothedX, y: smoothedY });
   }
-
   smoothed.push(points[points.length - 1]);
   return smoothed;
 }
 
-export function calculateScatter(
-  scatterX: number,
-  scatterY: number
-): { x: number; y: number } {
-  return {
-    x: (Math.random() - 0.5) * scatterX,
-    y: (Math.random() - 0.5) * scatterY,
-  };
-}
-
-export function applyPressureSensitivity(
-  baseValue: number,
-  pressure: number,
-  sensitivity: number
-): number {
-  return baseValue * (1 - sensitivity * (1 - pressure));
-}
-
-export function applyVelocitySensitivity(
-  baseValue: number,
-  velocity: number,
-  maxVelocity: number,
-  sensitivity: number
-): number {
-  const normalizedVelocity = Math.min(velocity / maxVelocity, 1);
-  return baseValue * (1 - sensitivity * normalizedVelocity);
-}
-
-export function getBlendMode(mode: string): string {
-  switch (mode) {
-    case "multiply":
-      return "multiply";
-    case "screen":
-      return "screen";
-    case "overlay":
-      return "overlay";
-    case "add":
-      return "add";
-    case "subtract":
-      return "subtract";
-    case "difference":
-      return "difference";
-    case "erase":
-      return "erase";
-    default:
-      return "normal";
+// 3. 벡터/이미지 구분 없이 사용할 수 있는 브러쉬 스탬프 함수
+export function createBrushStamp(
+  container: PIXI.Container,
+  x: number,
+  y: number,
+  brushTexture: BrushTexture,
+  settings: BrushSettings
+): void {
+  if (!brushTexture.texture) return;
+  try {
+    const stamp = new PIXI.Sprite(brushTexture.texture);
+    stamp.anchor.set(0.5, 0.5);
+    stamp.x = x;
+    stamp.y = y;
+    stamp.alpha = Math.max(0, Math.min(1, settings.opacity));
+    if (settings.pressure) {
+      //stamp.scale.set(settings.pressure, settings.pressure);
+      stamp.scale.set(1, 1);
+    } else {
+      stamp.scale.set(1, 1);
+    }
+    container.addChild(stamp);
+  } catch (error) {
+    console.warn("Failed to create brush stamp:", error);
   }
 }
 
