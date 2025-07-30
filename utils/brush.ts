@@ -28,7 +28,6 @@ export class BrushTextureCache {
       }
       this.cache.delete(firstKey!);
     }
-
     this.cache.set(key, texture);
   }
 
@@ -53,7 +52,6 @@ export function createBrushTexture(
   try {
     const size = Math.max(2, Math.min(200, settings.size));
     const radius = size / 2;
-
     let color;
     try {
       color = parseInt(settings.color.replace("#", ""), 16);
@@ -61,18 +59,14 @@ export function createBrushTexture(
     } catch (error) {
       color = 0x000000;
     }
-
     const padding = Math.max(20, Math.ceil(radius * 0.8));
     const textureSize = Math.max(8, size + padding * 2);
-
     const renderTexture = PIXI.RenderTexture.create({
       width: textureSize,
       height: textureSize,
       resolution: 1,
     });
-
     const brushGraphics = new PIXI.Graphics();
-
     if (settings.roundness < 1) {
       const radiusX = radius;
       const radiusY = radius * settings.roundness;
@@ -84,7 +78,6 @@ export function createBrushTexture(
         radiusY
       );
       brushGraphics.endFill();
-
       if (settings.angle !== 0) {
         brushGraphics.pivot.set(textureSize / 2, textureSize / 2);
         brushGraphics.rotation = (settings.angle * Math.PI) / 180;
@@ -96,7 +89,6 @@ export function createBrushTexture(
       brushGraphics.drawCircle(textureSize / 2, textureSize / 2, radius);
       brushGraphics.endFill();
     }
-
     if (settings.hardness < 0.98) {
       const blurAmount = (1 - settings.hardness) * radius * 0.3;
       try {
@@ -108,13 +100,10 @@ export function createBrushTexture(
         console.warn("Blur filter creation failed:", error);
       }
     }
-
     app.renderer.render(brushGraphics, { renderTexture });
     brushGraphics.destroy();
-
     const sprite = new PIXI.Sprite(renderTexture);
     sprite.anchor.set(0.5, 0.5);
-
     return {
       texture: renderTexture,
       sprite,
@@ -129,29 +118,34 @@ export function createBrushTexture(
   }
 }
 
-// 2. 이미지 기반(거친 질감 등) 브러쉬 텍스쳐 생성 (비동기)
+// 2. 이미지 브러쉬 (PNG/JPG 등)에 tint(색상) 적용
 export async function createImageBrushTexture(
   app: PIXI.Application,
   imageUrl: string,
   settings: BrushSettings
 ): Promise<BrushTexture | null> {
   try {
-    const { size, opacity } = settings;
-    // PixiJS v7 Assets 사용, v6 이하는 PIXI.Texture.from(imageUrl)
+    const { size, opacity, color } = settings;
     const baseTexture = await PIXI.Assets.load(imageUrl);
     const sprite = new PIXI.Sprite(baseTexture);
     sprite.anchor.set(0.5);
-
     sprite.width = size;
     sprite.height = size;
     sprite.alpha = opacity;
+
+    // 색상(TINT) 반영
+    if (color && color.startsWith("#")) {
+      const tintVal = parseInt(color.replace("#", ""), 16);
+      if (!isNaN(tintVal)) {
+        sprite.tint = tintVal;
+      }
+    }
 
     const renderTexture = PIXI.RenderTexture.create({
       width: size,
       height: size,
       resolution: 1,
     });
-
     app.renderer.render(sprite, { renderTexture });
     sprite.destroy();
 
@@ -159,7 +153,7 @@ export async function createImageBrushTexture(
       texture: renderTexture,
       sprite: new PIXI.Sprite(renderTexture),
       size,
-      color: "#000000", // 의미 없음 (이미지 기반)
+      color: color,
       hardness: 1,
       opacity,
     };
@@ -218,7 +212,7 @@ export function smoothPath(
   return smoothed;
 }
 
-// 3. 벡터/이미지 구분 없이 사용할 수 있는 브러쉬 스탬프 함수
+// 3. 브러쉬(벡터/이미지 공통) 스탬프 함수
 export function createBrushStamp(
   container: PIXI.Container,
   x: number,
@@ -233,6 +227,15 @@ export function createBrushStamp(
     stamp.x = x;
     stamp.y = y;
     stamp.alpha = Math.max(0, Math.min(1, settings.opacity));
+
+    // 이미지 브러쉬도 그릴 때 tint를 한 번 더 보정해도 안전함
+    if (settings.color && settings.color.startsWith("#")) {
+      const tintVal = parseInt(settings.color.replace("#", ""), 16);
+      if (!isNaN(tintVal)) {
+        stamp.tint = tintVal;
+      }
+    }
+
     if (settings.pressure) {
       //stamp.scale.set(settings.pressure, settings.pressure);
       stamp.scale.set(1, 1);

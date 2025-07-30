@@ -1,11 +1,20 @@
 import { atom } from "jotai";
 import {
   BrushSettings,
+  BrushType,
   DEFAULT_BRUSH_SETTINGS,
   ColorPickerState,
 } from "@/types/brush";
 
 export const brushSettingsAtom = atom<BrushSettings>(DEFAULT_BRUSH_SETTINGS);
+
+export const brushTypeAtom = atom(
+  (get) => get(brushSettingsAtom).brushType,
+  (get, set, newType: BrushType) => {
+    const currentSettings = get(brushSettingsAtom);
+    set(brushSettingsAtom, { ...currentSettings, brushType: newType });
+  }
+);
 
 export const brushColorAtom = atom(
   (get) => get(brushSettingsAtom).color,

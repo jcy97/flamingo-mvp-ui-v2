@@ -1,4 +1,10 @@
+export enum BrushType {
+  VECTOR = "vector",
+  IMAGE = "image",
+}
+
 export interface BrushSettings {
+  brushType: BrushType;
   color: string;
   size: number;
   hardness: number;
@@ -13,6 +19,7 @@ export interface BrushSettings {
   scatterY: number;
   textureOpacity: number;
   blendMode: string;
+  imageUrl?: string;
 }
 
 export interface BrushTexture {
@@ -67,6 +74,7 @@ export interface VelocitySettings {
 }
 
 export const DEFAULT_BRUSH_SETTINGS: BrushSettings = {
+  brushType: BrushType.VECTOR,
   color: "#000000",
   size: 20,
   hardness: 0.8,
@@ -81,6 +89,7 @@ export const DEFAULT_BRUSH_SETTINGS: BrushSettings = {
   scatterY: 0,
   textureOpacity: 1,
   blendMode: "normal",
+  imageUrl: "/brush/stroke_a.png",
 };
 
 export const DEFAULT_COLOR_PRESETS: ColorPreset[] = [

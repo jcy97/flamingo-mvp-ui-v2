@@ -14,10 +14,13 @@ import {
   brushSmoothingAtom,
   brushPreviewSizeAtom,
   colorPickerStateAtom,
+  brushTypeAtom,
 } from "@/stores/brushStore";
+import { BrushType } from "@/types/brush";
 import ColorPicker from "./ColorPicker";
 
 function BrushProperties() {
+  const [brushType, setBrushType] = useAtom(brushTypeAtom);
   const [brushColor, setBrushColor] = useAtom(brushColorAtom);
   const [brushSize, setBrushSize] = useAtom(brushSizeAtom);
   const [brushHardness, setBrushHardness] = useAtom(brushHardnessAtom);
@@ -64,7 +67,7 @@ function BrushProperties() {
           ? `blur(${Math.max(0.1, blur)}px)`
           : "none",
       transform: `rotate(${brushAngle}deg)`,
-      borderRadius: "50%",
+      borderRadius: brushType === BrushType.VECTOR ? "50%" : "0%",
       transition: "all 0.2s ease",
     };
   };
@@ -91,6 +94,20 @@ function BrushProperties() {
             <Settings size={10} />
             기본 설정
           </h4>
+
+          <div>
+            <label className="text-xs text-neutral-400 block mb-2">
+              브러쉬 타입
+            </label>
+            <select
+              value={brushType}
+              onChange={(e) => setBrushType(e.target.value as BrushType)}
+              className="w-full h-8 bg-neutral-700 border border-neutral-600 rounded px-2 text-xs text-neutral-200 hover:border-neutral-500 transition-colors"
+            >
+              <option value={BrushType.VECTOR}>기본 브러쉬</option>
+              <option value={BrushType.IMAGE}>이미지 브러쉬</option>
+            </select>
+          </div>
 
           <div>
             <label className="text-xs text-neutral-400 block mb-2">색상</label>
@@ -128,23 +145,27 @@ function BrushProperties() {
             </div>
           </div>
 
-          <div>
-            <label className="text-xs text-neutral-400 block mb-2">
-              경도: {Math.round(brushHardness * 100)}%
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={brushHardness * 100}
-              onChange={(e) => setBrushHardness(parseInt(e.target.value) / 100)}
-              className="w-full accent-primary-500"
-            />
-            <div className="flex justify-between text-xs text-neutral-500">
-              <span>부드러움</span>
-              <span>딱딱함</span>
+          {brushType === BrushType.VECTOR && (
+            <div>
+              <label className="text-xs text-neutral-400 block mb-2">
+                경도: {Math.round(brushHardness * 100)}%
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={brushHardness * 100}
+                onChange={(e) =>
+                  setBrushHardness(parseInt(e.target.value) / 100)
+                }
+                className="w-full accent-primary-500"
+              />
+              <div className="flex justify-between text-xs text-neutral-500">
+                <span>부드러움</span>
+                <span>딱딱함</span>
+              </div>
             </div>
-          </div>
+          )}
 
           <div>
             <label className="text-xs text-neutral-400 block mb-2">
@@ -159,20 +180,6 @@ function BrushProperties() {
               className="w-full accent-primary-500"
             />
           </div>
-
-          {/* <div>
-            <label className="text-xs text-neutral-400 block mb-2">
-              플로우: {Math.round(brushFlow * 100)}%
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={brushFlow * 100}
-              onChange={(e) => setBrushFlow(parseInt(e.target.value) / 100)}
-              className="w-full accent-primary-500"
-            />
-          </div> */}
         </div>
 
         <div className="space-y-3">
@@ -195,35 +202,39 @@ function BrushProperties() {
             />
           </div>
 
-          <div>
-            <label className="text-xs text-neutral-400 block mb-2">
-              원형도: {Math.round(brushRoundness * 100)}%
-            </label>
-            <input
-              type="range"
-              min="10"
-              max="100"
-              value={brushRoundness * 100}
-              onChange={(e) =>
-                setBrushRoundness(parseInt(e.target.value) / 100)
-              }
-              className="w-full accent-primary-500"
-            />
-          </div>
+          {brushType === BrushType.VECTOR && (
+            <>
+              <div>
+                <label className="text-xs text-neutral-400 block mb-2">
+                  원형도: {Math.round(brushRoundness * 100)}%
+                </label>
+                <input
+                  type="range"
+                  min="10"
+                  max="100"
+                  value={brushRoundness * 100}
+                  onChange={(e) =>
+                    setBrushRoundness(parseInt(e.target.value) / 100)
+                  }
+                  className="w-full accent-primary-500"
+                />
+              </div>
 
-          <div>
-            <label className="text-xs text-neutral-400 block mb-2">
-              각도: {brushAngle}°
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="359"
-              value={brushAngle}
-              onChange={(e) => setBrushAngle(parseInt(e.target.value))}
-              className="w-full accent-primary-500"
-            />
-          </div>
+              <div>
+                <label className="text-xs text-neutral-400 block mb-2">
+                  각도: {brushAngle}°
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="359"
+                  value={brushAngle}
+                  onChange={(e) => setBrushAngle(parseInt(e.target.value))}
+                  className="w-full accent-primary-500"
+                />
+              </div>
+            </>
+          )}
 
           <div>
             <label className="text-xs text-neutral-400 block mb-2">
