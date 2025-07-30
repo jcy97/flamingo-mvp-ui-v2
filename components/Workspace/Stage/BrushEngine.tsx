@@ -1,5 +1,12 @@
+// BrushEngine.ts
 import * as PIXI from "pixi.js";
-import { BrushSettings } from "@/types/brush";
+import { BrushSettings, BrushTexture } from "@/types/brush";
+import {
+  createBrushTexture,
+  interpolateStroke,
+  smoothPath,
+  calculateSpacing,
+} from "@/utils/brush";
 
 export interface DrawingPoint {
   x: number;
@@ -12,47 +19,26 @@ export class BrushEngine {
   private app: PIXI.Application;
   private isDrawing = false;
   private lastPoint: DrawingPoint | null = null;
+  private currentStroke: DrawingPoint[] = [];
+  private brushTexture: BrushTexture | null = null;
   private settings: BrushSettings;
   private activeLayer: PIXI.Container | null = null;
+  private strokePath: DrawingPoint[] = [];
   private renderTexture: PIXI.RenderTexture | null = null;
   private rtSprite: PIXI.Sprite | null = null;
-  private brushTexture: PIXI.Texture | null = null;
-  private tempContainer: PIXI.Container | null = null;
 
   constructor(app: PIXI.Application, initialSettings: BrushSettings) {
     this.app = app;
     this.settings = { ...initialSettings };
-    this.createBrushTexture();
-    this.tempContainer = new PIXI.Container();
-  }
-
-  private createBrushTexture() {
-    const canvas = document.createElement("canvas");
-    const size = 64;
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext("2d")!;
-
-    const gradient = ctx.createRadialGradient(
-      size / 2,
-      size / 2,
-      0,
-      size / 2,
-      size / 2,
-      size / 2
-    );
-    gradient.addColorStop(0, "rgba(255,255,255,1)");
-    gradient.addColorStop(0.6, "rgba(255,255,255,0.8)");
-    gradient.addColorStop(1, "rgba(255,255,255,0)");
-
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, size, size);
-
-    this.brushTexture = PIXI.Texture.from(canvas);
+    this.updateBrushTexture();
   }
 
   public updateSettings(newSettings: BrushSettings): void {
+    const settingsChanged = this.hasSettingsChanged(this.settings, newSettings);
     this.settings = { ...newSettings };
+    if (settingsChanged && !this.isDrawing) {
+      this.updateBrushTexture();
+    }
   }
 
   public setActiveLayer(layer: PIXI.Container): void {
@@ -62,7 +48,6 @@ export class BrushEngine {
 
   private initRenderLayer() {
     if (!this.activeLayer) return;
-
     if (this.rtSprite) {
       this.activeLayer.removeChild(this.rtSprite);
       this.rtSprite.destroy();
@@ -72,129 +57,183 @@ export class BrushEngine {
       this.renderTexture.destroy();
       this.renderTexture = null;
     }
-
     const { width, height } = this.app.renderer;
-    this.renderTexture = PIXI.RenderTexture.create({
-      width,
-      height,
-      resolution: 1,
-    });
+    this.renderTexture = PIXI.RenderTexture.create({ width, height });
     this.rtSprite = new PIXI.Sprite(this.renderTexture);
     this.activeLayer.addChild(this.rtSprite);
   }
 
-  private renderBrushStamp(x: number, y: number, pressure: number = 0.5) {
-    if (!this.brushTexture || !this.renderTexture || !this.tempContainer)
-      return;
-
-    let size = this.settings.size;
-    let opacity = this.settings.opacity;
-
-    if (this.settings.pressure && pressure !== undefined) {
-      size *= Math.max(0.1, pressure);
-      opacity *= Math.max(0.1, pressure);
-    }
-
-    const scatterX = (Math.random() - 0.5) * (this.settings.scatterX || 0);
-    const scatterY = (Math.random() - 0.5) * (this.settings.scatterY || 0);
-
-    this.tempContainer.removeChildren();
-
-    const stamp = new PIXI.Sprite(this.brushTexture);
-    stamp.anchor.set(0.5, 0.5);
-    stamp.x = x + scatterX;
-    stamp.y = y + scatterY;
-    stamp.width = size;
-    stamp.height = size * this.settings.roundness;
-    stamp.alpha = opacity * this.settings.flow;
-    stamp.rotation = (this.settings.angle * Math.PI) / 180;
-    stamp.tint = parseInt(this.settings.color.replace("#", ""), 16);
-
-    this.tempContainer.addChild(stamp);
-
-    this.app.renderer.render({
-      container: this.tempContainer,
-      target: this.renderTexture,
-      clear: false,
-    });
-
-    this.tempContainer.removeChildren();
-    stamp.destroy();
-  }
-
-  private interpolateStroke(start: DrawingPoint, end: DrawingPoint) {
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    const spacing = Math.max(1, this.settings.size * this.settings.spacing);
-    const steps = Math.ceil(distance / spacing);
-
-    if (steps <= 1) {
-      this.renderBrushStamp(end.x, end.y, end.pressure);
-      return;
-    }
-
-    for (let i = 1; i <= steps; i++) {
-      const t = i / steps;
-      const x = start.x + dx * t;
-      const y = start.y + dy * t;
-      const pressure =
-        (start.pressure || 0.5) +
-        ((end.pressure || 0.5) - (start.pressure || 0.5)) * t;
-
-      this.renderBrushStamp(x, y, pressure);
-    }
-  }
-
   public startStroke(point: DrawingPoint): void {
     if (!this.activeLayer) return;
-
     this.isDrawing = true;
-    this.lastPoint = { ...point, pressure: point.pressure || 0.5 };
-
-    this.renderBrushStamp(point.x, point.y, point.pressure || 0.5);
+    this.lastPoint = { ...point, timestamp: Date.now() };
+    this.currentStroke = [this.lastPoint];
+    this.strokePath = [this.lastPoint];
+    this.drawPoint(point);
   }
 
   public continueStroke(point: DrawingPoint): void {
     if (!this.isDrawing || !this.lastPoint || !this.activeLayer) return;
-
-    const currentPoint = { ...point, pressure: point.pressure || 0.5 };
-    this.interpolateStroke(this.lastPoint, currentPoint);
+    const currentPoint = { ...point, timestamp: Date.now() };
+    this.currentStroke.push(currentPoint);
+    this.strokePath.push(currentPoint);
+    if (this.settings.smoothing > 0 && this.strokePath.length > 2) {
+      const smoothedPath = smoothPath(
+        this.strokePath.slice(-3),
+        this.settings.smoothing
+      );
+      if (smoothedPath.length > 1) {
+        const smoothedPoint = smoothedPath[smoothedPath.length - 2];
+        this.drawInterpolatedLine(this.lastPoint, smoothedPoint);
+        this.lastPoint = smoothedPoint;
+        return;
+      }
+    }
+    this.drawInterpolatedLine(this.lastPoint, currentPoint);
     this.lastPoint = currentPoint;
   }
 
   public endStroke(): void {
     this.isDrawing = false;
     this.lastPoint = null;
+    this.currentStroke = [];
+    this.strokePath = [];
   }
 
   public isCurrentlyDrawing(): boolean {
     return this.isDrawing;
   }
 
-  public cleanup(): void {
-    this.endStroke();
+  private hasSettingsChanged(
+    oldSettings: BrushSettings,
+    newSettings: BrushSettings
+  ): boolean {
+    const relevantProps: (keyof BrushSettings)[] = [
+      "size",
+      "color",
+      "hardness",
+      "roundness",
+      "angle",
+    ];
+    return relevantProps.some(
+      (prop) => oldSettings[prop] !== newSettings[prop]
+    );
+  }
 
-    if (this.tempContainer) {
-      this.tempContainer.destroy({ children: true });
-      this.tempContainer = null;
+  private updateBrushTexture(): void {
+    if (this.isDrawing) {
+      return;
     }
-
-    if (this.brushTexture) {
-      this.brushTexture.destroy();
+    try {
+      if (this.brushTexture?.texture) {
+        this.brushTexture.texture.destroy();
+        this.brushTexture = null;
+      }
+      requestAnimationFrame(() => {
+        this.brushTexture = createBrushTexture(this.app, this.settings);
+      });
+    } catch (error) {
       this.brushTexture = null;
     }
+  }
 
+  private drawPoint(point: DrawingPoint): void {
+    if (!this.brushTexture?.texture || !this.renderTexture) return;
+    const stamp = new PIXI.Sprite(this.brushTexture.texture);
+    stamp.anchor.set(0.5, 0.5);
+    stamp.x = point.x;
+    stamp.y = point.y;
+    if (this.settings.opacity > 0.9) {
+      stamp.alpha = Math.max(0.01, Math.min(1, this.settings.opacity));
+    } else if (this.settings.opacity === 0) {
+      stamp.alpha = 0;
+    } else {
+      stamp.alpha = Math.max(0.01, Math.min(1, this.settings.opacity / 10));
+    }
+    if (this.settings.pressure && point.pressure !== undefined) {
+      const pressureScale = Math.max(0.1, point.pressure);
+      stamp.scale.set(pressureScale, pressureScale);
+    }
+    // PixiJS v8 공식: container/target 옵션 모두 명시
+    this.app.renderer.render({
+      container: stamp,
+      target: this.renderTexture,
+      clear: false,
+      transform: undefined,
+    });
+    stamp.destroy();
+  }
+
+  private drawInterpolatedLine(start: DrawingPoint, end: DrawingPoint): void {
+    const spacing = calculateSpacing(this.settings.size, this.settings.spacing);
+    const points = interpolateStroke(start.x, start.y, end.x, end.y, spacing);
+    points.forEach((point) => {
+      this.drawPoint(point);
+    });
+  }
+
+  public cleanup(): void {
+    this.endStroke();
+    if (this.brushTexture?.texture) {
+      this.brushTexture.texture.destroy();
+    }
+    this.brushTexture = null;
     if (this.rtSprite) {
       this.rtSprite.destroy();
       this.rtSprite = null;
     }
-
     if (this.renderTexture) {
       this.renderTexture.destroy();
       this.renderTexture = null;
     }
-
     this.activeLayer = null;
+  }
+
+  public getBrushPreview(): HTMLCanvasElement | null {
+    try {
+      const canvas = document.createElement("canvas");
+      const size = Math.min(this.settings.size, 100);
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+      ctx.fillStyle = this.settings.color;
+      ctx.globalAlpha = this.settings.opacity;
+      const radius = size / 2;
+      const radiusX = radius;
+      const radiusY = radius * this.settings.roundness;
+      ctx.save();
+      ctx.translate(radius, radius);
+      ctx.rotate((this.settings.angle * Math.PI) / 180);
+      ctx.scale(radiusX / radius, radiusY / radius);
+      ctx.beginPath();
+      ctx.arc(0, 0, radius, 0, 2 * Math.PI);
+      ctx.fill();
+      if (this.settings.hardness < 0.99) {
+        ctx.filter = `blur(${(1 - this.settings.hardness) * 5}px)`;
+      }
+      ctx.restore();
+      return canvas;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  public adjustBrushSize(delta: number): void {
+    const newSize = Math.max(1, Math.min(200, this.settings.size + delta));
+    this.updateSettings({ ...this.settings, size: newSize });
+  }
+
+  public adjustBrushHardness(delta: number): void {
+    const newHardness = Math.max(
+      0,
+      Math.min(1, this.settings.hardness + delta)
+    );
+    this.updateSettings({ ...this.settings, hardness: newHardness });
+  }
+
+  public adjustBrushOpacity(delta: number): void {
+    const newOpacity = Math.max(0, Math.min(1, this.settings.opacity + delta));
+    this.updateSettings({ ...this.settings, opacity: newOpacity });
   }
 }

@@ -1,6 +1,6 @@
 import React, { useRef } from "react";
 import { useAtom } from "jotai";
-import { Paintbrush, Palette, Settings, RotateCw, Shuffle } from "lucide-react";
+import { Paintbrush, Palette, Settings, RotateCw } from "lucide-react";
 import {
   brushColorAtom,
   brushSizeAtom,
@@ -12,10 +12,6 @@ import {
   brushAngleAtom,
   brushPressureAtom,
   brushSmoothingAtom,
-  brushScatterXAtom,
-  brushScatterYAtom,
-  brushTextureOpacityAtom,
-  brushBlendModeAtom,
   brushPreviewSizeAtom,
   colorPickerStateAtom,
 } from "@/stores/brushStore";
@@ -32,12 +28,6 @@ function BrushProperties() {
   const [brushAngle, setBrushAngle] = useAtom(brushAngleAtom);
   const [brushPressure, setBrushPressure] = useAtom(brushPressureAtom);
   const [brushSmoothing, setBrushSmoothing] = useAtom(brushSmoothingAtom);
-  const [brushScatterX, setBrushScatterX] = useAtom(brushScatterXAtom);
-  const [brushScatterY, setBrushScatterY] = useAtom(brushScatterYAtom);
-  const [brushTextureOpacity, setBrushTextureOpacity] = useAtom(
-    brushTextureOpacityAtom
-  );
-  const [brushBlendMode, setBrushBlendMode] = useAtom(brushBlendModeAtom);
   const [brushPreviewSize] = useAtom(brushPreviewSizeAtom);
   const [colorPickerState, setColorPickerState] = useAtom(colorPickerStateAtom);
 
@@ -68,7 +58,7 @@ function BrushProperties() {
       width: `${size}px`,
       height: `${size * brushRoundness}px`,
       backgroundColor: safeColor,
-      opacity: brushOpacity * brushTextureOpacity,
+      opacity: brushOpacity,
       filter:
         brushHardness < 0.99 && blur > 0
           ? `blur(${Math.max(0.1, blur)}px)`
@@ -170,7 +160,7 @@ function BrushProperties() {
             />
           </div>
 
-          <div>
+          {/* <div>
             <label className="text-xs text-neutral-400 block mb-2">
               플로우: {Math.round(brushFlow * 100)}%
             </label>
@@ -182,48 +172,13 @@ function BrushProperties() {
               onChange={(e) => setBrushFlow(parseInt(e.target.value) / 100)}
               className="w-full accent-primary-500"
             />
-          </div>
-
-          <div>
-            <label className="text-xs text-neutral-400 block mb-2">
-              텍스처 불투명도: {Math.round(brushTextureOpacity * 100)}%
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={brushTextureOpacity * 100}
-              onChange={(e) =>
-                setBrushTextureOpacity(parseInt(e.target.value) / 100)
-              }
-              className="w-full accent-primary-500"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs text-neutral-400 block mb-2">
-              블렌드 모드
-            </label>
-            <select
-              value={brushBlendMode}
-              onChange={(e) => setBrushBlendMode(e.target.value)}
-              className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs text-neutral-300 focus:border-primary-500 focus:outline-none"
-            >
-              <option value="normal">노말</option>
-              <option value="multiply">곱하기</option>
-              <option value="screen">스크린</option>
-              <option value="overlay">오버레이</option>
-              <option value="add">더하기</option>
-              <option value="subtract">빼기</option>
-              <option value="difference">차이</option>
-            </select>
-          </div>
+          </div> */}
         </div>
 
         <div className="space-y-3">
           <h4 className="text-xs font-medium text-neutral-300 flex items-center gap-1">
             <RotateCw size={10} />
-            모양 설정
+            고급 설정
           </h4>
 
           <div>
@@ -269,47 +224,6 @@ function BrushProperties() {
               className="w-full accent-primary-500"
             />
           </div>
-        </div>
-
-        <div className="space-y-3">
-          <h4 className="text-xs font-medium text-neutral-300 flex items-center gap-1">
-            <Shuffle size={10} />
-            산란 설정
-          </h4>
-
-          <div>
-            <label className="text-xs text-neutral-400 block mb-2">
-              X 산란: {brushScatterX.toFixed(1)}px
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="50"
-              step="0.1"
-              value={brushScatterX}
-              onChange={(e) => setBrushScatterX(parseFloat(e.target.value))}
-              className="w-full accent-primary-500"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs text-neutral-400 block mb-2">
-              Y 산란: {brushScatterY.toFixed(1)}px
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="50"
-              step="0.1"
-              value={brushScatterY}
-              onChange={(e) => setBrushScatterY(parseFloat(e.target.value))}
-              className="w-full accent-primary-500"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <h4 className="text-xs font-medium text-neutral-300">동적 설정</h4>
 
           <div>
             <label className="text-xs text-neutral-400 block mb-2">
