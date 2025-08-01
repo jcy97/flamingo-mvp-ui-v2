@@ -149,6 +149,7 @@ function Stage() {
         sharedRenderTextureRef.current = PIXI.RenderTexture.create({
           width,
           height,
+          resolution: window.devicePixelRatio || 1,
         });
         sharedSpriteRef.current = new PIXI.Sprite(
           sharedRenderTextureRef.current
