@@ -1,5 +1,20 @@
 import { atom } from "jotai";
-import { PenSettings, DEFAULT_PEN_SETTINGS } from "@/types/pen";
+
+export interface PenSettings {
+  color: string;
+  size: number;
+  opacity: number;
+  smoothing: number;
+  pressure: boolean;
+}
+
+export const DEFAULT_PEN_SETTINGS: PenSettings = {
+  color: "#000000",
+  size: 2,
+  opacity: 1,
+  smoothing: 0.5,
+  pressure: false,
+};
 
 export const penSettingsAtom = atom<PenSettings>(DEFAULT_PEN_SETTINGS);
 

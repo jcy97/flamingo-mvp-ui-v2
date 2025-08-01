@@ -4,6 +4,7 @@ import { selectedToolIdAtom } from "@/stores/toolsbarStore";
 import { ToolbarItemIDs } from "@/constants/toolsbarItems";
 import BrushProperties from "./BrushProperties/BrushProperties";
 import PenProperties from "./PenProperties/PenProperties";
+import EraserProperties from "./EraserProperties/EraserProperties";
 import "@/styles/scrollbar.css";
 
 function Properties() {
@@ -15,8 +16,10 @@ function Properties() {
         return <PenProperties />;
 
       case ToolbarItemIDs.BRUSH:
-      case ToolbarItemIDs.ERASER:
         return <BrushProperties />;
+
+      case ToolbarItemIDs.ERASER:
+        return <EraserProperties />;
 
       case ToolbarItemIDs.TEXT:
         return <TextProperties />;

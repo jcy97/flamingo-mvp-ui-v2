@@ -4,24 +4,31 @@ import { useAtom } from "jotai";
 import * as PIXI from "pixi.js";
 import { BrushEngine, DrawingPoint as BrushDrawingPoint } from "./BrushEngine";
 import { PenEngine, DrawingPoint as PenDrawingPoint } from "./PenEngine";
+import {
+  EraserEngine,
+  DrawingPoint as EraserDrawingPoint,
+} from "./EraserEngine";
 import { brushSettingsAtom } from "@/stores/brushStore";
 import { penSettingsAtom } from "@/stores/penStore";
+import { eraserSettingsAtom } from "@/stores/eraserStore";
 import { selectedToolIdAtom } from "@/stores/toolsbarStore";
 import { ToolbarItemIDs } from "@/constants/toolsbarItems";
 
-type DrawingPoint = BrushDrawingPoint | PenDrawingPoint;
+type DrawingPoint = BrushDrawingPoint | PenDrawingPoint | EraserDrawingPoint;
 
 function Stage() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application | null>(null);
   const brushEngineRef = useRef<BrushEngine | null>(null);
   const penEngineRef = useRef<PenEngine | null>(null);
+  const eraserEngineRef = useRef<EraserEngine | null>(null);
   const isDrawingRef = useRef<boolean>(false);
   const currentLayerRef = useRef<PIXI.Container | null>(null);
   const lastPointerEventRef = useRef<PointerEvent | null>(null);
 
   const [brushSettings] = useAtom(brushSettingsAtom);
   const [penSettings] = useAtom(penSettingsAtom);
+  const [eraserSettings] = useAtom(eraserSettingsAtom);
   const [selectedToolId] = useAtom(selectedToolIdAtom);
 
   const getCanvasCoordinates = useCallback(
@@ -51,6 +58,7 @@ function Stage() {
 
   const brushSettingsRef = useRef(brushSettings);
   const penSettingsRef = useRef(penSettings);
+  const eraserSettingsRef = useRef(eraserSettings);
   const selectedToolIdRef = useRef(selectedToolId);
 
   useEffect(() => {
@@ -62,27 +70,23 @@ function Stage() {
   }, [penSettings]);
 
   useEffect(() => {
+    eraserSettingsRef.current = eraserSettings;
+  }, [eraserSettings]);
+
+  useEffect(() => {
     selectedToolIdRef.current = selectedToolId;
   }, [selectedToolId]);
 
   useEffect(() => {
     if (brushEngineRef.current && !isDrawingRef.current) {
-      const settings =
-        selectedToolIdRef.current === ToolbarItemIDs.ERASER
-          ? {
-              ...brushSettingsRef.current,
-              color: "#FFFFFF",
-              blendMode: "erase",
-            }
-          : brushSettingsRef.current;
       const timeoutId = setTimeout(() => {
         if (brushEngineRef.current) {
-          brushEngineRef.current.updateSettings(settings);
+          brushEngineRef.current.updateSettings(brushSettingsRef.current);
         }
       }, 16);
       return () => clearTimeout(timeoutId);
     }
-  }, [brushSettings, selectedToolId]);
+  }, [brushSettings]);
 
   useEffect(() => {
     if (penEngineRef.current && !isDrawingRef.current) {
@@ -94,6 +98,17 @@ function Stage() {
       return () => clearTimeout(timeoutId);
     }
   }, [penSettings]);
+
+  useEffect(() => {
+    if (eraserEngineRef.current && !isDrawingRef.current) {
+      const timeoutId = setTimeout(() => {
+        if (eraserEngineRef.current) {
+          eraserEngineRef.current.updateSettings(eraserSettingsRef.current);
+        }
+      }, 16);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [eraserSettings]);
 
   useEffect(() => {
     if (!canvasRef.current || appRef.current) return;
@@ -125,6 +140,9 @@ function Stage() {
         penEngineRef.current = new PenEngine(app, penSettings);
         penEngineRef.current.setActiveLayer(drawingLayer);
 
+        eraserEngineRef.current = new EraserEngine(app, eraserSettings);
+        eraserEngineRef.current.setActiveLayer(drawingLayer);
+
         const canvas = app.canvas as HTMLCanvasElement;
         canvas.style.cursor = "crosshair";
         canvas.style.display = "block";
@@ -150,11 +168,15 @@ function Stage() {
           if (currentTool === ToolbarItemIDs.PEN && penEngineRef.current) {
             penEngineRef.current.startStroke(point);
           } else if (
-            (currentTool === ToolbarItemIDs.BRUSH ||
-              currentTool === ToolbarItemIDs.ERASER) &&
+            currentTool === ToolbarItemIDs.BRUSH &&
             brushEngineRef.current
           ) {
             brushEngineRef.current.startStroke(point);
+          } else if (
+            currentTool === ToolbarItemIDs.ERASER &&
+            eraserEngineRef.current
+          ) {
+            eraserEngineRef.current.startStroke(point);
           }
         };
 
@@ -177,11 +199,15 @@ function Stage() {
           if (currentTool === ToolbarItemIDs.PEN && penEngineRef.current) {
             penEngineRef.current.continueStroke(point);
           } else if (
-            (currentTool === ToolbarItemIDs.BRUSH ||
-              currentTool === ToolbarItemIDs.ERASER) &&
+            currentTool === ToolbarItemIDs.BRUSH &&
             brushEngineRef.current
           ) {
             brushEngineRef.current.continueStroke(point);
+          } else if (
+            currentTool === ToolbarItemIDs.ERASER &&
+            eraserEngineRef.current
+          ) {
+            eraserEngineRef.current.continueStroke(point);
           }
         };
 
@@ -195,11 +221,15 @@ function Stage() {
           if (currentTool === ToolbarItemIDs.PEN && penEngineRef.current) {
             penEngineRef.current.endStroke();
           } else if (
-            (currentTool === ToolbarItemIDs.BRUSH ||
-              currentTool === ToolbarItemIDs.ERASER) &&
+            currentTool === ToolbarItemIDs.BRUSH &&
             brushEngineRef.current
           ) {
             brushEngineRef.current.endStroke();
+          } else if (
+            currentTool === ToolbarItemIDs.ERASER &&
+            eraserEngineRef.current
+          ) {
+            eraserEngineRef.current.endStroke();
           }
         };
 
@@ -209,11 +239,15 @@ function Stage() {
             if (currentTool === ToolbarItemIDs.PEN && penEngineRef.current) {
               penEngineRef.current.endStroke();
             } else if (
-              (currentTool === ToolbarItemIDs.BRUSH ||
-                currentTool === ToolbarItemIDs.ERASER) &&
+              currentTool === ToolbarItemIDs.BRUSH &&
               brushEngineRef.current
             ) {
               brushEngineRef.current.endStroke();
+            } else if (
+              currentTool === ToolbarItemIDs.ERASER &&
+              eraserEngineRef.current
+            ) {
+              eraserEngineRef.current.endStroke();
             }
           }
           isDrawingRef.current = false;
@@ -255,6 +289,10 @@ function Stage() {
         if (penEngineRef.current) {
           penEngineRef.current.cleanup();
           penEngineRef.current = null;
+        }
+        if (eraserEngineRef.current) {
+          eraserEngineRef.current.cleanup();
+          eraserEngineRef.current = null;
         }
         if (canvasRef.current && canvas && canvasRef.current.contains(canvas)) {
           canvasRef.current.removeChild(canvas);
