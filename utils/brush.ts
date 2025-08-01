@@ -18,7 +18,6 @@ export class BrushTextureCache {
 
   set(settings: BrushSettings, texture: BrushTexture, imageUrl?: string): void {
     const key = this.generateCacheKey(settings, imageUrl);
-
     if (this.cache.size >= this.maxCacheSize) {
       const firstKey = this.cache.keys().next().value;
       const oldTexture = this.cache.get(firstKey!);
@@ -61,11 +60,13 @@ export function createBrushTexture(
     }
     const padding = Math.max(20, Math.ceil(radius * 0.8));
     const textureSize = Math.max(8, size + padding * 2);
+
     const renderTexture = PIXI.RenderTexture.create({
       width: textureSize,
       height: textureSize,
       resolution: 1,
     });
+
     const brushGraphics = new PIXI.Graphics();
     if (settings.roundness < 1) {
       const radiusX = radius;
@@ -100,8 +101,10 @@ export function createBrushTexture(
         console.warn("Blur filter creation failed:", error);
       }
     }
-    app.renderer.render(brushGraphics, { renderTexture });
+    // clear 옵션 없이 사용
+    app.renderer.render({ container: brushGraphics, target: renderTexture });
     brushGraphics.destroy();
+
     const sprite = new PIXI.Sprite(renderTexture);
     sprite.anchor.set(0.5, 0.5);
     return {
@@ -118,22 +121,33 @@ export function createBrushTexture(
   }
 }
 
-// 2. 이미지 브러쉬 (PNG/JPG 등)에 tint(색상) 적용
+// 2. 이미지 브러쉬 (PNG/JPG 등) 생성
 export async function createImageBrushTexture(
   app: PIXI.Application,
   imageUrl: string,
   settings: BrushSettings
 ): Promise<BrushTexture | null> {
   try {
-    const { size, opacity, color } = settings;
+    const { size, opacity, color, hardness } = settings;
+    // baseTexture 로드
     const baseTexture = await PIXI.Assets.load(imageUrl);
+    // 원본 이미지 비율 유지
+    const origW = baseTexture.width;
+    const origH = baseTexture.height;
+    let scale = 1;
+    if (origW > origH) {
+      scale = size / origW;
+    } else {
+      scale = size / origH;
+    }
     const sprite = new PIXI.Sprite(baseTexture);
     sprite.anchor.set(0.5);
-    sprite.width = size;
-    sprite.height = size;
+    sprite.scale.set(scale, scale); // 원본 비율 유지하며 size 맞춤
+    sprite.x = size / 2;
+    sprite.y = size / 2;
     sprite.alpha = opacity;
 
-    // 색상(TINT) 반영
+    // 색상(Tint) 반영
     if (color && color.startsWith("#")) {
       const tintVal = parseInt(color.replace("#", ""), 16);
       if (!isNaN(tintVal)) {
@@ -141,12 +155,27 @@ export async function createImageBrushTexture(
       }
     }
 
+    // 부드러움(하드니스) 적용: BlurFilter 적용
+    if (hardness !== undefined && hardness < 0.98) {
+      const blurStrength = (1 - hardness) * size * 0.2;
+      try {
+        const blurFilter = new PIXI.BlurFilter();
+        blurFilter.blur = Math.max(2, Math.min(40, blurStrength));
+        blurFilter.quality = 4;
+        sprite.filters = [blurFilter];
+      } catch (error) {
+        console.warn("Blur filter creation failed:", error);
+      }
+    }
+
+    // 렌더 타겟을 브러쉬 '사이즈'만큼 정사각형으로!
     const renderTexture = PIXI.RenderTexture.create({
       width: size,
       height: size,
       resolution: 1,
     });
-    app.renderer.render(sprite, { renderTexture });
+    // clear 옵션 없이 사용
+    app.renderer.render({ container: sprite, target: renderTexture });
     sprite.destroy();
 
     return {
@@ -154,11 +183,11 @@ export async function createImageBrushTexture(
       sprite: new PIXI.Sprite(renderTexture),
       size,
       color: color,
-      hardness: 1,
+      hardness,
       opacity,
     };
   } catch (e) {
-    console.error("이미지 브러쉬 텍스쳐 생성 실패:", e);
+    console.error("이미지 브러쉬 텍스처 생성 실패:", e);
     return null;
   }
 }
@@ -227,21 +256,13 @@ export function createBrushStamp(
     stamp.x = x;
     stamp.y = y;
     stamp.alpha = Math.max(0, Math.min(1, settings.opacity));
-
-    // 이미지 브러쉬도 그릴 때 tint를 한 번 더 보정해도 안전함
     if (settings.color && settings.color.startsWith("#")) {
       const tintVal = parseInt(settings.color.replace("#", ""), 16);
       if (!isNaN(tintVal)) {
         stamp.tint = tintVal;
       }
     }
-
-    if (settings.pressure) {
-      //stamp.scale.set(settings.pressure, settings.pressure);
-      stamp.scale.set(1, 1);
-    } else {
-      stamp.scale.set(1, 1);
-    }
+    stamp.scale.set(1, 1);
     container.addChild(stamp);
   } catch (error) {
     console.warn("Failed to create brush stamp:", error);

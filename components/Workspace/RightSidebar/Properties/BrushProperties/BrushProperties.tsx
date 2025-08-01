@@ -145,7 +145,8 @@ function BrushProperties() {
             </div>
           </div>
 
-          {brushType === BrushType.VECTOR && (
+          {(brushType === BrushType.VECTOR ||
+            brushType === BrushType.IMAGE) && (
             <div>
               <label className="text-xs text-neutral-400 block mb-2">
                 경도: {Math.round(brushHardness * 100)}%
