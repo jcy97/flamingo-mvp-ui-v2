@@ -106,7 +106,6 @@ function BrushProperties() {
             >
               <option value={BrushType.VECTOR}>기본 브러쉬</option>
               <option value={BrushType.IMAGE}>이미지 브러쉬</option>
-              <option value={BrushType.ERASER}>지우개</option>
             </select>
           </div>
 
@@ -146,28 +145,23 @@ function BrushProperties() {
             </div>
           </div>
 
-          {(brushType === BrushType.VECTOR ||
-            brushType === BrushType.IMAGE) && (
-            <div>
-              <label className="text-xs text-neutral-400 block mb-2">
-                경도: {Math.round(brushHardness * 100)}%
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={brushHardness * 100}
-                onChange={(e) =>
-                  setBrushHardness(parseInt(e.target.value) / 100)
-                }
-                className="w-full accent-primary-500"
-              />
-              <div className="flex justify-between text-xs text-neutral-500">
-                <span>부드러움</span>
-                <span>딱딱함</span>
-              </div>
+          <div>
+            <label className="text-xs text-neutral-400 block mb-2">
+              경도: {Math.round(brushHardness * 100)}%
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={brushHardness * 100}
+              onChange={(e) => setBrushHardness(parseInt(e.target.value) / 100)}
+              className="w-full accent-primary-500"
+            />
+            <div className="flex justify-between text-xs text-neutral-500">
+              <span>부드러움</span>
+              <span>딱딱함</span>
             </div>
-          )}
+          </div>
 
           <div>
             <label className="text-xs text-neutral-400 block mb-2">

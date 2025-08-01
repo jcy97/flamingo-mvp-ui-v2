@@ -25,6 +25,8 @@ function Stage() {
   const eraserEngineRef = useRef<EraserEngine | null>(null);
   const isDrawingRef = useRef<boolean>(false);
   const currentLayerRef = useRef<PIXI.Container | null>(null);
+  const sharedRenderTextureRef = useRef<PIXI.RenderTexture | null>(null);
+  const sharedSpriteRef = useRef<PIXI.Sprite | null>(null);
   const lastPointerEventRef = useRef<PointerEvent | null>(null);
   const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -143,14 +145,28 @@ function Stage() {
         app.stage.addChild(drawingLayer);
         currentLayerRef.current = drawingLayer;
 
+        const { width, height } = app.renderer;
+        sharedRenderTextureRef.current = PIXI.RenderTexture.create({
+          width,
+          height,
+        });
+        sharedSpriteRef.current = new PIXI.Sprite(
+          sharedRenderTextureRef.current
+        );
+        drawingLayer.addChild(sharedSpriteRef.current);
+
         brushEngineRef.current = new BrushEngine(app, brushSettings);
-        brushEngineRef.current.setActiveLayer(drawingLayer);
+        brushEngineRef.current.setSharedRenderTexture(
+          sharedRenderTextureRef.current
+        );
 
         penEngineRef.current = new PenEngine(app, penSettings);
         penEngineRef.current.setActiveLayer(drawingLayer);
 
         eraserEngineRef.current = new EraserEngine(app, eraserSettings);
-        eraserEngineRef.current.setActiveLayer(drawingLayer);
+        eraserEngineRef.current.setSharedRenderTexture(
+          sharedRenderTextureRef.current
+        );
 
         const canvas = app.canvas as HTMLCanvasElement;
         canvasElementRef.current = canvas;
@@ -303,6 +319,14 @@ function Stage() {
         if (eraserEngineRef.current) {
           eraserEngineRef.current.cleanup();
           eraserEngineRef.current = null;
+        }
+        if (sharedSpriteRef.current) {
+          sharedSpriteRef.current.destroy();
+          sharedSpriteRef.current = null;
+        }
+        if (sharedRenderTextureRef.current) {
+          sharedRenderTextureRef.current.destroy();
+          sharedRenderTextureRef.current = null;
         }
         if (canvasRef.current && canvas && canvasRef.current.contains(canvas)) {
           canvasRef.current.removeChild(canvas);

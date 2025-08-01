@@ -5,12 +5,14 @@ import {
   eraserSizeAtom,
   eraserOpacityAtom,
   eraserHardnessAtom,
+  eraserPressureAtom,
 } from "@/stores/eraserStore";
 
 function EraserProperties() {
   const [eraserSize, setEraserSize] = useAtom(eraserSizeAtom);
   const [eraserOpacity, setEraserOpacity] = useAtom(eraserOpacityAtom);
   const [eraserHardness, setEraserHardness] = useAtom(eraserHardnessAtom);
+  const [eraserPressure, setEraserPressure] = useAtom(eraserPressureAtom);
 
   const getEraserPreviewStyle = () => {
     const size = Math.min(eraserSize, 60);
@@ -104,6 +106,18 @@ function EraserProperties() {
               <span>부드러움</span>
               <span>딱딱함</span>
             </div>
+          </div>
+
+          <div>
+            <label className="flex items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={eraserPressure}
+                onChange={(e) => setEraserPressure(e.target.checked)}
+                className="accent-primary-500"
+              />
+              <span className="text-neutral-400">압력 감도 사용</span>
+            </label>
           </div>
         </div>
 

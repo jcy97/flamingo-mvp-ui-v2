@@ -1,7 +1,6 @@
 export enum BrushType {
   VECTOR = "vector",
   IMAGE = "image",
-  ERASER = "eraser",
 }
 
 export interface BrushSettings {

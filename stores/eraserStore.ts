@@ -35,3 +35,11 @@ export const eraserHardnessAtom = atom(
     });
   }
 );
+
+export const eraserPressureAtom = atom(
+  (get) => get(eraserSettingsAtom).pressure,
+  (get, set, newPressure: boolean) => {
+    const currentSettings = get(eraserSettingsAtom);
+    set(eraserSettingsAtom, { ...currentSettings, pressure: newPressure });
+  }
+);
