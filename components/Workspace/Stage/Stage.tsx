@@ -13,6 +13,7 @@ import { penSettingsAtom } from "@/stores/penStore";
 import { eraserSettingsAtom } from "@/stores/eraserStore";
 import { selectedToolIdAtom } from "@/stores/toolsbarStore";
 import { ToolbarItemIDs } from "@/constants/toolsbarItems";
+import { useCursor } from "@/hooks/useCursor";
 
 type DrawingPoint = BrushDrawingPoint | PenDrawingPoint | EraserDrawingPoint;
 
@@ -25,11 +26,19 @@ function Stage() {
   const isDrawingRef = useRef<boolean>(false);
   const currentLayerRef = useRef<PIXI.Container | null>(null);
   const lastPointerEventRef = useRef<PointerEvent | null>(null);
+  const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
 
   const [brushSettings] = useAtom(brushSettingsAtom);
   const [penSettings] = useAtom(penSettingsAtom);
   const [eraserSettings] = useAtom(eraserSettingsAtom);
   const [selectedToolId] = useAtom(selectedToolIdAtom);
+  const cursorStyle = useCursor();
+
+  useEffect(() => {
+    if (canvasElementRef.current) {
+      canvasElementRef.current.style.cursor = cursorStyle;
+    }
+  }, [cursorStyle]);
 
   const getCanvasCoordinates = useCallback(
     (clientX: number, clientY: number) => {
@@ -144,7 +153,8 @@ function Stage() {
         eraserEngineRef.current.setActiveLayer(drawingLayer);
 
         const canvas = app.canvas as HTMLCanvasElement;
-        canvas.style.cursor = "crosshair";
+        canvasElementRef.current = canvas;
+        canvas.style.cursor = cursorStyle;
         canvas.style.display = "block";
         canvas.style.width = "100%";
         canvas.style.height = "100%";
@@ -299,6 +309,7 @@ function Stage() {
         }
         appRef.current.destroy();
         appRef.current = null;
+        canvasElementRef.current = null;
       }
     };
   }, []);
