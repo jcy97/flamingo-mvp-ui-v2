@@ -105,6 +105,10 @@ export class PenEngine {
     }
   }
 
+  public setSharedRenderTexture(renderTexture: PIXI.RenderTexture): void {
+    this.renderTexture = renderTexture;
+  }
+
   public isCurrentlyDrawing(): boolean {
     return this.isDrawing;
   }

@@ -162,6 +162,9 @@ function Stage() {
 
         penEngineRef.current = new PenEngine(app, penSettings);
         penEngineRef.current.setActiveLayer(drawingLayer);
+        penEngineRef.current.setSharedRenderTexture(
+          sharedRenderTextureRef.current
+        );
 
         eraserEngineRef.current = new EraserEngine(app, eraserSettings);
         eraserEngineRef.current.setSharedRenderTexture(
