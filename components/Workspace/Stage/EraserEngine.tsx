@@ -55,7 +55,11 @@ export class EraserEngine {
       this.renderTexture = null;
     }
     const { width, height } = this.app.renderer;
-    this.renderTexture = PIXI.RenderTexture.create({ width, height });
+    this.renderTexture = PIXI.RenderTexture.create({
+      width,
+      height,
+      alphaMode: "no-premultiply-alpha",
+    });
     this.rtSprite = new PIXI.Sprite(this.renderTexture);
     this.activeLayer.addChild(this.rtSprite);
   }
@@ -144,6 +148,8 @@ export class EraserEngine {
       this.app.renderer.render({
         container: eraserGraphics,
         target: this.eraserTexture,
+        clear: true,
+        clearColor: 0x00000000,
       });
       eraserGraphics.destroy();
     } catch (error) {

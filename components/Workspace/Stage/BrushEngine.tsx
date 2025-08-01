@@ -153,36 +153,65 @@ export class BrushEngine {
   }
 
   private drawPoint(point: DrawingPoint): void {
-    if (!this.brushTexture?.texture || !this.renderTexture) return;
-    const stamp = new PIXI.Sprite(this.brushTexture.texture);
-    stamp.anchor.set(0.5, 0.5);
-    stamp.x = point.x;
-    stamp.y = point.y;
+    if (!this.renderTexture) return;
 
-    if (this.settings.brushType === BrushType.IMAGE) {
-      stamp.alpha = Math.max(0.01, Math.min(1, this.settings.opacity));
-    } else {
-      if (this.settings.opacity > 0.9) {
-        stamp.alpha = Math.max(0.01, Math.min(1, this.settings.opacity));
-      } else if (this.settings.opacity === 0) {
-        stamp.alpha = 0;
-      } else {
-        stamp.alpha = Math.max(0.01, Math.min(1, this.settings.opacity / 10));
+    if (this.settings.brushType === BrushType.ERASER) {
+      const eraser = new PIXI.Graphics();
+      const eraserRadius = this.settings.size / 2;
+      eraser.beginFill(0xffffff, 1);
+      eraser.drawCircle(0, 0, eraserRadius);
+      eraser.endFill();
+      eraser.x = point.x;
+      eraser.y = point.y;
+      eraser.blendMode = "erase";
+
+      if (this.settings.pressure && point.pressure !== undefined) {
+        const pressureScale = Math.max(0.1, point.pressure);
+        eraser.scale.set(pressureScale, pressureScale);
       }
-    }
 
-    if (this.settings.pressure && point.pressure !== undefined) {
-      const pressureScale = Math.max(0.1, point.pressure);
-      stamp.scale.set(pressureScale, pressureScale);
-    }
+      this.app.renderer.render({
+        container: eraser,
+        target: this.renderTexture,
+        clear: false,
+        transform: undefined,
+      });
 
-    this.app.renderer.render({
-      container: stamp,
-      target: this.renderTexture,
-      clear: false,
-      transform: undefined,
-    });
-    stamp.destroy();
+      eraser.destroy();
+    } else {
+      if (!this.brushTexture?.texture) return;
+
+      const stamp = new PIXI.Sprite(this.brushTexture.texture);
+      stamp.anchor.set(0.5, 0.5);
+      stamp.x = point.x;
+      stamp.y = point.y;
+
+      if (this.settings.brushType === BrushType.IMAGE) {
+        stamp.alpha = Math.max(0.01, Math.min(1, this.settings.opacity));
+      } else {
+        if (this.settings.opacity > 0.9) {
+          stamp.alpha = Math.max(0.01, Math.min(1, this.settings.opacity));
+        } else if (this.settings.opacity === 0) {
+          stamp.alpha = 0;
+        } else {
+          stamp.alpha = Math.max(0.01, Math.min(1, this.settings.opacity / 10));
+        }
+      }
+
+      if (this.settings.pressure && point.pressure !== undefined) {
+        const pressureScale = Math.max(0.1, point.pressure);
+        stamp.scale.set(pressureScale, pressureScale);
+      }
+
+      this.app.renderer.render({
+        container: stamp,
+        target: this.renderTexture,
+        clear: false,
+        transform: undefined,
+      });
+
+      stamp.destroy();
+    }
   }
 
   private drawInterpolatedLine(start: DrawingPoint, end: DrawingPoint): void {

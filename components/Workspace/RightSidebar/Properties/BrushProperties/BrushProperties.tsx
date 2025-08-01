@@ -106,6 +106,7 @@ function BrushProperties() {
             >
               <option value={BrushType.VECTOR}>기본 브러쉬</option>
               <option value={BrushType.IMAGE}>이미지 브러쉬</option>
+              <option value={BrushType.ERASER}>지우개</option>
             </select>
           </div>
 
