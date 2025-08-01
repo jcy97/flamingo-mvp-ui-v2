@@ -1,8 +1,8 @@
-// BrushEngine.ts
 import * as PIXI from "pixi.js";
-import { BrushSettings, BrushTexture } from "@/types/brush";
+import { BrushSettings, BrushTexture, BrushType } from "@/types/brush";
 import {
   createBrushTexture,
+  createImageBrushTexture,
   interpolateStroke,
   smoothPath,
   calculateSpacing,
@@ -25,46 +25,31 @@ export class BrushEngine {
   private activeLayer: PIXI.Container | null = null;
   private strokePath: DrawingPoint[] = [];
   private renderTexture: PIXI.RenderTexture | null = null;
-  private rtSprite: PIXI.Sprite | null = null;
 
   constructor(app: PIXI.Application, initialSettings: BrushSettings) {
     this.app = app;
     this.settings = { ...initialSettings };
-    this.updateBrushTexture();
+    requestAnimationFrame(() => {
+      this.updateBrushTexture();
+    });
   }
 
   public updateSettings(newSettings: BrushSettings): void {
     const settingsChanged = this.hasSettingsChanged(this.settings, newSettings);
     this.settings = { ...newSettings };
     if (settingsChanged && !this.isDrawing) {
-      this.updateBrushTexture();
+      requestAnimationFrame(() => {
+        this.updateBrushTexture();
+      });
     }
   }
 
-  public setActiveLayer(layer: PIXI.Container): void {
-    this.activeLayer = layer;
-    this.initRenderLayer();
-  }
-
-  private initRenderLayer() {
-    if (!this.activeLayer) return;
-    if (this.rtSprite) {
-      this.activeLayer.removeChild(this.rtSprite);
-      this.rtSprite.destroy();
-      this.rtSprite = null;
-    }
-    if (this.renderTexture) {
-      this.renderTexture.destroy();
-      this.renderTexture = null;
-    }
-    const { width, height } = this.app.renderer;
-    this.renderTexture = PIXI.RenderTexture.create({ width, height });
-    this.rtSprite = new PIXI.Sprite(this.renderTexture);
-    this.activeLayer.addChild(this.rtSprite);
+  public setSharedRenderTexture(renderTexture: PIXI.RenderTexture): void {
+    this.renderTexture = renderTexture;
   }
 
   public startStroke(point: DrawingPoint): void {
-    if (!this.activeLayer) return;
+    if (!this.renderTexture) return;
     this.isDrawing = true;
     this.lastPoint = { ...point, timestamp: Date.now() };
     this.currentStroke = [this.lastPoint];
@@ -73,7 +58,7 @@ export class BrushEngine {
   }
 
   public continueStroke(point: DrawingPoint): void {
-    if (!this.isDrawing || !this.lastPoint || !this.activeLayer) return;
+    if (!this.isDrawing || !this.lastPoint || !this.renderTexture) return;
     const currentPoint = { ...point, timestamp: Date.now() };
     this.currentStroke.push(currentPoint);
     this.strokePath.push(currentPoint);
@@ -109,18 +94,20 @@ export class BrushEngine {
     newSettings: BrushSettings
   ): boolean {
     const relevantProps: (keyof BrushSettings)[] = [
+      "brushType",
       "size",
       "color",
       "hardness",
       "roundness",
       "angle",
+      "imageUrl",
     ];
     return relevantProps.some(
       (prop) => oldSettings[prop] !== newSettings[prop]
     );
   }
 
-  private updateBrushTexture(): void {
+  private async updateBrushTexture(): Promise<void> {
     if (this.isDrawing) {
       return;
     }
@@ -129,38 +116,55 @@ export class BrushEngine {
         this.brushTexture.texture.destroy();
         this.brushTexture = null;
       }
-      requestAnimationFrame(() => {
+
+      if (this.settings.brushType === BrushType.IMAGE) {
+        const imageUrl = this.settings.imageUrl || "/brush/stroke_a.png";
+        this.brushTexture = await createImageBrushTexture(
+          this.app,
+          imageUrl,
+          this.settings
+        );
+      } else {
         this.brushTexture = createBrushTexture(this.app, this.settings);
-      });
+      }
     } catch (error) {
+      console.error("Failed to create brush texture:", error);
       this.brushTexture = null;
     }
   }
 
   private drawPoint(point: DrawingPoint): void {
-    if (!this.brushTexture?.texture || !this.renderTexture) return;
+    if (!this.renderTexture || !this.brushTexture?.texture) return;
+
     const stamp = new PIXI.Sprite(this.brushTexture.texture);
     stamp.anchor.set(0.5, 0.5);
     stamp.x = point.x;
     stamp.y = point.y;
-    if (this.settings.opacity > 0.9) {
+
+    if (this.settings.brushType === BrushType.IMAGE) {
       stamp.alpha = Math.max(0.01, Math.min(1, this.settings.opacity));
-    } else if (this.settings.opacity === 0) {
-      stamp.alpha = 0;
     } else {
-      stamp.alpha = Math.max(0.01, Math.min(1, this.settings.opacity / 10));
+      if (this.settings.opacity > 0.9) {
+        stamp.alpha = Math.max(0.01, Math.min(1, this.settings.opacity));
+      } else if (this.settings.opacity === 0) {
+        stamp.alpha = 0;
+      } else {
+        stamp.alpha = Math.max(0.01, Math.min(1, this.settings.opacity / 10));
+      }
     }
+
     if (this.settings.pressure && point.pressure !== undefined) {
       const pressureScale = Math.max(0.1, point.pressure);
       stamp.scale.set(pressureScale, pressureScale);
     }
-    // PixiJS v8 공식: container/target 옵션 모두 명시
+
     this.app.renderer.render({
       container: stamp,
       target: this.renderTexture,
       clear: false,
       transform: undefined,
     });
+
     stamp.destroy();
   }
 
@@ -178,14 +182,7 @@ export class BrushEngine {
       this.brushTexture.texture.destroy();
     }
     this.brushTexture = null;
-    if (this.rtSprite) {
-      this.rtSprite.destroy();
-      this.rtSprite = null;
-    }
-    if (this.renderTexture) {
-      this.renderTexture.destroy();
-      this.renderTexture = null;
-    }
+    this.renderTexture = null;
     this.activeLayer = null;
   }
 
@@ -197,6 +194,14 @@ export class BrushEngine {
       canvas.height = size;
       const ctx = canvas.getContext("2d");
       if (!ctx) return null;
+
+      if (this.settings.brushType === BrushType.IMAGE) {
+        ctx.fillStyle = this.settings.color;
+        ctx.globalAlpha = this.settings.opacity;
+        ctx.fillRect(0, 0, size, size);
+        return canvas;
+      }
+
       ctx.fillStyle = this.settings.color;
       ctx.globalAlpha = this.settings.opacity;
       const radius = size / 2;

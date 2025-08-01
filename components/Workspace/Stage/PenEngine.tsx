@@ -58,11 +58,19 @@ export class PenEngine {
       this.currentStrokeContainer.destroy();
       this.currentStrokeContainer = null;
     }
+
     const width = this.app.renderer.width;
     const height = this.app.renderer.height;
-    this.renderTexture = PIXI.RenderTexture.create({ width, height });
+
+    this.renderTexture = PIXI.RenderTexture.create({
+      width,
+      height,
+    });
+
     this.rtSprite = new PIXI.Sprite(this.renderTexture);
+    this.rtSprite.texture.source.scaleMode = "linear";
     this.activeLayer.addChild(this.rtSprite);
+
     this.currentStrokeContainer = new PIXI.Container();
     this.activeLayer.addChild(this.currentStrokeContainer);
   }
@@ -97,6 +105,17 @@ export class PenEngine {
       this.currentStrokeContainer.removeChild(this.currentStrokeGraphics);
       this.currentStrokeGraphics.destroy();
       this.currentStrokeGraphics = null;
+    }
+  }
+
+  public setSharedRenderTexture(renderTexture: PIXI.RenderTexture): void {
+    this.renderTexture = renderTexture;
+    if (this.rtSprite && this.activeLayer) {
+      this.activeLayer.removeChild(this.rtSprite);
+      this.rtSprite.destroy();
+      this.rtSprite = new PIXI.Sprite(this.renderTexture);
+      this.rtSprite.texture.source.scaleMode = "linear";
+      this.activeLayer.addChildAt(this.rtSprite, 0);
     }
   }
 
@@ -186,9 +205,8 @@ export class PenEngine {
 
     if (this.processedPoints.length === 1) {
       const point = this.processedPoints[0];
-      this.currentStrokeGraphics.beginFill(color, point.alpha);
-      this.currentStrokeGraphics.drawCircle(point.x, point.y, point.size * 0.5);
-      this.currentStrokeGraphics.endFill();
+      this.currentStrokeGraphics.circle(point.x, point.y, point.size * 0.5);
+      this.currentStrokeGraphics.fill(color, point.alpha);
       return;
     }
 
@@ -234,32 +252,91 @@ export class PenEngine {
     const p2x2 = p2.x - cos * r2;
     const p2y2 = p2.y - sin * r2;
 
-    this.currentStrokeGraphics.beginFill(color, avgAlpha);
-    this.currentStrokeGraphics.moveTo(p1x1, p1y1);
-    this.currentStrokeGraphics.lineTo(p2x1, p2y1);
-    this.currentStrokeGraphics.lineTo(p2x2, p2y2);
-    this.currentStrokeGraphics.lineTo(p1x2, p1y2);
-    this.currentStrokeGraphics.closePath();
-    this.currentStrokeGraphics.endFill();
+    this.currentStrokeGraphics.poly([
+      p1x1,
+      p1y1,
+      p2x1,
+      p2y1,
+      p2x2,
+      p2y2,
+      p1x2,
+      p1y2,
+    ]);
+    this.currentStrokeGraphics.fill(color, avgAlpha);
 
-    this.currentStrokeGraphics.beginFill(color, p1.alpha);
-    this.currentStrokeGraphics.drawCircle(p1.x, p1.y, r1);
-    this.currentStrokeGraphics.endFill();
+    this.currentStrokeGraphics.circle(p1.x, p1.y, r1);
+    this.currentStrokeGraphics.fill(color, p1.alpha);
 
     if (this.processedPoints.indexOf(p2) === this.processedPoints.length - 1) {
-      this.currentStrokeGraphics.beginFill(color, p2.alpha);
-      this.currentStrokeGraphics.drawCircle(p2.x, p2.y, r2);
-      this.currentStrokeGraphics.endFill();
+      this.currentStrokeGraphics.circle(p2.x, p2.y, r2);
+      this.currentStrokeGraphics.fill(color, p2.alpha);
     }
   }
 
   private commitCurrentStroke(): void {
     if (!this.renderTexture || !this.currentStrokeGraphics) return;
+
+    const tempContainer = new PIXI.Container();
+    const highResGraphics = new PIXI.Graphics();
+    const color = Number("0x" + this.settings.color.replace("#", ""));
+
+    if (this.processedPoints.length === 1) {
+      const point = this.processedPoints[0];
+      highResGraphics.circle(point.x, point.y, point.size * 0.5);
+      highResGraphics.fill(color, point.alpha);
+    } else {
+      for (let i = 0; i < this.processedPoints.length - 1; i++) {
+        const current = this.processedPoints[i];
+        const next = this.processedPoints[i + 1];
+
+        const dx = next.x - current.x;
+        const dy = next.y - current.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < 0.1) continue;
+
+        const angle = Math.atan2(dy, dx);
+        const perpAngle = angle + Math.PI * 0.5;
+        const avgAlpha = (current.alpha + next.alpha) * 0.5;
+
+        const r1 = current.size * 0.5;
+        const r2 = next.size * 0.5;
+
+        const cos = Math.cos(perpAngle);
+        const sin = Math.sin(perpAngle);
+
+        const p1x1 = current.x + cos * r1;
+        const p1y1 = current.y + sin * r1;
+        const p1x2 = current.x - cos * r1;
+        const p1y2 = current.y - sin * r1;
+
+        const p2x1 = next.x + cos * r2;
+        const p2y1 = next.y + sin * r2;
+        const p2x2 = next.x - cos * r2;
+        const p2y2 = next.y - sin * r2;
+
+        highResGraphics.poly([p1x1, p1y1, p2x1, p2y1, p2x2, p2y2, p1x2, p1y2]);
+        highResGraphics.fill(color, avgAlpha);
+
+        highResGraphics.circle(current.x, current.y, r1);
+        highResGraphics.fill(color, current.alpha);
+
+        if (i === this.processedPoints.length - 2) {
+          highResGraphics.circle(next.x, next.y, r2);
+          highResGraphics.fill(color, next.alpha);
+        }
+      }
+    }
+
+    tempContainer.addChild(highResGraphics);
+
     this.app.renderer.render({
-      container: this.currentStrokeGraphics,
+      container: tempContainer,
       target: this.renderTexture,
       clear: false,
     });
+
+    tempContainer.destroy();
   }
 
   public cleanup(): void {

@@ -575,21 +575,6 @@ export const getPageStructure = (pageId: string) => {
   };
 };
 
-console.log("샘플 데이터 구조:", {
-  projectId: "proj-webtoon-001",
-  pageCount: sampleData.pages.length,
-  canvasCount: sampleData.canvases.length,
-  totalLayers: sampleData.layers.length,
-  pageStructure: sampleData.pages.map((page) => ({
-    pageName: page.name,
-    canvasCount: getCanvasesForPage(page.id).length,
-    layerCount: getCanvasesForPage(page.id).reduce(
-      (total, canvas) => total + getLayersForCanvas(canvas.id).length,
-      0
-    ),
-  })),
-});
-
 export const sampleUsers: User[] = [
   { id: "1", email: "john@example.com", name: "John Doe", role: "Designer" },
   { id: "2", email: "jane@example.com", name: "Jane Smith", role: "Developer" },
