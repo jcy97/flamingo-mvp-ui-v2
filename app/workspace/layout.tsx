@@ -2,24 +2,41 @@
 import { LeftSidebar } from "@/components/Workspace/LeftSidebar/LeftSidebar";
 import { RightSidebar } from "@/components/Workspace/RightSidebar/RightSidebar";
 import Toolsbar from "@/components/Workspace/Toolsbar/Toolsbar";
-import { useCallback, useRef, useState } from "react";
+import { initPixiAppAtom } from "@/stores/pixiStore";
+import { useAtom } from "jotai";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface WorkspaceLayoutProps {
   children: React.ReactNode;
 }
 
 export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
+  /*******
+   * 상태관리 *
+   * *******/
   const [leftWidth, setLeftWidth] = useState<number>(240);
   const [rightWidth, setRightWidth] = useState<number>(280);
   const [leftVisible, setLeftVisible] = useState<boolean>(true);
   const [rightVisible, setRightVisible] = useState<boolean>(true);
   const [isDragging, setIsDragging] = useState<string | null>(null);
 
+  //PIXI JS 관련 atom
+  const [, initPixiApp] = useAtom(initPixiAppAtom);
+
   const containerRef = useRef<HTMLDivElement>(null);
 
   // 최소 사이드바 크기와 중앙 컨텐츠 최소 크기 설정
   const MIN_SIDEBAR_WIDTH = 200;
   const MIN_CONTENT_WIDTH = 300;
+
+  /**PIXI JS 초기화 */
+  useEffect(() => {
+    const initializePixi = async () => {
+      await initPixiApp();
+    };
+
+    initializePixi();
+  }, []);
 
   const handleMouseDown = useCallback(
     (side: string) => (e: React.MouseEvent) => {

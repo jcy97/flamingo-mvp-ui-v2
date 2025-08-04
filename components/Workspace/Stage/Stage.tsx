@@ -14,6 +14,7 @@ import { eraserSettingsAtom } from "@/stores/eraserStore";
 import { selectedToolIdAtom } from "@/stores/toolsbarStore";
 import { ToolbarItemIDs } from "@/constants/toolsbarItems";
 import { useCursor } from "@/hooks/useCursor";
+import { pixiStateAtom } from "@/stores/pixiStore";
 
 type DrawingPoint = BrushDrawingPoint | PenDrawingPoint | EraserDrawingPoint;
 
@@ -29,6 +30,9 @@ function Stage() {
   const sharedSpriteRef = useRef<PIXI.Sprite | null>(null);
   const lastPointerEventRef = useRef<PointerEvent | null>(null);
   const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
+
+  //PIXJS 관련 상태
+  const [pixiState, setPixiState] = useAtom(pixiStateAtom);
 
   const [brushSettings] = useAtom(brushSettingsAtom);
   const [penSettings] = useAtom(penSettingsAtom);
@@ -126,16 +130,9 @@ function Stage() {
 
     const initApp = async () => {
       try {
-        const app = new PIXI.Application();
-        await app.init({
-          width: 800,
-          height: 600,
-          backgroundColor: 0xffffff,
-          antialias: true,
-          resolution: window.devicePixelRatio || 1,
-          autoDensity: true,
-        });
-
+        //전역 PIXI App을 받아옴
+        const app = pixiState.app;
+        if (!app) return;
         if (!canvasRef.current) return;
 
         appRef.current = app;
@@ -340,7 +337,7 @@ function Stage() {
         canvasElementRef.current = null;
       }
     };
-  }, []);
+  }, [pixiState]);
 
   return (
     <div className="relative flex h-full w-full items-center justify-center">
