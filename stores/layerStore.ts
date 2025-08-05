@@ -237,21 +237,19 @@ export const reorderLayersAtom = atom(
     const layersForCurrentCanvas = get(layersForCurrentCanvasAtom);
     const currentCanvasId = get(currentCanvasIdAtom);
     const canvasContainer = get(getCanvasContainerAtom);
+    if (!currentCanvasId || !canvasContainer || dragIndex === hoverIndex)
+      return;
+    const reorderedLayers = [...layersForCurrentCanvas];
+    const [draggedLayer] = reorderedLayers.splice(dragIndex, 1);
+    reorderedLayers.splice(hoverIndex, 0, draggedLayer);
 
-    if (!currentCanvasId || !canvasContainer) return;
-
-    const draggedLayer = layersForCurrentCanvas[dragIndex];
-    const newLayersForCanvas = [...layersForCurrentCanvas];
-
-    newLayersForCanvas.splice(dragIndex, 1);
-    newLayersForCanvas.splice(hoverIndex, 0, draggedLayer);
-
-    const reorderedLayersForCanvas = newLayersForCanvas.map((layer, index) => ({
+    const layersWithUpdatedOrder = reorderedLayers.map((layer, index) => ({
       ...layer,
       order: index,
+      updatedAt: new Date(),
     }));
 
-    reorderedLayersForCanvas.forEach((layer, index) => {
+    layersWithUpdatedOrder.forEach((layer, index) => {
       if (
         layer.data.pixiSprite &&
         layer.data.pixiSprite.parent === canvasContainer
@@ -260,13 +258,14 @@ export const reorderLayersAtom = atom(
       }
     });
 
-    const otherLayers = layers.filter(
+    const otherCanvasLayers = layers.filter(
       (layer) => layer.canvasId !== currentCanvasId
     );
-    const updatedLayers = [...otherLayers, ...reorderedLayersForCanvas];
 
-    sampleData.layers = updatedLayers;
-    set(layersAtom, updatedLayers);
+    const allUpdatedLayers = [...otherCanvasLayers, ...layersWithUpdatedOrder];
+
+    set(layersAtom, allUpdatedLayers);
+    sampleData.layers = allUpdatedLayers;
   }
 );
 
