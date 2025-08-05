@@ -1,11 +1,15 @@
 import { atom } from "jotai";
 import * as PIXI from "pixi.js";
+import { canvasesAtom } from "./canvasStore";
+import { layersAtom } from "./layerStore";
+import { LayerData } from "@/types/layer";
 
 export interface PixiState {
   app: PIXI.Application | null;
   isInitialized: boolean;
   // 페이지별 -> 캔버스별 컨테이너 구조
-  pageContainers: Record<string, Record<string, PIXI.Container>>; // [pageId][canvasId]
+  canvasContainers: Record<string, Record<string, PIXI.Container>>; // [pageId][canvasId]
+  layerGraphics: Record<string, Record<string, LayerData>>;
   // 현재 활성 상태
   activePageId: string | null;
   activeCanvasId: string | null;
@@ -16,7 +20,8 @@ export interface PixiState {
 export const pixiStateAtom = atom<PixiState>({
   app: null,
   isInitialized: false,
-  pageContainers: {},
+  canvasContainers: {},
+  layerGraphics: {},
   activePageId: null,
   activeCanvasId: null,
   activeLayerId: null,
@@ -25,8 +30,8 @@ export const pixiStateAtom = atom<PixiState>({
 // PIXI Application 초기화
 export const initPixiAppAtom = atom(null, async (get, set) => {
   const state = get(pixiStateAtom);
+  const canvases = get(canvasesAtom);
   if (state.isInitialized || state.app) return;
-
   try {
     const app = new PIXI.Application();
     await app.init({
@@ -45,31 +50,19 @@ export const initPixiAppAtom = atom(null, async (get, set) => {
     });
 
     console.log("PIXI Application 초기화 완료");
+
+    canvases.forEach((canvas) => {
+      set(createCanvasContainerAtom, {
+        pageId: canvas.pageId,
+        canvasId: canvas.id,
+      });
+    });
   } catch (error) {
     console.error("PIXI Application 초기화 실패:", error);
   }
 });
 
-// 페이지 컨테이너 생성
-export const createPageContainersAtom = atom(
-  null,
-  (get, set, pageId: string) => {
-    const state = get(pixiStateAtom);
-    if (!state.app || state.pageContainers[pageId]) return;
-
-    set(pixiStateAtom, {
-      ...state,
-      pageContainers: {
-        ...state.pageContainers,
-        [pageId]: {},
-      },
-    });
-
-    console.log(`페이지 컨테이너 생성: ${pageId}`);
-  }
-);
-
-// 캔버스 컨테이너 생성
+// 페이지 컨테이너 생성 [pageId][canvasId] Record<string, Record<string, PIXI.Container>>;
 export const createCanvasContainerAtom = atom(
   null,
   (get, set, { pageId, canvasId }: { pageId: string; canvasId: string }) => {
@@ -79,17 +72,17 @@ export const createCanvasContainerAtom = atom(
       return;
     }
 
-    if (state.pageContainers[pageId]?.[canvasId]) {
+    if (state.canvasContainers[pageId]?.[canvasId]) {
       console.warn(`캔버스 컨테이너가 이미 존재합니다: ${pageId}/${canvasId}`);
       return;
     }
 
     // 페이지 컨테이너가 없으면 생성
-    if (!state.pageContainers[pageId]) {
+    if (!state.canvasContainers[pageId]) {
       set(pixiStateAtom, {
         ...state,
-        pageContainers: {
-          ...state.pageContainers,
+        canvasContainers: {
+          ...state.canvasContainers,
           [pageId]: {},
         },
       });
@@ -97,23 +90,64 @@ export const createCanvasContainerAtom = atom(
 
     const container = new PIXI.Container();
     container.name = `canvas-${canvasId}`;
-
     const currentState = get(pixiStateAtom);
     set(pixiStateAtom, {
       ...currentState,
-      pageContainers: {
-        ...currentState.pageContainers,
+      canvasContainers: {
+        ...currentState.canvasContainers,
         [pageId]: {
-          ...currentState.pageContainers[pageId],
+          ...currentState.canvasContainers[pageId],
           [canvasId]: container,
         },
       },
     });
 
     console.log(`캔버스 컨테이너 생성: ${pageId}/${canvasId}`);
+
+    //해당 캔버스에 속한 레이어들을 layerAtom에서 가져와 반복 생성
+    const layers = get(layersAtom);
+    const layersInCanvas = layers.filter(
+      (layer) => layer.canvasId === canvasId
+    );
+    layersInCanvas.forEach((layer) => {
+      set(createLayerGraphicAtom, { canvasId, layerId: layer.id });
+    });
   }
 );
 
+export const createLayerGraphicAtom = atom(
+  null,
+  (get, set, { canvasId, layerId }: { canvasId: string; layerId: string }) => {
+    const state = get(pixiStateAtom);
+    const currentLayerGraphics = state.layerGraphics || {};
+
+    const layerOfCanvas = currentLayerGraphics[canvasId] || {};
+
+    if (layerOfCanvas[layerId]) {
+      console.warn(`해당 그래픽이 이미 생성됨: ${canvasId}/${layerId}`);
+      return;
+    }
+
+    const pixiSprite = new PIXI.Sprite();
+    const renderTexture = PIXI.RenderTexture.create({ width: 1, height: 1 });
+
+    set(pixiStateAtom, {
+      ...state,
+      layerGraphics: {
+        ...currentLayerGraphics,
+        [canvasId]: {
+          ...layerOfCanvas,
+          [layerId]: {
+            pixiSprite,
+            renderTexture,
+          },
+        },
+      },
+    });
+
+    console.log(`레이어 그래픽 초기화 완료: ${canvasId}/${layerId}`);
+  }
+);
 // 페이지 전환
 export const switchPageAtom = atom(null, (get, set, pageId: string) => {
   const state = get(pixiStateAtom);
@@ -123,14 +157,14 @@ export const switchPageAtom = atom(null, (get, set, pageId: string) => {
   state.app.stage.removeChildren();
 
   // 새 페이지의 컨테이너들 추가
-  const pageContainers = state.pageContainers[pageId];
-  if (pageContainers) {
-    Object.values(pageContainers).forEach((container) => {
+  const canvasContainers = state.canvasContainers[pageId];
+  if (canvasContainers) {
+    Object.values(canvasContainers).forEach((container) => {
       state.app!.stage.addChild(container);
     });
     console.log(
       `페이지 전환: ${pageId}, 컨테이너 ${
-        Object.keys(pageContainers).length
+        Object.keys(canvasContainers).length
       }개 로드`
     );
   } else {
@@ -173,7 +207,7 @@ export const getCanvasContainerAtom = atom((get) => {
   if (!state.activePageId || !state.activeCanvasId) return null;
 
   return (
-    state.pageContainers[state.activePageId]?.[state.activeCanvasId] || null
+    state.canvasContainers[state.activePageId]?.[state.activeCanvasId] || null
   );
 });
 
@@ -182,9 +216,9 @@ export const cleanupPageAtom = atom(null, (get, set, pageId: string) => {
   const state = get(pixiStateAtom);
 
   // 페이지의 모든 컨테이너와 하위 요소들 정리
-  const pageContainers = state.pageContainers[pageId];
-  if (pageContainers) {
-    Object.entries(pageContainers).forEach(([canvasId, container]) => {
+  const canvasContainers = state.canvasContainers[pageId];
+  if (canvasContainers) {
+    Object.entries(canvasContainers).forEach(([canvasId, container]) => {
       // 스테이지에서 제거
       if (container.parent) {
         container.parent.removeChild(container);
@@ -201,12 +235,12 @@ export const cleanupPageAtom = atom(null, (get, set, pageId: string) => {
   }
 
   // 상태에서 제거
-  const newPageContainers = { ...state.pageContainers };
-  delete newPageContainers[pageId];
+  const newcanvasContainers = { ...state.canvasContainers };
+  delete newcanvasContainers[pageId];
 
   set(pixiStateAtom, {
     ...state,
-    pageContainers: newPageContainers,
+    canvasContainers: newcanvasContainers,
     activePageId: state.activePageId === pageId ? null : state.activePageId,
   });
 
@@ -220,7 +254,7 @@ export const cleanupCanvasAtom = atom(
     const state = get(pixiStateAtom);
 
     // 컨테이너 정리
-    const container = state.pageContainers[pageId]?.[canvasId];
+    const container = state.canvasContainers[pageId]?.[canvasId];
     if (container) {
       // 스테이지에서 제거
       if (container.parent) {
@@ -235,16 +269,16 @@ export const cleanupCanvasAtom = atom(
     }
 
     // 상태에서 제거
-    const newPageContainers = { ...state.pageContainers };
-    if (newPageContainers[pageId]) {
-      const newCanvases = { ...newPageContainers[pageId] };
+    const newcanvasContainers = { ...state.canvasContainers };
+    if (newcanvasContainers[pageId]) {
+      const newCanvases = { ...newcanvasContainers[pageId] };
       delete newCanvases[canvasId];
-      newPageContainers[pageId] = newCanvases;
+      newcanvasContainers[pageId] = newCanvases;
     }
 
     set(pixiStateAtom, {
       ...state,
-      pageContainers: newPageContainers,
+      canvasContainers: newcanvasContainers,
       activeCanvasId:
         state.activeCanvasId === canvasId ? null : state.activeCanvasId,
     });
@@ -259,9 +293,9 @@ export const destroyPixiAppAtom = atom(null, (get, set) => {
 
   if (state.app) {
     // 모든 컨테이너 정리
-    Object.keys(state.pageContainers).forEach((pageId) => {
-      Object.keys(state.pageContainers[pageId]).forEach((canvasId) => {
-        const container = state.pageContainers[pageId][canvasId];
+    Object.keys(state.canvasContainers).forEach((pageId) => {
+      Object.keys(state.canvasContainers[pageId]).forEach((canvasId) => {
+        const container = state.canvasContainers[pageId][canvasId];
         container?.destroy({
           children: true,
           texture: true,
@@ -277,7 +311,8 @@ export const destroyPixiAppAtom = atom(null, (get, set) => {
   set(pixiStateAtom, {
     app: null,
     isInitialized: false,
-    pageContainers: {},
+    canvasContainers: {},
+    layerGraphics: {},
     activePageId: null,
     activeCanvasId: null,
     activeLayerId: null,
@@ -290,8 +325,8 @@ export const debugPixiStateAtom = atom((get) => {
   return {
     isInitialized: state.isInitialized,
     appExists: !!state.app,
-    pagesCount: Object.keys(state.pageContainers).length,
-    canvasesCount: Object.values(state.pageContainers).reduce(
+    pagesCount: Object.keys(state.canvasContainers).length,
+    canvasesCount: Object.values(state.canvasContainers).reduce(
       (total, page) => total + Object.keys(page).length,
       0
     ),

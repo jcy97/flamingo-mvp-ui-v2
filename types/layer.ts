@@ -32,8 +32,8 @@ export type BlendMode =
   | "exclusion";
 
 export interface LayerData {
-  pixiSprite: PIXI.Sprite;
-  renderTexture: PIXI.RenderTexture;
+  pixiSprite: PIXI.Sprite | null;
+  renderTexture: PIXI.RenderTexture | null;
 }
 
 export interface Stroke {

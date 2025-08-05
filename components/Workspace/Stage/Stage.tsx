@@ -137,6 +137,7 @@ function Stage() {
         appRef.current = app;
         canvasRef.current.appendChild(app.canvas);
 
+        //여기서부터 컨테이너까지 초기화된 코드 이후 로직으로 만들어야함...
         const drawingLayer = new PIXI.Container();
         app.stage.addChild(drawingLayer);
         currentLayerRef.current = drawingLayer;
