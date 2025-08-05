@@ -17,7 +17,7 @@ export const layersForCurrentCanvasAtom = atom((get) => {
   if (!currentCanvasId) return [];
   return layers
     .filter((layer) => layer.canvasId === currentCanvasId)
-    .sort((a, b) => a.order - b.order);
+    .sort((a, b) => b.order - a.order);
 });
 
 export const activeLayerIdAtom = atom<string | null>(null);
@@ -81,11 +81,16 @@ export const addLayerAtom = atom(null, (get, set) => {
 
     canvasContainer.addChild(sprite);
 
+    const newOrder =
+      layersForCurrentCanvas.length > 0
+        ? Math.max(...layersForCurrentCanvas.map((l) => l.order)) + 1
+        : 0;
+
     const newLayer: Layer = {
       id: newLayerId,
       canvasId: currentCanvasId,
       name: `새 레이어 ${layersForCurrentCanvas.length + 1}`,
-      order: layersForCurrentCanvas.length,
+      order: newOrder,
       type: "brush",
       blendMode: "normal",
       opacity: 1,
@@ -245,16 +250,16 @@ export const reorderLayersAtom = atom(
 
     const layersWithUpdatedOrder = reorderedLayers.map((layer, index) => ({
       ...layer,
-      order: index,
+      order: layersForCurrentCanvas.length - 1 - index,
       updatedAt: new Date(),
     }));
 
-    layersWithUpdatedOrder.forEach((layer, index) => {
+    layersWithUpdatedOrder.forEach((layer) => {
       if (
         layer.data.pixiSprite &&
         layer.data.pixiSprite.parent === canvasContainer
       ) {
-        canvasContainer.setChildIndex(layer.data.pixiSprite, index);
+        canvasContainer.setChildIndex(layer.data.pixiSprite, layer.order);
       }
     });
 
@@ -291,9 +296,10 @@ export const autoSelectFirstLayerAtom = atom(null, (get, set) => {
   const currentActiveLayerId = get(activeLayerIdAtom);
 
   if (layersForCurrentCanvas.length > 0) {
-    const firstLayer = layersForCurrentCanvas[0];
-    if (currentActiveLayerId !== firstLayer.id) {
-      set(setActiveLayerAtom, firstLayer.id);
+    const bottomLayer =
+      layersForCurrentCanvas[layersForCurrentCanvas.length - 1];
+    if (currentActiveLayerId !== bottomLayer.id) {
+      set(setActiveLayerAtom, bottomLayer.id);
     }
   } else {
     set(setActiveLayerAtom, null);

@@ -25,7 +25,7 @@ export const currentCanvasAtom = atom((get) => {
 export const autoSelectFirstCanvasAtom = atom(null, (get, set) => {
   const canvasesForCurrentPage = get(canvasesForCurrentPageAtom);
   if (canvasesForCurrentPage.length > 0) {
-    set(currentCanvasIdAtom, canvasesForCurrentPage[0].id);
+    set(setCurrentCanvasAtom, canvasesForCurrentPage[0].id);
   } else {
     set(currentCanvasIdAtom, null);
   }
