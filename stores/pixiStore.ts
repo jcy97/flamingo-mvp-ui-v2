@@ -129,7 +129,11 @@ export const createLayerGraphicAtom = atom(
     }
 
     const pixiSprite = new PIXI.Sprite();
-    const renderTexture = PIXI.RenderTexture.create({ width: 1, height: 1 });
+    const renderTexture = PIXI.RenderTexture.create({
+      width: 800,
+      height: 600,
+      resolution: 1,
+    });
 
     set(pixiStateAtom, {
       ...state,

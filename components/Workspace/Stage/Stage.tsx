@@ -1,6 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useRef } from "react";
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import * as PIXI from "pixi.js";
 import { BrushEngine, DrawingPoint as BrushDrawingPoint } from "./BrushEngine";
 import { PenEngine, DrawingPoint as PenDrawingPoint } from "./PenEngine";
@@ -15,6 +15,9 @@ import { selectedToolIdAtom } from "@/stores/toolsbarStore";
 import { ToolbarItemIDs } from "@/constants/toolsbarItems";
 import { useCursor } from "@/hooks/useCursor";
 import { pixiStateAtom } from "@/stores/pixiStore";
+import { currentPageIdAtom } from "@/stores/pageStore";
+import { currentCanvasIdAtom } from "@/stores/canvasStore";
+import { activeLayerIdAtom } from "@/stores/layerStore";
 
 type DrawingPoint = BrushDrawingPoint | PenDrawingPoint | EraserDrawingPoint;
 
@@ -31,7 +34,6 @@ function Stage() {
   const lastPointerEventRef = useRef<PointerEvent | null>(null);
   const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
 
-  //PIXJS 관련 상태
   const [pixiState, setPixiState] = useAtom(pixiStateAtom);
 
   const [brushSettings] = useAtom(brushSettingsAtom);
@@ -39,6 +41,10 @@ function Stage() {
   const [eraserSettings] = useAtom(eraserSettingsAtom);
   const [selectedToolId] = useAtom(selectedToolIdAtom);
   const cursorStyle = useCursor();
+
+  const currentPageId = useAtomValue(currentPageIdAtom);
+  const currentCanvasId = useAtomValue(currentCanvasIdAtom);
+  const activeLayerId = useAtomValue(activeLayerIdAtom);
 
   useEffect(() => {
     if (canvasElementRef.current) {
@@ -125,49 +131,69 @@ function Stage() {
     }
   }, [eraserSettings]);
 
+  const updateCanvasLayer = useCallback(() => {
+    if (!appRef.current || !currentPageId || !currentCanvasId || !activeLayerId)
+      return;
+    if (currentLayerRef.current) {
+      appRef.current.stage.removeChild(currentLayerRef.current);
+    }
+
+    if (sharedSpriteRef.current && currentLayerRef.current) {
+      currentLayerRef.current.removeChild(sharedSpriteRef.current);
+    }
+
+    const drawingLayer =
+      pixiState.canvasContainers[currentPageId][currentCanvasId];
+    appRef.current.stage.addChild(drawingLayer);
+    currentLayerRef.current = drawingLayer;
+
+    sharedRenderTextureRef.current =
+      pixiState.layerGraphics[currentCanvasId][activeLayerId].renderTexture!;
+    sharedSpriteRef.current =
+      pixiState.layerGraphics[currentCanvasId][activeLayerId].pixiSprite!;
+    drawingLayer.addChild(sharedSpriteRef.current);
+
+    if (brushEngineRef.current) {
+      brushEngineRef.current.setSharedRenderTexture(
+        sharedRenderTextureRef.current
+      );
+    }
+
+    if (penEngineRef.current) {
+      penEngineRef.current.setActiveLayer(drawingLayer);
+      penEngineRef.current.setSharedRenderTexture(
+        sharedRenderTextureRef.current
+      );
+    }
+
+    if (eraserEngineRef.current) {
+      eraserEngineRef.current.setSharedRenderTexture(
+        sharedRenderTextureRef.current
+      );
+    }
+  }, [pixiState, currentPageId, currentCanvasId, activeLayerId]);
+
+  useEffect(() => {
+    updateCanvasLayer();
+  }, [updateCanvasLayer]);
+
   useEffect(() => {
     if (!canvasRef.current || appRef.current) return;
 
     const initApp = async () => {
       try {
-        //전역 PIXI App을 받아옴
         const app = pixiState.app;
         if (!app) return;
         if (!canvasRef.current) return;
+
         appRef.current = app;
         canvasRef.current.appendChild(app.canvas);
 
-        //여기서부터 컨테이너까지 초기화된 코드 이후 로직으로 만들어야함...
-        const drawingLayer = new PIXI.Container();
-        app.stage.addChild(drawingLayer);
-        currentLayerRef.current = drawingLayer;
-
-        const { width, height } = app.renderer;
-        sharedRenderTextureRef.current = PIXI.RenderTexture.create({
-          width,
-          height,
-          resolution: window.devicePixelRatio || 1,
-        });
-        sharedSpriteRef.current = new PIXI.Sprite(
-          sharedRenderTextureRef.current
-        );
-        drawingLayer.addChild(sharedSpriteRef.current);
-
         brushEngineRef.current = new BrushEngine(app, brushSettings);
-        brushEngineRef.current.setSharedRenderTexture(
-          sharedRenderTextureRef.current
-        );
-
         penEngineRef.current = new PenEngine(app, penSettings);
-        penEngineRef.current.setActiveLayer(drawingLayer);
-        penEngineRef.current.setSharedRenderTexture(
-          sharedRenderTextureRef.current
-        );
-
         eraserEngineRef.current = new EraserEngine(app, eraserSettings);
-        eraserEngineRef.current.setSharedRenderTexture(
-          sharedRenderTextureRef.current
-        );
+
+        updateCanvasLayer();
 
         const canvas = app.canvas as HTMLCanvasElement;
         canvasElementRef.current = canvas;
