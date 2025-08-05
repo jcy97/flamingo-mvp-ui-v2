@@ -24,6 +24,8 @@ import {
 
 interface LayerItemProps {
   layer: LayerType;
+  isSelected: boolean;
+  onClick: () => void;
   isDragging?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
   onDragEnd?: () => void;
@@ -35,6 +37,8 @@ interface LayerItemProps {
 function LayerItem({
   layer,
   isDragging = false,
+  isSelected,
+  onClick,
   onDragStart,
   onDragEnd,
   onDragOver,
@@ -159,6 +163,7 @@ function LayerItem({
           : "cursor-grab"
       }`}
       draggable={!isEditing && !layer.isLocked}
+      onClick={onClick}
       onDragStart={handleDragStart}
       onDragEnd={onDragEnd}
       onDragOver={onDragOver}

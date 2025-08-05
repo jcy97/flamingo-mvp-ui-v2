@@ -134,7 +134,7 @@ function Stage() {
         const app = pixiState.app;
         if (!app) return;
         if (!canvasRef.current) return;
-
+        console.log(app);
         appRef.current = app;
         canvasRef.current.appendChild(app.canvas);
 
@@ -337,7 +337,7 @@ function Stage() {
         canvasElementRef.current = null;
       }
     };
-  }, [pixiState]);
+  }, [pixiState.app]);
 
   return (
     <div className="relative flex h-full w-full items-center justify-center">

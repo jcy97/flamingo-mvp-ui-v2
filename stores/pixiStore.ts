@@ -158,7 +158,7 @@ export const switchCanvasAtom = atom(null, (get, set, canvasId: string) => {
 // 레이어 전환
 export const switchLayerAtom = atom(null, (get, set, layerId: string) => {
   const state = get(pixiStateAtom);
-
+  console.log(state);
   set(pixiStateAtom, {
     ...state,
     activeLayerId: layerId,

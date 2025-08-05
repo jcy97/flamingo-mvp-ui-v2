@@ -1,10 +1,12 @@
 import React, { useState } from "react";
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { Layer as LayerType } from "@/types/layer";
 import LayerItem from "./LayerItem";
 import {
+  activeLayerIdAtom,
   layersForCurrentCanvasAtom,
   reorderLayersAtom,
+  setActiveLayerAtom,
 } from "@/stores/layerStore";
 import "@/styles/scrollbar.css";
 
@@ -16,10 +18,17 @@ function LayerList({ layers: propLayers }: LayerListProps) {
   const [layersForCurrentCanvas] = useAtom(layersForCurrentCanvasAtom);
   const reorderLayers = useSetAtom(reorderLayersAtom);
 
+  const setActiveLayer = useSetAtom(setActiveLayerAtom);
+  const activeLayerId = useAtomValue(activeLayerIdAtom);
+
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const layers = propLayers || layersForCurrentCanvas;
+
+  const handleLayerSelect = (layerId: string) => {
+    setActiveLayer(layerId);
+  };
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
@@ -66,6 +75,8 @@ function LayerList({ layers: propLayers }: LayerListProps) {
 
             <LayerItem
               layer={layer}
+              isSelected={activeLayerId === layer.id}
+              onClick={() => handleLayerSelect(layer.id)}
               isDragging={draggedIndex === index}
               onDragStart={(e) => handleDragStart(e, index)}
               onDragEnd={handleDragEnd}

@@ -11,9 +11,9 @@ interface WorkspaceLayoutProps {
 }
 
 export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
-  /*******
-   * 상태관리 *
-   * *******/
+  /****************
+    상태관리 
+   * **************/
   const [leftWidth, setLeftWidth] = useState<number>(240);
   const [rightWidth, setRightWidth] = useState<number>(280);
   const [leftVisible, setLeftVisible] = useState<boolean>(true);
