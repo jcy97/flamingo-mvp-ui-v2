@@ -2,14 +2,13 @@ import { atom } from "jotai";
 import { Canvas } from "@/types/canvas";
 import sampleData from "@/samples/data";
 import { currentPageIdAtom } from "./pageStore";
+import { autoSelectFirstLayerAtom } from "./layerStore";
+import { switchCanvasAtom } from "./pixiStore";
 
-// Canvases data atom
 export const canvasesAtom = atom<Canvas[]>(sampleData.canvases);
 
-// Current selected canvas ID atom
 export const currentCanvasIdAtom = atom<string | null>(null);
 
-// Canvases for current page derived atom
 export const canvasesForCurrentPageAtom = atom((get) => {
   const canvases = get(canvasesAtom);
   const currentPageId = get(currentPageIdAtom);
@@ -17,14 +16,12 @@ export const canvasesForCurrentPageAtom = atom((get) => {
   return canvases.filter((canvas) => canvas.pageId === currentPageId);
 });
 
-// Current canvas derived atom
 export const currentCanvasAtom = atom((get) => {
   const canvases = get(canvasesAtom);
   const currentCanvasId = get(currentCanvasIdAtom);
   return canvases.find((canvas) => canvas.id === currentCanvasId) || null;
 });
 
-// Auto-select first canvas when page changes
 export const autoSelectFirstCanvasAtom = atom(null, (get, set) => {
   const canvasesForCurrentPage = get(canvasesForCurrentPageAtom);
   if (canvasesForCurrentPage.length > 0) {
@@ -34,7 +31,6 @@ export const autoSelectFirstCanvasAtom = atom(null, (get, set) => {
   }
 });
 
-// Add new canvas action
 export const addCanvasAtom = atom(null, (get, set) => {
   const currentPageId = get(currentPageIdAtom);
   if (!currentPageId) return;
@@ -61,7 +57,6 @@ export const addCanvasAtom = atom(null, (get, set) => {
   set(currentCanvasIdAtom, newCanvasId);
 });
 
-// Update canvas action
 export const updateCanvasAtom = atom(
   null,
   (get, set, { canvasId, name }: { canvasId: string; name: string }) => {
@@ -77,7 +72,6 @@ export const updateCanvasAtom = atom(
   }
 );
 
-// Delete canvas action
 export const deleteCanvasAtom = atom(null, (get, set, canvasId: string) => {
   const canvases = get(canvasesAtom);
   const currentCanvasId = get(currentCanvasIdAtom);
@@ -97,7 +91,6 @@ export const deleteCanvasAtom = atom(null, (get, set, canvasId: string) => {
   }
 });
 
-// Reorder canvases action
 export const reorderCanvasesAtom = atom(
   null,
   (
@@ -133,3 +126,9 @@ export const reorderCanvasesAtom = atom(
     set(canvasesAtom, updatedCanvases);
   }
 );
+
+export const setCurrentCanvasAtom = atom(null, (get, set, canvasId: string) => {
+  set(currentCanvasIdAtom, canvasId);
+  set(autoSelectFirstLayerAtom);
+  set(switchCanvasAtom, canvasId);
+});

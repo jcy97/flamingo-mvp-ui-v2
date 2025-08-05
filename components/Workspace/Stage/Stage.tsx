@@ -134,7 +134,6 @@ function Stage() {
         const app = pixiState.app;
         if (!app) return;
         if (!canvasRef.current) return;
-        console.log(app);
         appRef.current = app;
         canvasRef.current.appendChild(app.canvas);
 

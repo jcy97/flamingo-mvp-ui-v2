@@ -1,23 +1,25 @@
 import React, { useState } from "react";
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import CanvasItem from "./CanvasItem";
 import {
   canvasesForCurrentPageAtom,
   currentCanvasIdAtom,
   reorderCanvasesAtom,
+  setCurrentCanvasAtom,
 } from "@/stores/canvasStore";
 import "@/styles/scrollbar.css";
 
 function CanvasList() {
   const [canvasesForCurrentPage] = useAtom(canvasesForCurrentPageAtom);
-  const [currentCanvasId, setCurrentCanvasId] = useAtom(currentCanvasIdAtom);
+  const currentCanvasId = useAtomValue(currentCanvasIdAtom);
   const reorderCanvases = useSetAtom(reorderCanvasesAtom);
+  const setCurrentCanvas = useSetAtom(setCurrentCanvasAtom);
 
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const handleCanvasSelect = (canvasId: string) => {
-    setCurrentCanvasId(canvasId);
+    setCurrentCanvas(canvasId);
   };
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
