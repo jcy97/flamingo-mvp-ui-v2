@@ -2,23 +2,24 @@ import { atom } from "jotai";
 import { Page } from "@/types/page";
 import { Canvas } from "@/types/canvas";
 import sampleData from "@/samples/data";
+import {
+  canvasesForCurrentPageAtom,
+  setCurrentCanvasAtom,
+} from "./canvasStore";
+import { switchPageAtom } from "./pixiStore";
 
-// Pages data atom
 export const pagesAtom = atom<Page[]>(sampleData.pages);
 
-// Current selected page ID atom
 export const currentPageIdAtom = atom<string | null>(
   sampleData.pages[0]?.id || null
 );
 
-// Current page derived atom
 export const currentPageAtom = atom((get) => {
   const pages = get(pagesAtom);
   const currentPageId = get(currentPageIdAtom);
   return pages.find((page) => page.id === currentPageId) || null;
 });
 
-// Add new page action
 export const addPageAtom = atom(null, (get, set) => {
   const pages = get(pagesAtom);
   const newPageId = `page-${String(Date.now()).slice(-3)}`;
@@ -55,7 +56,6 @@ export const addPageAtom = atom(null, (get, set) => {
   set(currentPageIdAtom, newPageId);
 });
 
-// Update page action
 export const updatePageAtom = atom(
   null,
   (get, set, { pageId, name }: { pageId: string; name: string }) => {
@@ -69,7 +69,6 @@ export const updatePageAtom = atom(
   }
 );
 
-// Delete page action
 export const deletePageAtom = atom(null, (get, set, pageId: string) => {
   const pages = get(pagesAtom);
   const currentPageId = get(currentPageIdAtom);
@@ -91,7 +90,6 @@ export const deletePageAtom = atom(null, (get, set, pageId: string) => {
   }
 });
 
-// Reorder pages action
 export const reorderPagesAtom = atom(
   null,
   (
@@ -115,3 +113,15 @@ export const reorderPagesAtom = atom(
     set(pagesAtom, reorderedPages);
   }
 );
+
+export const setCurrentPageAtom = atom(null, (get, set, pageId: string) => {
+  console.log("페이지 변경");
+  set(currentPageIdAtom, pageId);
+
+  const canvasesForCurrentPage = get(canvasesForCurrentPageAtom);
+  if (canvasesForCurrentPage.length > 0) {
+    set(setCurrentCanvasAtom, canvasesForCurrentPage[0].id);
+  }
+
+  set(switchPageAtom, pageId);
+});
