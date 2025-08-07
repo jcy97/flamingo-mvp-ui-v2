@@ -2,41 +2,156 @@
 import { LeftSidebar } from "@/components/Workspace/LeftSidebar/LeftSidebar";
 import { RightSidebar } from "@/components/Workspace/RightSidebar/RightSidebar";
 import Toolsbar from "@/components/Workspace/Toolsbar/Toolsbar";
-import { initPixiAppAtom } from "@/stores/pixiStore";
+import { useCallback, useRef, useState, useEffect } from "react";
 import { useAtom } from "jotai";
-import { useCallback, useEffect, useRef, useState } from "react";
+import * as PIXI from "pixi.js";
+import {
+  pixiStateAtom,
+  initPixiAppAtom,
+  createPageContainersAtom,
+  createCanvasContainerAtom,
+  switchPageAtom,
+  switchCanvasAtom,
+  switchLayerAtom,
+  getCanvasContainerAtom,
+} from "@/stores/pixiStore";
+import { currentPageIdAtom, currentPageAtom } from "@/stores/pageStore";
+import {
+  currentCanvasIdAtom,
+  currentCanvasAtom,
+  autoSelectFirstCanvasAtom,
+} from "@/stores/canvasStore";
+import {
+  layersForCurrentCanvasAtom,
+  activeLayerIdAtom,
+  currentActiveLayerAtom,
+  addLayerAtom,
+  autoSelectFirstLayerAtom,
+  setActiveLayerAtom,
+} from "@/stores/layerStore";
 
 interface WorkspaceLayoutProps {
   children: React.ReactNode;
 }
 
 export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
-  /****************
-    상태관리 
-   * **************/
   const [leftWidth, setLeftWidth] = useState<number>(240);
   const [rightWidth, setRightWidth] = useState<number>(280);
   const [leftVisible, setLeftVisible] = useState<boolean>(true);
   const [rightVisible, setRightVisible] = useState<boolean>(true);
   const [isDragging, setIsDragging] = useState<string | null>(null);
 
-  //PIXI JS 관련 atom
-  const [, initPixiApp] = useAtom(initPixiAppAtom);
-
   const containerRef = useRef<HTMLDivElement>(null);
+  const isInitializedRef = useRef<boolean>(false);
 
-  // 최소 사이드바 크기와 중앙 컨텐츠 최소 크기 설정
+  const [pixiState, setPixiState] = useAtom(pixiStateAtom);
+  const [, initPixiApp] = useAtom(initPixiAppAtom);
+  const [, createPageContainers] = useAtom(createPageContainersAtom);
+  const [, createCanvasContainer] = useAtom(createCanvasContainerAtom);
+  const [, switchPage] = useAtom(switchPageAtom);
+  const [, switchCanvas] = useAtom(switchCanvasAtom);
+  const [, switchLayer] = useAtom(switchLayerAtom);
+  const [canvasContainer] = useAtom(getCanvasContainerAtom);
+
+  const [currentPageId] = useAtom(currentPageIdAtom);
+  const [currentPage] = useAtom(currentPageAtom);
+  const [currentCanvasId] = useAtom(currentCanvasIdAtom);
+  const [currentCanvas] = useAtom(currentCanvasAtom);
+  const [, autoSelectFirstCanvas] = useAtom(autoSelectFirstCanvasAtom);
+
+  const [layersForCurrentCanvas] = useAtom(layersForCurrentCanvasAtom);
+  const [activeLayerId] = useAtom(activeLayerIdAtom);
+  const [currentActiveLayer] = useAtom(currentActiveLayerAtom);
+  const [, addLayer] = useAtom(addLayerAtom);
+  const [, autoSelectFirstLayer] = useAtom(autoSelectFirstLayerAtom);
+  const [, setActiveLayer] = useAtom(setActiveLayerAtom);
+
   const MIN_SIDEBAR_WIDTH = 200;
   const MIN_CONTENT_WIDTH = 300;
 
-  /**PIXI JS 초기화 */
   useEffect(() => {
     const initializePixi = async () => {
-      await initPixiApp();
+      if (isInitializedRef.current || pixiState.isInitialized) return;
+
+      try {
+        await initPixiApp();
+        isInitializedRef.current = true;
+      } catch (error) {
+        console.error("PIXI 초기화 실패:", error);
+      }
     };
 
     initializePixi();
-  }, []);
+  }, [pixiState.isInitialized, initPixiApp]);
+
+  useEffect(() => {
+    if (!pixiState.isInitialized || !currentPageId) return;
+
+    if (!pixiState.pageContainers[currentPageId]) {
+      createPageContainers(currentPageId);
+    }
+
+    if (pixiState.activePageId !== currentPageId) {
+      switchPage(currentPageId);
+    }
+  }, [
+    pixiState.isInitialized,
+    currentPageId,
+    pixiState.pageContainers,
+    pixiState.activePageId,
+    createPageContainers,
+    switchPage,
+  ]);
+
+  useEffect(() => {
+    if (!pixiState.isInitialized || !currentPageId || !currentCanvasId) return;
+
+    if (!pixiState.pageContainers[currentPageId]?.[currentCanvasId]) {
+      createCanvasContainer({
+        pageId: currentPageId,
+        canvasId: currentCanvasId,
+      });
+    }
+
+    if (pixiState.activeCanvasId !== currentCanvasId) {
+      switchCanvas(currentCanvasId);
+    }
+  }, [
+    pixiState.isInitialized,
+    currentPageId,
+    currentCanvasId,
+    pixiState.pageContainers,
+    pixiState.activeCanvasId,
+    createCanvasContainer,
+    switchCanvas,
+  ]);
+
+  useEffect(() => {
+    if (!currentPageId) return;
+    autoSelectFirstCanvas();
+  }, [currentPageId, autoSelectFirstCanvas]);
+
+  useEffect(() => {
+    if (!currentCanvasId || layersForCurrentCanvas.length === 0) return;
+
+    if (layersForCurrentCanvas.length === 0) {
+      addLayer();
+    } else {
+      autoSelectFirstLayer();
+    }
+  }, [
+    currentCanvasId,
+    layersForCurrentCanvas.length,
+    addLayer,
+    autoSelectFirstLayer,
+  ]);
+
+  useEffect(() => {
+    if (!activeLayerId) return;
+    if (pixiState.activeLayerId !== activeLayerId) {
+      switchLayer(activeLayerId);
+    }
+  }, [activeLayerId, pixiState.activeLayerId, switchLayer]);
 
   const handleMouseDown = useCallback(
     (side: string) => (e: React.MouseEvent) => {
@@ -132,7 +247,15 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
-      <div>{children}</div>
+      <div
+        className="absolute inset-0"
+        style={{
+          marginLeft: leftVisible ? `${leftWidth}px` : "0",
+          marginRight: rightVisible ? `${rightWidth}px` : "0",
+        }}
+      >
+        {children}
+      </div>
 
       <LeftSidebar
         width={leftWidth}

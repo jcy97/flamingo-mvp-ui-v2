@@ -1,40 +1,39 @@
-import { useAtom } from "jotai";
-import { useMemo } from "react";
+import { useAtomValue } from "jotai";
 import { selectedToolIdAtom } from "@/stores/toolsbarStore";
-import { brushSettingsAtom } from "@/stores/brushStore";
-import { penSettingsAtom } from "@/stores/penStore";
-import { eraserSettingsAtom } from "@/stores/eraserStore";
 import { ToolbarItemIDs } from "@/constants/toolsbarItems";
-import { createToolCursor, getDefaultCursor } from "@/utils/cursor";
 
-export function useCursor() {
-  const [selectedToolId] = useAtom(selectedToolIdAtom);
-  const [brushSettings] = useAtom(brushSettingsAtom);
-  const [penSettings] = useAtom(penSettingsAtom);
-  const [eraserSettings] = useAtom(eraserSettingsAtom);
+export function useCursor(): string {
+  const selectedToolId = useAtomValue(selectedToolIdAtom);
 
-  const cursorStyle = useMemo(() => {
-    switch (selectedToolId) {
-      case ToolbarItemIDs.PEN:
-        return createToolCursor(penSettings.size, penSettings.color);
+  switch (selectedToolId) {
+    case ToolbarItemIDs.SELECT:
+      return "default";
 
-      case ToolbarItemIDs.BRUSH:
-        return createToolCursor(brushSettings.size, brushSettings.color);
+    case ToolbarItemIDs.HAND:
+      return "grab";
 
-      case ToolbarItemIDs.ERASER:
-        return createToolCursor(eraserSettings.size);
+    case ToolbarItemIDs.PEN:
+      return "crosshair";
 
-      default:
-        return getDefaultCursor();
-    }
-  }, [
-    selectedToolId,
-    penSettings.size,
-    penSettings.color,
-    brushSettings.size,
-    brushSettings.color,
-    eraserSettings.size,
-  ]);
+    case ToolbarItemIDs.BRUSH:
+      return "crosshair";
 
-  return cursorStyle;
+    case ToolbarItemIDs.ERASER:
+      return "crosshair";
+
+    case ToolbarItemIDs.TEXT:
+      return "text";
+
+    case ToolbarItemIDs.ZOOM_IN:
+      return "zoom-in";
+
+    case ToolbarItemIDs.ZOOM_OUT:
+      return "zoom-out";
+
+    case ToolbarItemIDs.COMMENT:
+      return "pointer";
+
+    default:
+      return "default";
+  }
 }

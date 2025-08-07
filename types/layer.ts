@@ -1,3 +1,5 @@
+import * as PIXI from "pixi.js";
+
 export interface Layer {
   id: string;
   canvasId: string;
@@ -30,20 +32,8 @@ export type BlendMode =
   | "exclusion";
 
 export interface LayerData {
-  // 브러시 레이어 데이터
-  strokes?: Stroke[];
-  // 텍스트 레이어 데이터
-  textContent?: string;
-  fontSize?: number;
-  fontFamily?: string;
-  textColor?: string;
-  // 이미지 레이어 데이터
-  imageUrl?: string;
-  imageWidth?: number;
-  imageHeight?: number;
-  // 셰이프 레이어 데이터
-  shapeType?: ShapeType;
-  shapeProperties?: ShapeProperties;
+  pixiSprite: PIXI.Sprite | null;
+  renderTexture: PIXI.RenderTexture | null;
 }
 
 export interface Stroke {

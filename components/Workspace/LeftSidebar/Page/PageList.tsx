@@ -1,26 +1,26 @@
 import React, { useState } from "react";
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import PageItem from "./PageItem";
 import {
   pagesAtom,
   currentPageIdAtom,
   reorderPagesAtom,
+  setCurrentPageAtom,
 } from "@/stores/pageStore";
 import { autoSelectFirstCanvasAtom } from "@/stores/canvasStore";
 import "@/styles/scrollbar.css";
 
 function PageList() {
   const [pages] = useAtom(pagesAtom);
-  const [currentPageId, setCurrentPageId] = useAtom(currentPageIdAtom);
-  const autoSelectFirstCanvas = useSetAtom(autoSelectFirstCanvasAtom);
+  const currentPageId = useAtomValue(currentPageIdAtom);
   const reorderPages = useSetAtom(reorderPagesAtom);
+  const setCurrentPage = useSetAtom(setCurrentPageAtom);
 
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const handlePageSelect = (pageId: string) => {
-    setCurrentPageId(pageId);
-    autoSelectFirstCanvas();
+    setCurrentPage(pageId);
   };
 
   const handleDragStart = (e: React.DragEvent, index: number) => {

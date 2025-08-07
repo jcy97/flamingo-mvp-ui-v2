@@ -24,6 +24,8 @@ import {
 
 interface LayerItemProps {
   layer: LayerType;
+  isSelected: boolean;
+  onClick: () => void;
   isDragging?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
   onDragEnd?: () => void;
@@ -35,6 +37,8 @@ interface LayerItemProps {
 function LayerItem({
   layer,
   isDragging = false,
+  isSelected,
+  onClick,
   onDragStart,
   onDragEnd,
   onDragOver,
@@ -153,12 +157,13 @@ function LayerItem({
 
   return (
     <div
-      className={`flex items-center h-[55px] w-full hover:bg-neutral-700 cursor-pointer transition-colors group border-b border-neutral-700 ${
+      className={`flex items-center h-[55px] w-full hover:bg-neutral-700 cursor-pointer transition-colors group border-b border-neutral-700 border-l-2 ${
         isDragging
           ? "opacity-50 scale-95 rotate-1 cursor-grabbing"
           : "cursor-grab"
-      }`}
+      } ${isSelected ? "border-l-primary-500" : "border-l-transparent"}`}
       draggable={!isEditing && !layer.isLocked}
+      onClick={onClick}
       onDragStart={handleDragStart}
       onDragEnd={onDragEnd}
       onDragOver={onDragOver}

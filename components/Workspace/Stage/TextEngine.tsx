@@ -1,0 +1,383 @@
+import { Layer } from "@/types/layer";
+import { TextSettings } from "@/types/text";
+import * as PIXI from "pixi.js";
+
+export interface TextPoint {
+  x: number;
+  y: number;
+}
+
+export class TextEngine {
+  private app: PIXI.Application;
+  private activeTextInput: HTMLTextAreaElement | null = null;
+  private editingTextLayer: PIXI.Text | null = null;
+  private currentTextLayer: PIXI.Text | null = null;
+  private settings: TextSettings;
+  private activeLayer: Layer | null = null;
+  private renderTexture: PIXI.RenderTexture | null = null;
+  private onTextLayerCreated?: (textLayer: PIXI.Text) => void;
+  private textObjects: PIXI.Text[] = [];
+  private isProcessing: boolean = false;
+
+  constructor(app: PIXI.Application, initialSettings: TextSettings) {
+    this.app = app;
+    this.settings = { ...initialSettings };
+  }
+
+  public updateSettings(newSettings: TextSettings): void {
+    this.settings = { ...newSettings };
+    if (this.currentTextLayer && !this.editingTextLayer) {
+      this.updateTextLayerStyle(this.currentTextLayer);
+    }
+  }
+
+  public setActiveLayer(layer: Layer): void {
+    this.activeLayer = layer;
+  }
+
+  public setSharedRenderTexture(renderTexture: PIXI.RenderTexture): void {
+    this.renderTexture = renderTexture;
+  }
+
+  public setOnTextLayerCreated(callback: (textLayer: PIXI.Text) => void): void {
+    this.onTextLayerCreated = callback;
+  }
+
+  private setupTextInteraction(): void {
+    if (!this.activeLayer) return;
+  }
+
+  public startTextInput(point: TextPoint): void {
+    if (this.activeTextInput) {
+      this.completeTextInput();
+    }
+
+    const canvas = this.app.canvas as HTMLCanvasElement;
+    const rect = canvas.getBoundingClientRect();
+
+    const textarea = document.createElement("textarea");
+    textarea.style.position = "absolute";
+    textarea.style.left = `${rect.left + point.x}px`;
+    textarea.style.top = `${rect.top + point.y}px`;
+    textarea.style.minWidth = "100px";
+    textarea.style.minHeight = "20px";
+    textarea.style.background = "transparent";
+    textarea.style.border = "1px dashed #007acc";
+    textarea.style.outline = "none";
+    textarea.style.resize = "none";
+    textarea.style.fontSize = `${this.settings.fontSize}px`;
+    textarea.style.fontFamily = this.settings.fontFamily;
+    textarea.style.color = this.settings.fill;
+    textarea.style.fontWeight = this.settings.fontWeight;
+    textarea.style.fontStyle = this.settings.fontStyle;
+    textarea.style.letterSpacing = `${this.settings.letterSpacing}px`;
+    textarea.style.lineHeight = `${this.settings.lineHeight}`;
+    textarea.style.textAlign = this.settings.align as any;
+    textarea.style.zIndex = "10000";
+    textarea.style.overflow = "hidden";
+
+    document.body.appendChild(textarea);
+    textarea.focus();
+
+    this.activeTextInput = textarea;
+    this.activeTextInput.dataset.originalX = point.x.toString();
+    this.activeTextInput.dataset.originalY = point.y.toString();
+
+    textarea.addEventListener("blur", () => {
+      if (!this.isProcessing) {
+        this.completeTextInput();
+      }
+    });
+
+    textarea.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        this.cancelTextInput();
+        return;
+      }
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        this.completeTextInput();
+        return;
+      }
+      e.stopPropagation();
+    });
+
+    textarea.addEventListener("input", () => this.adjustTextareaSize());
+
+    this.adjustTextareaSize();
+  }
+
+  public editExistingText(textLayer: PIXI.Text): void {
+    if (this.activeTextInput) {
+      this.completeTextInput();
+    }
+
+    this.editingTextLayer = textLayer;
+    textLayer.visible = false;
+
+    const globalPos = textLayer.toGlobal(new PIXI.Point(0, 0));
+    const canvas = this.app.canvas as HTMLCanvasElement;
+    const rect = canvas.getBoundingClientRect();
+
+    const fillColor = this.getFillColorAsString(textLayer.style.fill);
+
+    const textarea = document.createElement("textarea");
+    textarea.value = textLayer.text;
+    textarea.style.position = "absolute";
+    textarea.style.left = `${rect.left + globalPos.x}px`;
+    textarea.style.top = `${rect.top + globalPos.y}px`;
+    textarea.style.background = "transparent";
+    textarea.style.border = "1px dashed #007acc";
+    textarea.style.outline = "none";
+    textarea.style.resize = "none";
+    textarea.style.fontSize = `${textLayer.style.fontSize}px`;
+    textarea.style.fontFamily = Array.isArray(textLayer.style.fontFamily)
+      ? textLayer.style.fontFamily[0]
+      : (textLayer.style.fontFamily as string);
+    textarea.style.color = fillColor;
+    textarea.style.fontWeight =
+      (textLayer.style.fontWeight as string) || "normal";
+    textarea.style.fontStyle =
+      (textLayer.style.fontStyle as string) || "normal";
+    textarea.style.letterSpacing = `${textLayer.style.letterSpacing || 0}px`;
+    const lineHeightRatio =
+      (textLayer.style.lineHeight as number) /
+      (textLayer.style.fontSize as number);
+    textarea.style.lineHeight = `${lineHeightRatio}`;
+    textarea.style.textAlign = (textLayer.style.align as string) || "left";
+    textarea.style.zIndex = "10000";
+    textarea.style.overflow = "hidden";
+
+    const bounds = textLayer.getBounds();
+    textarea.style.width = `${Math.max(bounds.width, 100)}px`;
+    textarea.style.height = `${Math.max(bounds.height, 20)}px`;
+
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+
+    this.activeTextInput = textarea;
+
+    textarea.addEventListener("blur", () => {
+      if (!this.isProcessing) {
+        this.completeTextEdit();
+      }
+    });
+
+    textarea.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        this.cancelTextEdit();
+        return;
+      }
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        this.completeTextEdit();
+        return;
+      }
+      e.stopPropagation();
+    });
+
+    textarea.addEventListener("input", () => this.adjustTextareaSize());
+  }
+
+  private getFillColorAsString(fill: any): string {
+    if (typeof fill === "string") {
+      return fill;
+    }
+    if (typeof fill === "number") {
+      return `#${fill.toString(16).padStart(6, "0")}`;
+    }
+    if (Array.isArray(fill)) {
+      const firstFill = fill[0];
+      if (typeof firstFill === "string") {
+        return firstFill;
+      }
+      if (typeof firstFill === "number") {
+        return `#${firstFill.toString(16).padStart(6, "0")}`;
+      }
+    }
+    return "#000000";
+  }
+
+  private adjustTextareaSize(): void {
+    if (!this.activeTextInput) return;
+
+    const textarea = this.activeTextInput;
+    textarea.style.height = "auto";
+    textarea.style.width = "auto";
+
+    const minWidth = 100;
+    const minHeight = 20;
+    const maxWidth = 400;
+
+    textarea.style.width = `${Math.max(
+      minWidth,
+      Math.min(maxWidth, textarea.scrollWidth + 10)
+    )}px`;
+    textarea.style.height = `${Math.max(
+      minHeight,
+      textarea.scrollHeight + 2
+    )}px`;
+  }
+
+  private completeTextInput(): void {
+    if (!this.activeTextInput || this.isProcessing) return;
+    this.isProcessing = true;
+
+    const text = this.activeTextInput.value;
+    const originalX = parseFloat(this.activeTextInput.dataset.originalX || "0");
+    const originalY = parseFloat(this.activeTextInput.dataset.originalY || "0");
+
+    if (text.trim()) {
+      const textLayer = this.createTextLayer(text, originalX, originalY);
+      if (this.activeLayer) {
+        this.textObjects.push(textLayer);
+        this.renderTextToTexture(textLayer);
+      }
+      this.currentTextLayer = textLayer;
+      this.onTextLayerCreated?.(textLayer);
+    }
+
+    this.removeTextInput();
+  }
+
+  private completeTextEdit(): void {
+    if (!this.activeTextInput || !this.editingTextLayer || this.isProcessing)
+      return;
+    this.isProcessing = true;
+
+    const newText = this.activeTextInput.value.replace(/^\s*|\s*$/g, "");
+
+    if (newText) {
+      this.editingTextLayer.text = newText;
+      this.editingTextLayer.visible = true;
+      this.updateTextLayerStyle(this.editingTextLayer);
+      this.renderTextToTexture(this.editingTextLayer);
+    } else {
+      if (this.editingTextLayer.parent) {
+        this.editingTextLayer.parent.removeChild(this.editingTextLayer);
+      }
+      this.textObjects = this.textObjects.filter(
+        (t) => t !== this.editingTextLayer
+      );
+      this.editingTextLayer.destroy();
+    }
+
+    this.removeTextInput();
+    this.editingTextLayer = null;
+  }
+
+  private cancelTextInput(): void {
+    if (this.isProcessing) return;
+    this.isProcessing = true;
+    this.removeTextInput();
+  }
+
+  private cancelTextEdit(): void {
+    if (this.isProcessing) return;
+    this.isProcessing = true;
+
+    if (this.editingTextLayer) {
+      this.editingTextLayer.visible = true;
+    }
+    this.removeTextInput();
+    this.editingTextLayer = null;
+  }
+
+  private removeTextInput(): void {
+    if (this.activeTextInput && this.activeTextInput.parentNode) {
+      this.activeTextInput.remove();
+    }
+    this.activeTextInput = null;
+    this.isProcessing = false;
+  }
+
+  private createTextLayer(text: string, x: number, y: number): PIXI.Text {
+    const textStyle = new PIXI.TextStyle({
+      fontSize: this.settings.fontSize,
+      fontFamily: this.settings.fontFamily,
+      fill: this.settings.fill,
+      letterSpacing: this.settings.letterSpacing,
+      lineHeight: this.settings.fontSize * this.settings.lineHeight,
+      fontWeight: this.settings.fontWeight,
+      fontStyle: this.settings.fontStyle,
+      align: this.settings.align,
+      wordWrap: this.settings.wordWrap,
+      wordWrapWidth: this.settings.wordWrap
+        ? this.settings.wordWrapWidth
+        : 100000,
+      breakWords: this.settings.wordWrap,
+    });
+
+    const pixiText = new PIXI.Text(text, textStyle);
+
+    pixiText.x = x;
+    pixiText.y = y;
+    pixiText.eventMode = "static";
+    pixiText.cursor = "pointer";
+
+    return pixiText;
+  }
+
+  private updateTextLayerStyle(textLayer: PIXI.Text): void {
+    if (!textLayer || !textLayer.style) return;
+
+    textLayer.style.fontSize = this.settings.fontSize;
+    textLayer.style.fontFamily = this.settings.fontFamily;
+    textLayer.style.fill = this.settings.fill;
+    textLayer.style.letterSpacing = this.settings.letterSpacing;
+    textLayer.style.lineHeight =
+      this.settings.fontSize * this.settings.lineHeight;
+    textLayer.style.fontWeight = this.settings.fontWeight;
+    textLayer.style.fontStyle = this.settings.fontStyle;
+    textLayer.style.align = this.settings.align;
+    textLayer.style.wordWrap = this.settings.wordWrap;
+    textLayer.style.wordWrapWidth = this.settings.wordWrap
+      ? this.settings.wordWrapWidth
+      : 100000;
+    textLayer.style.breakWords = this.settings.wordWrap;
+  }
+
+  private renderTextToTexture(textLayer: PIXI.Text): void {
+    if (!this.renderTexture) return;
+
+    try {
+      const textSprite = new PIXI.Text(textLayer.text, textLayer.style);
+      textSprite.x = textLayer.x;
+      textSprite.y = textLayer.y;
+
+      this.app.renderer.render({
+        container: textSprite,
+        target: this.renderTexture,
+        clear: false,
+        transform: undefined,
+      });
+
+      textSprite.destroy();
+    } catch (error) {
+      console.error("텍스트 렌더링 실패:", error);
+    }
+  }
+
+  public selectTextLayer(textLayer: PIXI.Text): void {
+    this.currentTextLayer = textLayer;
+  }
+
+  public getCurrentTextLayer(): PIXI.Text | null {
+    return this.currentTextLayer;
+  }
+
+  public isCurrentlyEditing(): boolean {
+    return this.activeTextInput !== null;
+  }
+
+  public cleanup(): void {
+    this.removeTextInput();
+    this.editingTextLayer = null;
+    this.currentTextLayer = null;
+    this.activeLayer = null;
+    this.renderTexture = null;
+    this.textObjects.forEach((text) => text.destroy());
+    this.textObjects = [];
+  }
+}

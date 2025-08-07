@@ -5,6 +5,7 @@ import { ToolbarItemIDs } from "@/constants/toolsbarItems";
 import BrushProperties from "./BrushProperties/BrushProperties";
 import PenProperties from "./PenProperties/PenProperties";
 import EraserProperties from "./EraserProperties/EraserProperties";
+import TextProperties from "./TextProperties/TextProperties";
 import "@/styles/scrollbar.css";
 
 function Properties() {
@@ -33,23 +34,6 @@ function Properties() {
   };
 
   return renderProperties();
-}
-
-function TextProperties() {
-  return (
-    <div className="flex flex-col gap-3 h-full">
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1 bg-neutral-800 px-2 py-1 rounded">
-          <span className="text-xs font-medium">텍스트</span>
-        </div>
-      </div>
-      <div className="flex-1 bg-neutral-800 rounded-md p-3">
-        <div className="text-xs text-neutral-500 text-center py-8">
-          텍스트 도구 프로퍼티
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function SelectionProperties() {
