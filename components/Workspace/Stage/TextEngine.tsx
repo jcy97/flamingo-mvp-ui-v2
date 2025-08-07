@@ -140,7 +140,10 @@ export class TextEngine {
     textarea.style.fontStyle =
       (textLayer.style.fontStyle as string) || "normal";
     textarea.style.letterSpacing = `${textLayer.style.letterSpacing || 0}px`;
-    textarea.style.lineHeight = `${textLayer.style.lineHeight || 1}`;
+    const lineHeightRatio =
+      (textLayer.style.lineHeight as number) /
+      (textLayer.style.fontSize as number);
+    textarea.style.lineHeight = `${lineHeightRatio}`;
     textarea.style.textAlign = (textLayer.style.align as string) || "left";
     textarea.style.zIndex = "10000";
     textarea.style.overflow = "hidden";
@@ -295,13 +298,15 @@ export class TextEngine {
       fontFamily: this.settings.fontFamily,
       fill: this.settings.fill,
       letterSpacing: this.settings.letterSpacing,
-      lineHeight: this.settings.lineHeight,
+      lineHeight: this.settings.fontSize * this.settings.lineHeight,
       fontWeight: this.settings.fontWeight,
       fontStyle: this.settings.fontStyle,
       align: this.settings.align,
-      wordWrap: true,
-      wordWrapWidth: 10000,
-      breakWords: true,
+      wordWrap: this.settings.wordWrap,
+      wordWrapWidth: this.settings.wordWrap
+        ? this.settings.wordWrapWidth
+        : 100000,
+      breakWords: this.settings.wordWrap,
     });
 
     const pixiText = new PIXI.Text(text, textStyle);
@@ -321,32 +326,34 @@ export class TextEngine {
     textLayer.style.fontFamily = this.settings.fontFamily;
     textLayer.style.fill = this.settings.fill;
     textLayer.style.letterSpacing = this.settings.letterSpacing;
-    textLayer.style.lineHeight = this.settings.lineHeight;
+    textLayer.style.lineHeight =
+      this.settings.fontSize * this.settings.lineHeight;
     textLayer.style.fontWeight = this.settings.fontWeight;
     textLayer.style.fontStyle = this.settings.fontStyle;
     textLayer.style.align = this.settings.align;
-    textLayer.style.wordWrap = true;
-    textLayer.style.wordWrapWidth = 10000;
-    textLayer.style.breakWords = true;
+    textLayer.style.wordWrap = this.settings.wordWrap;
+    textLayer.style.wordWrapWidth = this.settings.wordWrap
+      ? this.settings.wordWrapWidth
+      : 100000;
+    textLayer.style.breakWords = this.settings.wordWrap;
   }
 
   private renderTextToTexture(textLayer: PIXI.Text): void {
     if (!this.renderTexture) return;
 
     try {
-      const tempContainer = new PIXI.Container();
-      const clonedText = new PIXI.Text(textLayer.text, textLayer.style);
-      clonedText.x = textLayer.x;
-      clonedText.y = textLayer.y;
-      tempContainer.addChild(clonedText);
+      const textSprite = new PIXI.Text(textLayer.text, textLayer.style);
+      textSprite.x = textLayer.x;
+      textSprite.y = textLayer.y;
 
       this.app.renderer.render({
-        container: tempContainer,
+        container: textSprite,
         target: this.renderTexture,
         clear: false,
+        transform: undefined,
       });
 
-      tempContainer.destroy();
+      textSprite.destroy();
     } catch (error) {
       console.error("텍스트 렌더링 실패:", error);
     }
