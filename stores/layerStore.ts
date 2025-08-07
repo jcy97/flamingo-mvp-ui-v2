@@ -116,6 +116,92 @@ export const addLayerAtom = atom(null, (get, set) => {
   }
 });
 
+export const addTextLayerAtom = atom(null, (get, set) => {
+  const currentCanvasId = get(currentCanvasIdAtom);
+  const pixiState = get(pixiStateAtom);
+  const canvasContainer = get(getCanvasContainerAtom);
+
+  if (!currentCanvasId) {
+    console.warn("현재 캔버스가 선택되지 않았습니다.");
+    return;
+  }
+
+  if (!pixiState.app || !pixiState.isInitialized) {
+    console.warn("PIXI App이 초기화되지 않았습니다.");
+    return;
+  }
+
+  if (!canvasContainer) {
+    console.warn("캔버스 컨테이너가 준비되지 않았습니다.");
+    return;
+  }
+
+  const layers = get(layersAtom);
+  const layersForCurrentCanvas = get(layersForCurrentCanvasAtom);
+  const newLayerId = `text-layer-${String(Date.now()).slice(-3)}`;
+
+  try {
+    const renderTexture = PIXI.RenderTexture.create({
+      width: 800,
+      height: 600,
+      resolution: window.devicePixelRatio || 1,
+    });
+
+    const sprite = new PIXI.Sprite(renderTexture);
+    sprite.name = `text-layer-${newLayerId}`;
+    sprite.texture.source.scaleMode = "linear";
+
+    canvasContainer.addChild(sprite);
+
+    const newOrder =
+      layersForCurrentCanvas.length > 0
+        ? Math.max(...layersForCurrentCanvas.map((l) => l.order)) + 1
+        : 0;
+
+    const newLayer: Layer = {
+      id: newLayerId,
+      canvasId: currentCanvasId,
+      name: `텍스트 레이어 ${
+        layersForCurrentCanvas.filter((l) => l.type === "text").length + 1
+      }`,
+      order: newOrder,
+      type: "text",
+      blendMode: "normal",
+      opacity: 1,
+      isVisible: true,
+      isLocked: false,
+      data: {
+        pixiSprite: sprite,
+        renderTexture: renderTexture,
+      },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const updatedLayers = [...layers, newLayer];
+    sampleData.layers = updatedLayers;
+    set(layersAtom, updatedLayers);
+
+    set(setActiveLayerAtom, newLayerId);
+
+    console.log(`텍스트 레이어 생성 완료: ${newLayerId}`);
+    return newLayerId;
+  } catch (error) {
+    console.error("텍스트 레이어 생성 실패:", error);
+    return null;
+  }
+});
+
+export const autoCreateTextLayerAtom = atom(null, (get, set) => {
+  const currentActiveLayer = get(currentActiveLayerAtom);
+
+  if (!currentActiveLayer || currentActiveLayer.type !== "text") {
+    return set(addTextLayerAtom);
+  }
+
+  return currentActiveLayer.id;
+});
+
 export const updateLayerAtom = atom(
   null,
   (

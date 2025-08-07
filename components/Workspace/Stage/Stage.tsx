@@ -1,6 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useRef } from "react";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import * as PIXI from "pixi.js";
 import { BrushEngine, DrawingPoint as BrushDrawingPoint } from "./BrushEngine";
 import { PenEngine, DrawingPoint as PenDrawingPoint } from "./PenEngine";
@@ -8,16 +8,21 @@ import {
   EraserEngine,
   DrawingPoint as EraserDrawingPoint,
 } from "./EraserEngine";
+import { TextEngine, TextPoint } from "./TextEngine";
 import { brushSettingsAtom } from "@/stores/brushStore";
 import { penSettingsAtom } from "@/stores/penStore";
 import { eraserSettingsAtom } from "@/stores/eraserStore";
+import { textSettingsAtom } from "@/stores/textStore";
 import { selectedToolIdAtom } from "@/stores/toolsbarStore";
 import { ToolbarItemIDs } from "@/constants/toolsbarItems";
 import { useCursor } from "@/hooks/useCursor";
 import { pixiStateAtom } from "@/stores/pixiStore";
 import { currentPageIdAtom } from "@/stores/pageStore";
 import { currentCanvasIdAtom } from "@/stores/canvasStore";
-import { activeLayerIdAtom } from "@/stores/layerStore";
+import {
+  activeLayerIdAtom,
+  autoCreateTextLayerAtom,
+} from "@/stores/layerStore";
 
 type DrawingPoint = BrushDrawingPoint | PenDrawingPoint | EraserDrawingPoint;
 
@@ -27,6 +32,7 @@ function Stage() {
   const brushEngineRef = useRef<BrushEngine | null>(null);
   const penEngineRef = useRef<PenEngine | null>(null);
   const eraserEngineRef = useRef<EraserEngine | null>(null);
+  const textEngineRef = useRef<TextEngine | null>(null);
   const isDrawingRef = useRef<boolean>(false);
   const currentLayerRef = useRef<PIXI.Container | null>(null);
   const sharedRenderTextureRef = useRef<PIXI.RenderTexture | null>(null);
@@ -39,12 +45,14 @@ function Stage() {
   const [brushSettings] = useAtom(brushSettingsAtom);
   const [penSettings] = useAtom(penSettingsAtom);
   const [eraserSettings] = useAtom(eraserSettingsAtom);
+  const [textSettings] = useAtom(textSettingsAtom);
   const [selectedToolId] = useAtom(selectedToolIdAtom);
   const cursorStyle = useCursor();
 
   const currentPageId = useAtomValue(currentPageIdAtom);
   const currentCanvasId = useAtomValue(currentCanvasIdAtom);
   const activeLayerId = useAtomValue(activeLayerIdAtom);
+  const autoCreateTextLayer = useSetAtom(autoCreateTextLayerAtom);
 
   useEffect(() => {
     if (canvasElementRef.current) {
@@ -80,6 +88,7 @@ function Stage() {
   const brushSettingsRef = useRef(brushSettings);
   const penSettingsRef = useRef(penSettings);
   const eraserSettingsRef = useRef(eraserSettings);
+  const textSettingsRef = useRef(textSettings);
   const selectedToolIdRef = useRef(selectedToolId);
 
   useEffect(() => {
@@ -93,6 +102,10 @@ function Stage() {
   useEffect(() => {
     eraserSettingsRef.current = eraserSettings;
   }, [eraserSettings]);
+
+  useEffect(() => {
+    textSettingsRef.current = textSettings;
+  }, [textSettings]);
 
   useEffect(() => {
     selectedToolIdRef.current = selectedToolId;
@@ -130,6 +143,17 @@ function Stage() {
       return () => clearTimeout(timeoutId);
     }
   }, [eraserSettings]);
+
+  useEffect(() => {
+    if (textEngineRef.current && !isDrawingRef.current) {
+      const timeoutId = setTimeout(() => {
+        if (textEngineRef.current) {
+          textEngineRef.current.updateSettings(textSettingsRef.current);
+        }
+      }, 16);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [textSettings]);
 
   const updateCanvasLayer = useCallback(() => {
     if (!appRef.current || !currentPageId || !currentCanvasId || !activeLayerId)
@@ -171,6 +195,13 @@ function Stage() {
         sharedRenderTextureRef.current
       );
     }
+
+    if (textEngineRef.current) {
+      textEngineRef.current.setActiveLayer(drawingLayer);
+      textEngineRef.current.setSharedRenderTexture(
+        sharedRenderTextureRef.current
+      );
+    }
   }, [pixiState, currentPageId, currentCanvasId, activeLayerId]);
 
   useEffect(() => {
@@ -192,6 +223,7 @@ function Stage() {
         brushEngineRef.current = new BrushEngine(app, brushSettings);
         penEngineRef.current = new PenEngine(app, penSettings);
         eraserEngineRef.current = new EraserEngine(app, eraserSettings);
+        textEngineRef.current = new TextEngine(app, textSettings);
 
         updateCanvasLayer();
 
@@ -205,10 +237,22 @@ function Stage() {
 
         const handlePointerDown = (event: PointerEvent) => {
           event.preventDefault();
+          const coords = getCanvasCoordinates(event.clientX, event.clientY);
+          const currentTool = selectedToolIdRef.current;
+
+          if (currentTool === ToolbarItemIDs.TEXT && textEngineRef.current) {
+            autoCreateTextLayer();
+            const textPoint: TextPoint = {
+              x: coords.x,
+              y: coords.y,
+            };
+            textEngineRef.current.startTextInput(textPoint);
+            return;
+          }
+
           canvas.setPointerCapture(event.pointerId);
           lastPointerEventRef.current = event;
           isDrawingRef.current = true;
-          const coords = getCanvasCoordinates(event.clientX, event.clientY);
           const pressure = getPressure(event);
           const point: DrawingPoint = {
             x: coords.x,
@@ -217,7 +261,6 @@ function Stage() {
             timestamp: Date.now(),
           };
 
-          const currentTool = selectedToolIdRef.current;
           if (currentTool === ToolbarItemIDs.PEN && penEngineRef.current) {
             penEngineRef.current.startStroke(point);
           } else if (
@@ -346,6 +389,10 @@ function Stage() {
         if (eraserEngineRef.current) {
           eraserEngineRef.current.cleanup();
           eraserEngineRef.current = null;
+        }
+        if (textEngineRef.current) {
+          textEngineRef.current.cleanup();
+          textEngineRef.current = null;
         }
         if (sharedSpriteRef.current) {
           sharedSpriteRef.current.destroy();

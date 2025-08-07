@@ -15,6 +15,7 @@ export class TextEngine {
   private activeLayer: PIXI.Container | null = null;
   private renderTexture: PIXI.RenderTexture | null = null;
   private onTextLayerCreated?: (textLayer: PIXI.Text) => void;
+  private textObjects: PIXI.Text[] = [];
 
   constructor(app: PIXI.Application, initialSettings: TextSettings) {
     this.app = app;
@@ -30,6 +31,7 @@ export class TextEngine {
 
   public setActiveLayer(layer: PIXI.Container): void {
     this.activeLayer = layer;
+    this.setupTextInteraction();
   }
 
   public setSharedRenderTexture(renderTexture: PIXI.RenderTexture): void {
@@ -38,6 +40,23 @@ export class TextEngine {
 
   public setOnTextLayerCreated(callback: (textLayer: PIXI.Text) => void): void {
     this.onTextLayerCreated = callback;
+  }
+
+  private setupTextInteraction(): void {
+    if (!this.activeLayer) return;
+
+    this.activeLayer.eventMode = "static";
+    this.activeLayer.interactiveChildren = true;
+
+    this.activeLayer.on("pointerdown", (event: PIXI.FederatedPointerEvent) => {
+      const target = event.target as any;
+
+      if (target instanceof PIXI.Text && this.textObjects.includes(target)) {
+        if (event.detail === 2) {
+          this.editExistingText(target);
+        }
+      }
+    });
   }
 
   public startTextInput(point: TextPoint): void {
@@ -197,6 +216,8 @@ export class TextEngine {
       const textLayer = this.createTextLayer(text, originalX, originalY);
       if (this.activeLayer) {
         this.activeLayer.addChild(textLayer);
+        this.textObjects.push(textLayer);
+        this.renderTextToTexture(textLayer);
       }
       this.currentTextLayer = textLayer;
       this.onTextLayerCreated?.(textLayer);
@@ -214,10 +235,14 @@ export class TextEngine {
       this.editingTextLayer.text = newText;
       this.editingTextLayer.visible = true;
       this.updateTextLayerStyle(this.editingTextLayer);
+      this.renderTextToTexture(this.editingTextLayer);
     } else {
       if (this.editingTextLayer.parent) {
         this.editingTextLayer.parent.removeChild(this.editingTextLayer);
       }
+      this.textObjects = this.textObjects.filter(
+        (t) => t !== this.editingTextLayer
+      );
       this.editingTextLayer.destroy();
     }
 
@@ -265,12 +290,6 @@ export class TextEngine {
     pixiText.eventMode = "static";
     pixiText.cursor = "pointer";
 
-    pixiText.on("click", (event: PIXI.FederatedPointerEvent) => {
-      if (event.detail === 2) {
-        this.editExistingText(pixiText);
-      }
-    });
-
     return pixiText;
   }
 
@@ -287,6 +306,28 @@ export class TextEngine {
     textLayer.style.align = this.settings.align;
     textLayer.style.wordWrap = this.settings.wordWrap;
     textLayer.style.wordWrapWidth = this.settings.wordWrapWidth;
+  }
+
+  private renderTextToTexture(textLayer: PIXI.Text): void {
+    if (!this.renderTexture) return;
+
+    try {
+      const tempContainer = new PIXI.Container();
+      const clonedText = new PIXI.Text(textLayer.text, textLayer.style);
+      clonedText.x = textLayer.x;
+      clonedText.y = textLayer.y;
+      tempContainer.addChild(clonedText);
+
+      this.app.renderer.render({
+        container: tempContainer,
+        target: this.renderTexture,
+        clear: false,
+      });
+
+      tempContainer.destroy();
+    } catch (error) {
+      console.error("텍스트 렌더링 실패:", error);
+    }
   }
 
   public selectTextLayer(textLayer: PIXI.Text): void {
@@ -307,5 +348,7 @@ export class TextEngine {
     this.currentTextLayer = null;
     this.activeLayer = null;
     this.renderTexture = null;
+    this.textObjects.forEach((text) => text.destroy());
+    this.textObjects = [];
   }
 }
