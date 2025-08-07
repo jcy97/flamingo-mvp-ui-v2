@@ -222,12 +222,10 @@ export class TextEngine {
     this.isProcessing = true;
 
     const text = this.activeTextInput.value;
-
     const originalX = parseFloat(this.activeTextInput.dataset.originalX || "0");
     const originalY = parseFloat(this.activeTextInput.dataset.originalY || "0");
 
     if (text.trim()) {
-      console.log(text);
       const textLayer = this.createTextLayer(text, originalX, originalY);
       if (this.activeLayer) {
         this.textObjects.push(textLayer);
@@ -338,7 +336,6 @@ export class TextEngine {
     try {
       const tempContainer = new PIXI.Container();
       const clonedText = new PIXI.Text(textLayer.text, textLayer.style);
-      console.log(clonedText);
       clonedText.x = textLayer.x;
       clonedText.y = textLayer.y;
       tempContainer.addChild(clonedText);
