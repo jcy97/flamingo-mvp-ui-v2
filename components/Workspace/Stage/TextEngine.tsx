@@ -17,6 +17,7 @@ export class TextEngine {
   private renderTexture: PIXI.RenderTexture | null = null;
   private onTextLayerCreated?: (textLayer: PIXI.Text) => void;
   private textObjects: PIXI.Text[] = [];
+  private isProcessing: boolean = false;
 
   constructor(app: PIXI.Application, initialSettings: TextSettings) {
     this.app = app;
@@ -32,7 +33,6 @@ export class TextEngine {
 
   public setActiveLayer(layer: Layer): void {
     this.activeLayer = layer;
-    //this.setupTextInteraction();
   }
 
   public setSharedRenderTexture(renderTexture: PIXI.RenderTexture): void {
@@ -45,23 +45,11 @@ export class TextEngine {
 
   private setupTextInteraction(): void {
     if (!this.activeLayer) return;
-    // this.activeLayer.eventMode = "static";
-    // this.activeLayer.interactiveChildren = true;
-
-    // this.activeLayer.on("pointerdown", (event: PIXI.FederatedPointerEvent) => {
-    //   const target = event.target as any;
-
-    //   if (target instanceof PIXI.Text && this.textObjects.includes(target)) {
-    //     if (event.detail === 2) {
-    //       this.editExistingText(target);
-    //     }
-    //   }
-    // });
   }
 
   public startTextInput(point: TextPoint): void {
     if (this.activeTextInput) {
-      this.finishTextInput();
+      this.completeTextInput();
     }
 
     const canvas = this.app.canvas as HTMLCanvasElement;
@@ -95,23 +83,33 @@ export class TextEngine {
     this.activeTextInput.dataset.originalX = point.x.toString();
     this.activeTextInput.dataset.originalY = point.y.toString();
 
-    textarea.addEventListener("blur", () => this.finishTextInput());
+    textarea.addEventListener("blur", () => {
+      if (!this.isProcessing) {
+        this.completeTextInput();
+      }
+    });
+
     textarea.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
         this.cancelTextInput();
+        return;
+      }
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        this.completeTextInput();
+        return;
       }
       e.stopPropagation();
     });
+
     textarea.addEventListener("input", () => this.adjustTextareaSize());
 
     this.adjustTextareaSize();
-
-    //현재 레이어가 텍스트가 아닐 경우 텍스트 레이어 만들어서 생성
   }
 
   public editExistingText(textLayer: PIXI.Text): void {
     if (this.activeTextInput) {
-      this.finishTextInput();
+      this.completeTextInput();
     }
 
     this.editingTextLayer = textLayer;
@@ -157,13 +155,25 @@ export class TextEngine {
 
     this.activeTextInput = textarea;
 
-    textarea.addEventListener("blur", () => this.finishTextEdit());
+    textarea.addEventListener("blur", () => {
+      if (!this.isProcessing) {
+        this.completeTextEdit();
+      }
+    });
+
     textarea.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
         this.cancelTextEdit();
+        return;
+      }
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        this.completeTextEdit();
+        return;
       }
       e.stopPropagation();
     });
+
     textarea.addEventListener("input", () => this.adjustTextareaSize());
   }
 
@@ -207,17 +217,17 @@ export class TextEngine {
     )}px`;
   }
 
-  private finishTextInput(): void {
-    if (!this.activeTextInput) return;
+  private completeTextInput(): void {
+    if (!this.activeTextInput || this.isProcessing) return;
+    this.isProcessing = true;
 
-    const text = this.activeTextInput.value.trim();
+    const text = this.activeTextInput.value;
     const originalX = parseFloat(this.activeTextInput.dataset.originalX || "0");
     const originalY = parseFloat(this.activeTextInput.dataset.originalY || "0");
 
-    if (text) {
+    if (text.trim()) {
       const textLayer = this.createTextLayer(text, originalX, originalY);
       if (this.activeLayer) {
-        //this.activeLayer.addChild(textLayer);
         this.textObjects.push(textLayer);
         this.renderTextToTexture(textLayer);
       }
@@ -228,10 +238,12 @@ export class TextEngine {
     this.removeTextInput();
   }
 
-  private finishTextEdit(): void {
-    if (!this.activeTextInput || !this.editingTextLayer) return;
+  private completeTextEdit(): void {
+    if (!this.activeTextInput || !this.editingTextLayer || this.isProcessing)
+      return;
+    this.isProcessing = true;
 
-    const newText = this.activeTextInput.value.trim();
+    const newText = this.activeTextInput.value.replace(/^\s*|\s*$/g, "");
 
     if (newText) {
       this.editingTextLayer.text = newText;
@@ -253,10 +265,15 @@ export class TextEngine {
   }
 
   private cancelTextInput(): void {
+    if (this.isProcessing) return;
+    this.isProcessing = true;
     this.removeTextInput();
   }
 
   private cancelTextEdit(): void {
+    if (this.isProcessing) return;
+    this.isProcessing = true;
+
     if (this.editingTextLayer) {
       this.editingTextLayer.visible = true;
     }
@@ -265,10 +282,11 @@ export class TextEngine {
   }
 
   private removeTextInput(): void {
-    if (this.activeTextInput) {
+    if (this.activeTextInput && this.activeTextInput.parentNode) {
       this.activeTextInput.remove();
-      this.activeTextInput = null;
     }
+    this.activeTextInput = null;
+    this.isProcessing = false;
   }
 
   private createTextLayer(text: string, x: number, y: number): PIXI.Text {
@@ -281,8 +299,9 @@ export class TextEngine {
       fontWeight: this.settings.fontWeight,
       fontStyle: this.settings.fontStyle,
       align: this.settings.align,
-      wordWrap: this.settings.wordWrap,
-      wordWrapWidth: this.settings.wordWrapWidth,
+      wordWrap: true,
+      wordWrapWidth: 10000,
+      breakWords: true,
     });
 
     const pixiText = new PIXI.Text(text, textStyle);
@@ -306,8 +325,9 @@ export class TextEngine {
     textLayer.style.fontWeight = this.settings.fontWeight;
     textLayer.style.fontStyle = this.settings.fontStyle;
     textLayer.style.align = this.settings.align;
-    textLayer.style.wordWrap = this.settings.wordWrap;
-    textLayer.style.wordWrapWidth = this.settings.wordWrapWidth;
+    textLayer.style.wordWrap = true;
+    textLayer.style.wordWrapWidth = 10000;
+    textLayer.style.breakWords = true;
   }
 
   private renderTextToTexture(textLayer: PIXI.Text): void {
