@@ -1,3 +1,4 @@
+import { Layer } from "@/types/layer";
 import { TextSettings } from "@/types/text";
 import * as PIXI from "pixi.js";
 
@@ -12,7 +13,7 @@ export class TextEngine {
   private editingTextLayer: PIXI.Text | null = null;
   private currentTextLayer: PIXI.Text | null = null;
   private settings: TextSettings;
-  private activeLayer: PIXI.Container | null = null;
+  private activeLayer: Layer | null = null;
   private renderTexture: PIXI.RenderTexture | null = null;
   private onTextLayerCreated?: (textLayer: PIXI.Text) => void;
   private textObjects: PIXI.Text[] = [];
@@ -29,9 +30,9 @@ export class TextEngine {
     }
   }
 
-  public setActiveLayer(layer: PIXI.Container): void {
+  public setActiveLayer(layer: Layer): void {
     this.activeLayer = layer;
-    this.setupTextInteraction();
+    //this.setupTextInteraction();
   }
 
   public setSharedRenderTexture(renderTexture: PIXI.RenderTexture): void {
@@ -44,19 +45,18 @@ export class TextEngine {
 
   private setupTextInteraction(): void {
     if (!this.activeLayer) return;
+    // this.activeLayer.eventMode = "static";
+    // this.activeLayer.interactiveChildren = true;
 
-    this.activeLayer.eventMode = "static";
-    this.activeLayer.interactiveChildren = true;
+    // this.activeLayer.on("pointerdown", (event: PIXI.FederatedPointerEvent) => {
+    //   const target = event.target as any;
 
-    this.activeLayer.on("pointerdown", (event: PIXI.FederatedPointerEvent) => {
-      const target = event.target as any;
-
-      if (target instanceof PIXI.Text && this.textObjects.includes(target)) {
-        if (event.detail === 2) {
-          this.editExistingText(target);
-        }
-      }
-    });
+    //   if (target instanceof PIXI.Text && this.textObjects.includes(target)) {
+    //     if (event.detail === 2) {
+    //       this.editExistingText(target);
+    //     }
+    //   }
+    // });
   }
 
   public startTextInput(point: TextPoint): void {
@@ -105,6 +105,8 @@ export class TextEngine {
     textarea.addEventListener("input", () => this.adjustTextareaSize());
 
     this.adjustTextareaSize();
+
+    //현재 레이어가 텍스트가 아닐 경우 텍스트 레이어 만들어서 생성
   }
 
   public editExistingText(textLayer: PIXI.Text): void {
@@ -215,7 +217,7 @@ export class TextEngine {
     if (text) {
       const textLayer = this.createTextLayer(text, originalX, originalY);
       if (this.activeLayer) {
-        this.activeLayer.addChild(textLayer);
+        //this.activeLayer.addChild(textLayer);
         this.textObjects.push(textLayer);
         this.renderTextToTexture(textLayer);
       }

@@ -1,12 +1,13 @@
 import { atom } from "jotai";
 import * as PIXI from "pixi.js";
-import { Layer, BlendMode } from "@/types/layer";
+import { Layer, BlendMode, LayerData } from "@/types/layer";
 import sampleData from "@/samples/data";
 import { currentCanvasIdAtom } from "./canvasStore";
 import {
   pixiStateAtom,
   getCanvasContainerAtom,
   switchLayerAtom,
+  createLayerGraphicAtom,
 } from "./pixiStore";
 
 export const layersAtom = atom<Layer[]>(sampleData.layers);
@@ -194,12 +195,67 @@ export const addTextLayerAtom = atom(null, (get, set) => {
 
 export const autoCreateTextLayerAtom = atom(null, (get, set) => {
   const currentActiveLayer = get(currentActiveLayerAtom);
+  const currentCanvasId = get(currentCanvasIdAtom);
+  const pixiState = get(pixiStateAtom);
+  const canvasContainer = get(getCanvasContainerAtom);
 
-  if (!currentActiveLayer || currentActiveLayer.type !== "text") {
-    return set(addTextLayerAtom);
+  if (!currentCanvasId) return null;
+  if (!pixiState.app || !pixiState.isInitialized) return null;
+  if (!canvasContainer) return null;
+  if (currentActiveLayer && currentActiveLayer.type === "text")
+    return currentActiveLayer.id;
+
+  const layers = get(layersAtom);
+  const layersForCurrentCanvas = get(layersForCurrentCanvasAtom);
+  const newLayerId = `text-layer-${String(Date.now()).slice(-3)}`;
+
+  try {
+    const newLayer: Layer = {
+      id: newLayerId,
+      canvasId: currentCanvasId,
+      name: `텍스트 레이어 ${
+        layersForCurrentCanvas.filter((l) => l.type === "text").length + 1
+      }`,
+      order:
+        layersForCurrentCanvas.length > 0
+          ? Math.max(...layersForCurrentCanvas.map((l) => l.order)) + 1
+          : 0,
+      type: "text",
+      blendMode: "normal",
+      opacity: 1,
+      isVisible: true,
+      isLocked: false,
+      data: {
+        pixiSprite: null!,
+        renderTexture: null!,
+      },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const updatedLayers = [...layers, newLayer];
+    sampleData.layers = updatedLayers;
+    set(layersAtom, updatedLayers);
+
+    set(createLayerGraphicAtom, {
+      canvasId: currentCanvasId,
+      layerId: newLayerId,
+    });
+
+    const updatedPixiState = get(pixiStateAtom);
+    const newLayerGraphic =
+      updatedPixiState.layerGraphics?.[currentCanvasId]?.[newLayerId];
+
+    if (newLayerGraphic?.pixiSprite) {
+      canvasContainer.addChild(newLayerGraphic.pixiSprite);
+    }
+
+    set(setActiveLayerAtom, newLayerId);
+
+    return newLayerId;
+  } catch {
+    return null;
   }
-
-  return currentActiveLayer.id;
 });
 
 export const updateLayerAtom = atom(

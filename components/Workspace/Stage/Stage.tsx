@@ -22,6 +22,7 @@ import { currentCanvasIdAtom } from "@/stores/canvasStore";
 import {
   activeLayerIdAtom,
   autoCreateTextLayerAtom,
+  currentActiveLayerAtom,
 } from "@/stores/layerStore";
 
 type DrawingPoint = BrushDrawingPoint | PenDrawingPoint | EraserDrawingPoint;
@@ -52,6 +53,7 @@ function Stage() {
   const currentPageId = useAtomValue(currentPageIdAtom);
   const currentCanvasId = useAtomValue(currentCanvasIdAtom);
   const activeLayerId = useAtomValue(activeLayerIdAtom);
+  const activeLayer = useAtomValue(currentActiveLayerAtom);
   const autoCreateTextLayer = useSetAtom(autoCreateTextLayerAtom);
 
   useEffect(() => {
@@ -197,7 +199,7 @@ function Stage() {
     }
 
     if (textEngineRef.current) {
-      textEngineRef.current.setActiveLayer(drawingLayer);
+      textEngineRef.current.setActiveLayer(activeLayer);
       textEngineRef.current.setSharedRenderTexture(
         sharedRenderTextureRef.current
       );
@@ -241,7 +243,12 @@ function Stage() {
           const currentTool = selectedToolIdRef.current;
 
           if (currentTool === ToolbarItemIDs.TEXT && textEngineRef.current) {
-            autoCreateTextLayer();
+            const textLayerId = autoCreateTextLayer();
+            if (!textLayerId) {
+              console.error("텍스트 레이어 생성 실패");
+              return;
+            }
+
             const textPoint: TextPoint = {
               x: coords.x,
               y: coords.y,

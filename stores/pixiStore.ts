@@ -1,8 +1,9 @@
 import { atom } from "jotai";
 import * as PIXI from "pixi.js";
-import { canvasesAtom } from "./canvasStore";
+import { canvasesAtom, currentCanvasIdAtom } from "./canvasStore";
 import { layersAtom } from "./layerStore";
 import { LayerData } from "@/types/layer";
+import { currentPageIdAtom } from "./pageStore";
 
 export interface PixiState {
   app: PIXI.Application | null;
@@ -31,6 +32,9 @@ export const pixiStateAtom = atom<PixiState>({
 export const initPixiAppAtom = atom(null, async (get, set) => {
   const state = get(pixiStateAtom);
   const canvases = get(canvasesAtom);
+  const currentPageId = get(currentPageIdAtom);
+  const currentCanvasId = get(currentCanvasIdAtom);
+
   if (state.isInitialized || state.app) return;
   try {
     const app = new PIXI.Application();
@@ -47,6 +51,8 @@ export const initPixiAppAtom = atom(null, async (get, set) => {
       ...state,
       app,
       isInitialized: true,
+      activePageId: currentPageId,
+      activeCanvasId: currentCanvasId,
     });
 
     console.log("PIXI Application 초기화 완료");
@@ -120,7 +126,6 @@ export const createLayerGraphicAtom = atom(
   (get, set, { canvasId, layerId }: { canvasId: string; layerId: string }) => {
     const state = get(pixiStateAtom);
     const currentLayerGraphics = state.layerGraphics || {};
-
     const layerOfCanvas = currentLayerGraphics[canvasId] || {};
 
     if (layerOfCanvas[layerId]) {
@@ -134,6 +139,15 @@ export const createLayerGraphicAtom = atom(
       height: 600,
       resolution: 1,
     });
+
+    const currentPageId = state.activePageId;
+    const canvasContainers = state.canvasContainers;
+    const container =
+      currentPageId && canvasContainers[currentPageId]?.[canvasId];
+
+    if (container) {
+      container.addChild(pixiSprite);
+    }
 
     set(pixiStateAtom, {
       ...state,
@@ -149,9 +163,12 @@ export const createLayerGraphicAtom = atom(
       },
     });
 
-    console.log(`레이어 그래픽 초기화 완료: ${canvasId}/${layerId}`);
+    console.log(
+      `레이어 그래픽 초기화 완료 및 캔버스 컨테이너에 추가됨: ${canvasId}/${layerId}`
+    );
   }
 );
+
 // 페이지 전환
 export const switchPageAtom = atom(null, (get, set, pageId: string) => {
   const state = get(pixiStateAtom);
