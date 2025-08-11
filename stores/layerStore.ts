@@ -213,7 +213,7 @@ export const autoCreateTextLayerAtom = atom(null, (get, set) => {
     const newLayer: Layer = {
       id: newLayerId,
       canvasId: currentCanvasId,
-      name: `텍스트 레이어 ${
+      name: `Text${
         layersForCurrentCanvas.filter((l) => l.type === "text").length + 1
       }`,
       order:

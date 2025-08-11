@@ -54,6 +54,7 @@ function Stage() {
   const currentCanvasId = useAtomValue(currentCanvasIdAtom);
   const activeLayerId = useAtomValue(activeLayerIdAtom);
   const activeLayer = useAtomValue(currentActiveLayerAtom);
+  const activeLayerRef = useRef(activeLayer);
   const autoCreateTextLayer = useSetAtom(autoCreateTextLayerAtom);
 
   useEffect(() => {
@@ -112,6 +113,10 @@ function Stage() {
   useEffect(() => {
     selectedToolIdRef.current = selectedToolId;
   }, [selectedToolId]);
+
+  useEffect(() => {
+    activeLayerRef.current = activeLayer;
+  }, [activeLayer]);
 
   useEffect(() => {
     if (brushEngineRef.current && !isDrawingRef.current) {
@@ -199,7 +204,7 @@ function Stage() {
     }
 
     if (textEngineRef.current) {
-      textEngineRef.current.setActiveLayer(activeLayer);
+      textEngineRef.current.setActiveLayer(activeLayerRef.current);
       textEngineRef.current.setSharedRenderTexture(
         sharedRenderTextureRef.current
       );
@@ -241,7 +246,15 @@ function Stage() {
           event.preventDefault();
           const coords = getCanvasCoordinates(event.clientX, event.clientY);
           const currentTool = selectedToolIdRef.current;
-
+          //currentTool이 드로잉 툴이고 currentLayerType이 Text면 그림 못그리게 처리
+          if (
+            (currentTool == ToolbarItemIDs.BRUSH ||
+              currentTool == ToolbarItemIDs.PEN ||
+              currentTool == ToolbarItemIDs.ERASER) &&
+            activeLayerRef.current?.type === "text"
+          ) {
+            return;
+          }
           if (currentTool === ToolbarItemIDs.TEXT && textEngineRef.current) {
             const textLayerId = autoCreateTextLayer();
             if (!textLayerId) {
