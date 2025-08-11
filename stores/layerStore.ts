@@ -225,8 +225,9 @@ export const autoCreateTextLayerAtom = atom(null, (get, set) => {
   if (!currentCanvasId) return null;
   if (!pixiState.app || !pixiState.isInitialized) return null;
   if (!canvasContainer) return null;
-  if (currentActiveLayer && currentActiveLayer.type === "text")
-    return currentActiveLayer.id;
+  // if (currentActiveLayer && currentActiveLayer.type === "text") {
+  //   return currentActiveLayer.id;
+  // }
 
   const layers = get(layersAtom);
   const layersForCurrentCanvas = get(layersForCurrentCanvasAtom);

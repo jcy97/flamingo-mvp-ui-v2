@@ -292,7 +292,6 @@ function Stage() {
                 return;
               }
             }
-
             const textLayerId = autoCreateTextLayer();
             if (!textLayerId) {
               console.error("텍스트 레이어 생성 실패");
