@@ -23,6 +23,7 @@ import {
   activeLayerIdAtom,
   autoCreateTextLayerAtom,
   currentActiveLayerAtom,
+  layersForCurrentCanvasAtom,
 } from "@/stores/layerStore";
 
 type DrawingPoint = BrushDrawingPoint | PenDrawingPoint | EraserDrawingPoint;
@@ -36,8 +37,7 @@ function Stage() {
   const textEngineRef = useRef<TextEngine | null>(null);
   const isDrawingRef = useRef<boolean>(false);
   const currentLayerRef = useRef<PIXI.Container | null>(null);
-  const sharedRenderTextureRef = useRef<PIXI.RenderTexture | null>(null);
-  const sharedSpriteRef = useRef<PIXI.Sprite | null>(null);
+  const activeRenderTextureRef = useRef<PIXI.RenderTexture | null>(null);
   const lastPointerEventRef = useRef<PointerEvent | null>(null);
   const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -54,6 +54,7 @@ function Stage() {
   const currentCanvasId = useAtomValue(currentCanvasIdAtom);
   const activeLayerId = useAtomValue(activeLayerIdAtom);
   const activeLayer = useAtomValue(currentActiveLayerAtom);
+  const layersForCurrentCanvas = useAtomValue(layersForCurrentCanvasAtom);
   const activeLayerRef = useRef(activeLayer);
   const autoCreateTextLayer = useSetAtom(autoCreateTextLayerAtom);
 
@@ -165,51 +166,71 @@ function Stage() {
   const updateCanvasLayer = useCallback(() => {
     if (!appRef.current || !currentPageId || !currentCanvasId || !activeLayerId)
       return;
+
     if (currentLayerRef.current) {
       appRef.current.stage.removeChild(currentLayerRef.current);
     }
 
-    if (sharedSpriteRef.current && currentLayerRef.current) {
-      currentLayerRef.current.removeChild(sharedSpriteRef.current);
-    }
-
     const drawingLayer =
       pixiState.canvasContainers[currentPageId][currentCanvasId];
+    if (!drawingLayer) return;
+
     appRef.current.stage.addChild(drawingLayer);
     currentLayerRef.current = drawingLayer;
 
-    sharedRenderTextureRef.current =
-      pixiState.layerGraphics[currentCanvasId][activeLayerId].renderTexture!;
-    sharedSpriteRef.current =
-      pixiState.layerGraphics[currentCanvasId][activeLayerId].pixiSprite!;
-    drawingLayer.addChild(sharedSpriteRef.current);
+    drawingLayer.removeChildren();
 
-    if (brushEngineRef.current) {
-      brushEngineRef.current.setSharedRenderTexture(
-        sharedRenderTextureRef.current
-      );
-    }
+    const sortedLayers = [...layersForCurrentCanvas].sort(
+      (a, b) => a.order - b.order
+    );
 
-    if (penEngineRef.current) {
-      penEngineRef.current.setActiveLayer(drawingLayer);
-      penEngineRef.current.setSharedRenderTexture(
-        sharedRenderTextureRef.current
-      );
-    }
+    sortedLayers.forEach((layer) => {
+      const layerGraphic = pixiState.layerGraphics[currentCanvasId]?.[layer.id];
+      if (layerGraphic?.pixiSprite) {
+        drawingLayer.addChild(layerGraphic.pixiSprite);
+        layerGraphic.pixiSprite.visible = layer.isVisible;
+        layerGraphic.pixiSprite.alpha = layer.opacity;
+      }
+    });
 
-    if (eraserEngineRef.current) {
-      eraserEngineRef.current.setSharedRenderTexture(
-        sharedRenderTextureRef.current
-      );
-    }
+    const activeLayerGraphic =
+      pixiState.layerGraphics[currentCanvasId]?.[activeLayerId];
+    if (activeLayerGraphic?.renderTexture) {
+      activeRenderTextureRef.current = activeLayerGraphic.renderTexture;
 
-    if (textEngineRef.current) {
-      textEngineRef.current.setActiveLayer(activeLayerRef.current);
-      textEngineRef.current.setSharedRenderTexture(
-        sharedRenderTextureRef.current
-      );
+      if (brushEngineRef.current) {
+        brushEngineRef.current.setSharedRenderTexture(
+          activeRenderTextureRef.current
+        );
+      }
+
+      if (penEngineRef.current) {
+        penEngineRef.current.setActiveLayer(drawingLayer);
+        penEngineRef.current.setSharedRenderTexture(
+          activeRenderTextureRef.current
+        );
+      }
+
+      if (eraserEngineRef.current) {
+        eraserEngineRef.current.setSharedRenderTexture(
+          activeRenderTextureRef.current
+        );
+      }
+
+      if (textEngineRef.current) {
+        textEngineRef.current.setActiveLayer(activeLayerRef.current);
+        textEngineRef.current.setSharedRenderTexture(
+          activeRenderTextureRef.current
+        );
+      }
     }
-  }, [pixiState, currentPageId, currentCanvasId, activeLayerId]);
+  }, [
+    pixiState,
+    currentPageId,
+    currentCanvasId,
+    activeLayerId,
+    layersForCurrentCanvas,
+  ]);
 
   useEffect(() => {
     updateCanvasLayer();
@@ -246,7 +267,7 @@ function Stage() {
           event.preventDefault();
           const coords = getCanvasCoordinates(event.clientX, event.clientY);
           const currentTool = selectedToolIdRef.current;
-          //currentTool이 드로잉 툴이고 currentLayerType이 Text면 그림 못그리게 처리
+
           if (
             (currentTool == ToolbarItemIDs.BRUSH ||
               currentTool == ToolbarItemIDs.PEN ||
@@ -414,13 +435,9 @@ function Stage() {
           textEngineRef.current.cleanup();
           textEngineRef.current = null;
         }
-        if (sharedSpriteRef.current) {
-          sharedSpriteRef.current.destroy();
-          sharedSpriteRef.current = null;
-        }
-        if (sharedRenderTextureRef.current) {
-          sharedRenderTextureRef.current.destroy();
-          sharedRenderTextureRef.current = null;
+        if (activeRenderTextureRef.current) {
+          activeRenderTextureRef.current.destroy();
+          activeRenderTextureRef.current = null;
         }
         if (canvasRef.current && canvas && canvasRef.current.contains(canvas)) {
           canvasRef.current.removeChild(canvas);

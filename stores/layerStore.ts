@@ -45,6 +45,29 @@ export const currentActiveLayerRenderTextureAtom = atom((get) => {
   return activeLayer?.data.renderTexture || null;
 });
 
+const updateCanvasLayerOrder = (get: any, currentCanvasId: string) => {
+  const pixiState = get(pixiStateAtom);
+  const canvasContainer = get(getCanvasContainerAtom);
+  const layersForCurrentCanvas = get(layersForCurrentCanvasAtom);
+
+  if (!canvasContainer || !currentCanvasId) return;
+
+  canvasContainer.removeChildren();
+
+  const sortedLayers = [...layersForCurrentCanvas].sort(
+    (a, b) => a.order - b.order
+  );
+
+  sortedLayers.forEach((layer) => {
+    const layerGraphic = pixiState.layerGraphics[currentCanvasId]?.[layer.id];
+    if (layerGraphic?.pixiSprite) {
+      canvasContainer.addChild(layerGraphic.pixiSprite);
+      layerGraphic.pixiSprite.visible = layer.isVisible;
+      layerGraphic.pixiSprite.alpha = layer.opacity;
+    }
+  });
+};
+
 export const addLayerAtom = atom(null, (get, set) => {
   const currentCanvasId = get(currentCanvasIdAtom);
   const pixiState = get(pixiStateAtom);
@@ -80,8 +103,6 @@ export const addLayerAtom = atom(null, (get, set) => {
     sprite.name = `layer-${newLayerId}`;
     sprite.texture.source.scaleMode = "linear";
 
-    canvasContainer.addChild(sprite);
-
     const newOrder =
       layersForCurrentCanvas.length > 0
         ? Math.max(...layersForCurrentCanvas.map((l) => l.order)) + 1
@@ -108,6 +129,8 @@ export const addLayerAtom = atom(null, (get, set) => {
     const updatedLayers = [...layers, newLayer];
     sampleData.layers = updatedLayers;
     set(layersAtom, updatedLayers);
+
+    updateCanvasLayerOrder(get, currentCanvasId);
 
     set(setActiveLayerAtom, newLayerId);
 
@@ -152,8 +175,6 @@ export const addTextLayerAtom = atom(null, (get, set) => {
     sprite.name = `text-layer-${newLayerId}`;
     sprite.texture.source.scaleMode = "linear";
 
-    canvasContainer.addChild(sprite);
-
     const newOrder =
       layersForCurrentCanvas.length > 0
         ? Math.max(...layersForCurrentCanvas.map((l) => l.order)) + 1
@@ -182,6 +203,8 @@ export const addTextLayerAtom = atom(null, (get, set) => {
     const updatedLayers = [...layers, newLayer];
     sampleData.layers = updatedLayers;
     set(layersAtom, updatedLayers);
+
+    updateCanvasLayerOrder(get, currentCanvasId);
 
     set(setActiveLayerAtom, newLayerId);
 
@@ -250,6 +273,8 @@ export const autoCreateTextLayerAtom = atom(null, (get, set) => {
       canvasContainer.addChild(newLayerGraphic.pixiSprite);
     }
 
+    updateCanvasLayerOrder(get, currentCanvasId);
+
     set(setActiveLayerAtom, newLayerId);
 
     return newLayerId;
@@ -266,6 +291,7 @@ export const updateLayerAtom = atom(
     { layerId, updates }: { layerId: string; updates: Partial<Layer> }
   ) => {
     const layers = get(layersAtom);
+    const currentCanvasId = get(currentCanvasIdAtom);
     const updatedLayers = layers.map((layer) => {
       if (layer.id === layerId) {
         const updatedLayer = { ...layer, ...updates, updatedAt: new Date() };
@@ -293,6 +319,13 @@ export const updateLayerAtom = atom(
 
     sampleData.layers = updatedLayers;
     set(layersAtom, updatedLayers);
+
+    if (
+      currentCanvasId &&
+      (updates.order !== undefined || updates.isVisible !== undefined)
+    ) {
+      updateCanvasLayerOrder(get, currentCanvasId);
+    }
   }
 );
 
@@ -301,6 +334,7 @@ export const deleteLayerAtom = atom(null, (get, set, layerId: string) => {
   const layersForCurrentCanvas = get(layersForCurrentCanvasAtom);
   const targetLayer = layers.find((layer) => layer.id === layerId);
   const activeLayerId = get(activeLayerIdAtom);
+  const currentCanvasId = get(currentCanvasIdAtom);
 
   if (layersForCurrentCanvas.length <= 1) {
     console.warn("마지막 레이어는 삭제할 수 없습니다.");
@@ -327,6 +361,10 @@ export const deleteLayerAtom = atom(null, (get, set, layerId: string) => {
   sampleData.layers = updatedLayers;
   set(layersAtom, updatedLayers);
 
+  if (currentCanvasId) {
+    updateCanvasLayerOrder(get, currentCanvasId);
+  }
+
   if (activeLayerId === layerId) {
     const remainingLayers = updatedLayers.filter(
       (layer) => layer.canvasId === targetLayer?.canvasId
@@ -339,6 +377,7 @@ export const toggleLayerVisibilityAtom = atom(
   null,
   (get, set, layerId: string) => {
     const layers = get(layersAtom);
+    const currentCanvasId = get(currentCanvasIdAtom);
     const updatedLayers = layers.map((layer) => {
       if (layer.id === layerId) {
         const newVisibility = !layer.isVisible;
@@ -358,6 +397,10 @@ export const toggleLayerVisibilityAtom = atom(
 
     sampleData.layers = updatedLayers;
     set(layersAtom, updatedLayers);
+
+    if (currentCanvasId) {
+      updateCanvasLayerOrder(get, currentCanvasId);
+    }
   }
 );
 
@@ -384,8 +427,10 @@ export const reorderLayersAtom = atom(
     const layersForCurrentCanvas = get(layersForCurrentCanvasAtom);
     const currentCanvasId = get(currentCanvasIdAtom);
     const canvasContainer = get(getCanvasContainerAtom);
+
     if (!currentCanvasId || !canvasContainer || dragIndex === hoverIndex)
       return;
+
     const reorderedLayers = [...layersForCurrentCanvas];
     const [draggedLayer] = reorderedLayers.splice(dragIndex, 1);
     reorderedLayers.splice(hoverIndex, 0, draggedLayer);
@@ -396,15 +441,6 @@ export const reorderLayersAtom = atom(
       updatedAt: new Date(),
     }));
 
-    layersWithUpdatedOrder.forEach((layer) => {
-      if (
-        layer.data.pixiSprite &&
-        layer.data.pixiSprite.parent === canvasContainer
-      ) {
-        canvasContainer.setChildIndex(layer.data.pixiSprite, layer.order);
-      }
-    });
-
     const otherCanvasLayers = layers.filter(
       (layer) => layer.canvasId !== currentCanvasId
     );
@@ -413,6 +449,8 @@ export const reorderLayersAtom = atom(
 
     set(layersAtom, allUpdatedLayers);
     sampleData.layers = allUpdatedLayers;
+
+    updateCanvasLayerOrder(get, currentCanvasId);
   }
 );
 
