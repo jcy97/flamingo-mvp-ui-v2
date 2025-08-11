@@ -20,6 +20,7 @@ export class TextEngine {
   private isProcessing: boolean = false;
   private layerTexts: Record<string, PIXI.Text[]> = {};
   private currentLayerId: string | null = null;
+  private originalPosition: { x: number; y: number } | null = null;
 
   constructor(app: PIXI.Application, initialSettings: TextSettings) {
     this.app = app;
@@ -140,10 +141,10 @@ export class TextEngine {
     }
 
     this.editingTextLayer = textLayer;
+    this.originalPosition = { x: textLayer.x, y: textLayer.y };
     textLayer.visible = false;
     this.renderAllTextsToTexture();
 
-    const globalPos = textLayer.toGlobal(new PIXI.Point(0, 0));
     const canvas = this.app.canvas as HTMLCanvasElement;
     const rect = canvas.getBoundingClientRect();
 
@@ -152,8 +153,8 @@ export class TextEngine {
     const textarea = document.createElement("textarea");
     textarea.value = textLayer.text;
     textarea.style.position = "absolute";
-    textarea.style.left = `${rect.left + globalPos.x}px`;
-    textarea.style.top = `${rect.top + globalPos.y}px`;
+    textarea.style.left = `${rect.left + textLayer.x}px`;
+    textarea.style.top = `${rect.top + textLayer.y}px`;
     textarea.style.background = "transparent";
     textarea.style.border = "1px dashed #007acc";
     textarea.style.outline = "none";
@@ -291,6 +292,10 @@ export class TextEngine {
 
     if (newText) {
       this.editingTextLayer.text = newText;
+      if (this.originalPosition) {
+        this.editingTextLayer.x = this.originalPosition.x;
+        this.editingTextLayer.y = this.originalPosition.y;
+      }
       this.editingTextLayer.visible = true;
       this.updateTextLayerStyle(this.editingTextLayer);
       if (this.currentLayerId) {
@@ -313,6 +318,7 @@ export class TextEngine {
 
     this.removeTextInput();
     this.editingTextLayer = null;
+    this.originalPosition = null;
   }
 
   private cancelTextInput(): void {
@@ -326,11 +332,16 @@ export class TextEngine {
     this.isProcessing = true;
 
     if (this.editingTextLayer) {
+      if (this.originalPosition) {
+        this.editingTextLayer.x = this.originalPosition.x;
+        this.editingTextLayer.y = this.originalPosition.y;
+      }
       this.editingTextLayer.visible = true;
       this.renderAllTextsToTexture();
     }
     this.removeTextInput();
     this.editingTextLayer = null;
+    this.originalPosition = null;
   }
 
   private removeTextInput(): void {
@@ -461,5 +472,6 @@ export class TextEngine {
     this.textObjects = [];
     this.layerTexts = {};
     this.currentLayerId = null;
+    this.originalPosition = null;
   }
 }
