@@ -18,6 +18,8 @@ export class TextEngine {
   private onTextLayerCreated?: (textLayer: PIXI.Text) => void;
   private textObjects: PIXI.Text[] = [];
   private isProcessing: boolean = false;
+  private layerTexts: Record<string, PIXI.Text[]> = {};
+  private currentLayerId: string | null = null;
 
   constructor(app: PIXI.Application, initialSettings: TextSettings) {
     this.app = app;
@@ -32,7 +34,14 @@ export class TextEngine {
   }
 
   public setActiveLayer(layer: Layer): void {
+    if (this.currentLayerId && this.currentLayerId !== layer.id) {
+      this.layerTexts[this.currentLayerId] = [...this.textObjects];
+    }
+
     this.activeLayer = layer;
+    this.currentLayerId = layer.id;
+
+    this.textObjects = this.layerTexts[layer.id] || [];
   }
 
   public setSharedRenderTexture(renderTexture: PIXI.RenderTexture): void {
@@ -41,6 +50,23 @@ export class TextEngine {
 
   public setOnTextLayerCreated(callback: (textLayer: PIXI.Text) => void): void {
     this.onTextLayerCreated = callback;
+  }
+
+  public getTextAtPosition(x: number, y: number): PIXI.Text | null {
+    for (const textObj of this.textObjects) {
+      if (!textObj.visible) continue;
+
+      const bounds = textObj.getBounds();
+      if (
+        x >= bounds.x &&
+        x <= bounds.x + bounds.width &&
+        y >= bounds.y &&
+        y <= bounds.y + bounds.height
+      ) {
+        return textObj;
+      }
+    }
+    return null;
   }
 
   private setupTextInteraction(): void {
@@ -75,6 +101,7 @@ export class TextEngine {
     textarea.style.textAlign = this.settings.align as any;
     textarea.style.zIndex = "10000";
     textarea.style.overflow = "hidden";
+    textarea.style.whiteSpace = "pre-wrap";
 
     document.body.appendChild(textarea);
     textarea.focus();
@@ -114,6 +141,7 @@ export class TextEngine {
 
     this.editingTextLayer = textLayer;
     textLayer.visible = false;
+    this.renderAllTextsToTexture();
 
     const globalPos = textLayer.toGlobal(new PIXI.Point(0, 0));
     const canvas = this.app.canvas as HTMLCanvasElement;
@@ -147,16 +175,15 @@ export class TextEngine {
     textarea.style.textAlign = (textLayer.style.align as string) || "left";
     textarea.style.zIndex = "10000";
     textarea.style.overflow = "hidden";
-
-    const bounds = textLayer.getBounds();
-    textarea.style.width = `${Math.max(bounds.width, 100)}px`;
-    textarea.style.height = `${Math.max(bounds.height, 20)}px`;
+    textarea.style.whiteSpace = "pre-wrap";
 
     document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
 
     this.activeTextInput = textarea;
+    this.adjustTextareaSize();
+    textarea.scrollLeft = 0;
+    textarea.focus();
+    textarea.select();
 
     textarea.addEventListener("blur", () => {
       if (!this.isProcessing) {
@@ -201,23 +228,34 @@ export class TextEngine {
 
   private adjustTextareaSize(): void {
     if (!this.activeTextInput) return;
-
     const textarea = this.activeTextInput;
+
     textarea.style.height = "auto";
-    textarea.style.width = "auto";
+    textarea.style.height = `${Math.max(20, textarea.scrollHeight + 4)}px`;
 
-    const minWidth = 100;
-    const minHeight = 20;
-    const maxWidth = 400;
+    let ruler = document.getElementById("textarea-ruler") as HTMLSpanElement;
+    if (!ruler) {
+      ruler = document.createElement("span");
+      ruler.id = "textarea-ruler";
+      ruler.style.position = "absolute";
+      ruler.style.visibility = "hidden";
+      ruler.style.whiteSpace = "pre";
+      document.body.appendChild(ruler);
+    }
 
-    textarea.style.width = `${Math.max(
-      minWidth,
-      Math.min(maxWidth, textarea.scrollWidth + 10)
-    )}px`;
-    textarea.style.height = `${Math.max(
-      minHeight,
-      textarea.scrollHeight + 2
-    )}px`;
+    ruler.style.fontSize = textarea.style.fontSize;
+    ruler.style.fontFamily = textarea.style.fontFamily;
+    ruler.style.fontWeight = textarea.style.fontWeight;
+    ruler.style.fontStyle = textarea.style.fontStyle;
+    ruler.style.letterSpacing = textarea.style.letterSpacing;
+    ruler.style.lineHeight = textarea.style.lineHeight;
+
+    ruler.textContent = textarea.value || " ";
+    const minWidth = 150;
+    const rulerWidth = ruler.offsetWidth;
+
+    textarea.style.width = `${Math.max(minWidth, rulerWidth + 12)}px`;
+    textarea.style.maxWidth = "none";
   }
 
   private completeTextInput(): void {
@@ -232,7 +270,10 @@ export class TextEngine {
       const textLayer = this.createTextLayer(text, originalX, originalY);
       if (this.activeLayer) {
         this.textObjects.push(textLayer);
-        this.renderTextToTexture(textLayer);
+        if (this.currentLayerId) {
+          this.layerTexts[this.currentLayerId] = [...this.textObjects];
+        }
+        this.renderAllTextsToTexture();
       }
       this.currentTextLayer = textLayer;
       this.onTextLayerCreated?.(textLayer);
@@ -252,7 +293,10 @@ export class TextEngine {
       this.editingTextLayer.text = newText;
       this.editingTextLayer.visible = true;
       this.updateTextLayerStyle(this.editingTextLayer);
-      this.renderTextToTexture(this.editingTextLayer);
+      if (this.currentLayerId) {
+        this.layerTexts[this.currentLayerId] = [...this.textObjects];
+      }
+      this.renderAllTextsToTexture();
     } else {
       if (this.editingTextLayer.parent) {
         this.editingTextLayer.parent.removeChild(this.editingTextLayer);
@@ -260,7 +304,11 @@ export class TextEngine {
       this.textObjects = this.textObjects.filter(
         (t) => t !== this.editingTextLayer
       );
+      if (this.currentLayerId) {
+        this.layerTexts[this.currentLayerId] = [...this.textObjects];
+      }
       this.editingTextLayer.destroy();
+      this.renderAllTextsToTexture();
     }
 
     this.removeTextInput();
@@ -279,6 +327,7 @@ export class TextEngine {
 
     if (this.editingTextLayer) {
       this.editingTextLayer.visible = true;
+      this.renderAllTextsToTexture();
     }
     this.removeTextInput();
     this.editingTextLayer = null;
@@ -338,6 +387,37 @@ export class TextEngine {
     textLayer.style.breakWords = this.settings.wordWrap;
   }
 
+  private renderAllTextsToTexture(): void {
+    if (!this.renderTexture) return;
+
+    this.app.renderer.render({
+      container: new PIXI.Container(),
+      target: this.renderTexture,
+      clear: true,
+    });
+
+    for (const textObj of this.textObjects) {
+      if (!textObj.visible) continue;
+
+      try {
+        const textSprite = new PIXI.Text(textObj.text, textObj.style);
+        textSprite.x = textObj.x;
+        textSprite.y = textObj.y;
+
+        this.app.renderer.render({
+          container: textSprite,
+          target: this.renderTexture,
+          clear: false,
+          transform: undefined,
+        });
+
+        textSprite.destroy();
+      } catch (error) {
+        console.error("텍스트 렌더링 실패:", error);
+      }
+    }
+  }
+
   private renderTextToTexture(textLayer: PIXI.Text): void {
     if (!this.renderTexture) return;
 
@@ -379,5 +459,7 @@ export class TextEngine {
     this.renderTexture = null;
     this.textObjects.forEach((text) => text.destroy());
     this.textObjects = [];
+    this.layerTexts = {};
+    this.currentLayerId = null;
   }
 }

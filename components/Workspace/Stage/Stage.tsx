@@ -217,7 +217,7 @@ function Stage() {
         );
       }
 
-      if (textEngineRef.current) {
+      if (textEngineRef.current && activeLayerRef.current) {
         textEngineRef.current.setActiveLayer(activeLayerRef.current);
         textEngineRef.current.setSharedRenderTexture(
           activeRenderTextureRef.current
@@ -276,7 +276,19 @@ function Stage() {
           ) {
             return;
           }
+
           if (currentTool === ToolbarItemIDs.TEXT && textEngineRef.current) {
+            if (activeLayerRef.current?.type === "text") {
+              const existingText = textEngineRef.current.getTextAtPosition(
+                coords.x,
+                coords.y
+              );
+              if (existingText) {
+                textEngineRef.current.editExistingText(existingText);
+                return;
+              }
+            }
+
             const textLayerId = autoCreateTextLayer();
             if (!textLayerId) {
               console.error("텍스트 레이어 생성 실패");
