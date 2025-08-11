@@ -1,9 +1,16 @@
 import { useAtomValue } from "jotai";
 import { selectedToolIdAtom } from "@/stores/toolsbarStore";
+import { brushSettingsAtom } from "@/stores/brushStore";
+import { penSettingsAtom } from "@/stores/penStore";
+import { eraserSettingsAtom } from "@/stores/eraserStore";
 import { ToolbarItemIDs } from "@/constants/toolsbarItems";
+import { createToolCursor } from "@/utils/cursor";
 
 export function useCursor(): string {
   const selectedToolId = useAtomValue(selectedToolIdAtom);
+  const brushSettings = useAtomValue(brushSettingsAtom);
+  const penSettings = useAtomValue(penSettingsAtom);
+  const eraserSettings = useAtomValue(eraserSettingsAtom);
 
   switch (selectedToolId) {
     case ToolbarItemIDs.SELECT:
@@ -13,13 +20,13 @@ export function useCursor(): string {
       return "grab";
 
     case ToolbarItemIDs.PEN:
-      return "crosshair";
+      return createToolCursor(penSettings.size, penSettings.color);
 
     case ToolbarItemIDs.BRUSH:
-      return "crosshair";
+      return createToolCursor(brushSettings.size, brushSettings.color);
 
     case ToolbarItemIDs.ERASER:
-      return "crosshair";
+      return createToolCursor(eraserSettings.size);
 
     case ToolbarItemIDs.TEXT:
       return "text";
