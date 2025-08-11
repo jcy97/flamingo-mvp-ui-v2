@@ -8,16 +8,13 @@ import { currentPageIdAtom } from "./pageStore";
 export interface PixiState {
   app: PIXI.Application | null;
   isInitialized: boolean;
-  // 페이지별 -> 캔버스별 컨테이너 구조
-  canvasContainers: Record<string, Record<string, PIXI.Container>>; // [pageId][canvasId]
+  canvasContainers: Record<string, Record<string, PIXI.Container>>;
   layerGraphics: Record<string, Record<string, LayerData>>;
-  // 현재 활성 상태
   activePageId: string | null;
   activeCanvasId: string | null;
   activeLayerId: string | null;
 }
 
-// 기본 PIXI 상태
 export const pixiStateAtom = atom<PixiState>({
   app: null,
   isInitialized: false,
@@ -28,7 +25,6 @@ export const pixiStateAtom = atom<PixiState>({
   activeLayerId: null,
 });
 
-// PIXI Application 초기화
 export const initPixiAppAtom = atom(null, async (get, set) => {
   const state = get(pixiStateAtom);
   const canvases = get(canvasesAtom);
@@ -68,7 +64,6 @@ export const initPixiAppAtom = atom(null, async (get, set) => {
   }
 });
 
-// 페이지 컨테이너 생성 [pageId][canvasId] Record<string, Record<string, PIXI.Container>>;
 export const createCanvasContainerAtom = atom(
   null,
   (get, set, { pageId, canvasId }: { pageId: string; canvasId: string }) => {
@@ -83,7 +78,6 @@ export const createCanvasContainerAtom = atom(
       return;
     }
 
-    // 페이지 컨테이너가 없으면 생성
     if (!state.canvasContainers[pageId]) {
       set(pixiStateAtom, {
         ...state,
@@ -110,7 +104,6 @@ export const createCanvasContainerAtom = atom(
 
     console.log(`캔버스 컨테이너 생성: ${pageId}/${canvasId}`);
 
-    //해당 캔버스에 속한 레이어들을 layerAtom에서 가져와 반복 생성
     const layers = get(layersAtom);
     const layersInCanvas = layers.filter(
       (layer) => layer.canvasId === canvasId
@@ -133,21 +126,15 @@ export const createLayerGraphicAtom = atom(
       return;
     }
 
-    const pixiSprite = new PIXI.Sprite();
     const renderTexture = PIXI.RenderTexture.create({
       width: 800,
       height: 600,
       resolution: 1,
     });
 
-    const currentPageId = state.activePageId;
-    const canvasContainers = state.canvasContainers;
-    const container =
-      currentPageId && canvasContainers[currentPageId]?.[canvasId];
-
-    if (container) {
-      container.addChild(pixiSprite);
-    }
+    const pixiSprite = new PIXI.Sprite(renderTexture);
+    pixiSprite.name = `layer-${layerId}`;
+    pixiSprite.texture.source.scaleMode = "linear";
 
     set(pixiStateAtom, {
       ...state,
@@ -163,21 +150,16 @@ export const createLayerGraphicAtom = atom(
       },
     });
 
-    console.log(
-      `레이어 그래픽 초기화 완료 및 캔버스 컨테이너에 추가됨: ${canvasId}/${layerId}`
-    );
+    console.log(`레이어 그래픽 초기화 완료: ${canvasId}/${layerId}`);
   }
 );
 
-// 페이지 전환
 export const switchPageAtom = atom(null, (get, set, pageId: string) => {
   const state = get(pixiStateAtom);
   if (!state.app || state.activePageId === pageId) return;
 
-  // 현재 스테이지의 모든 컨테이너 제거
   state.app.stage.removeChildren();
 
-  // 새 페이지의 컨테이너들 추가
   const canvasContainers = state.canvasContainers[pageId];
   if (canvasContainers) {
     Object.values(canvasContainers).forEach((container) => {
@@ -198,7 +180,6 @@ export const switchPageAtom = atom(null, (get, set, pageId: string) => {
   });
 });
 
-// 캔버스 전환
 export const switchCanvasAtom = atom(null, (get, set, canvasId: string) => {
   const state = get(pixiStateAtom);
 
@@ -210,7 +191,6 @@ export const switchCanvasAtom = atom(null, (get, set, canvasId: string) => {
   console.log(`캔버스 전환: ${canvasId}`);
 });
 
-// 레이어 전환
 export const switchLayerAtom = atom(null, (get, set, layerId: string) => {
   const state = get(pixiStateAtom);
   console.log(state);
@@ -222,7 +202,6 @@ export const switchLayerAtom = atom(null, (get, set, layerId: string) => {
   console.log(`레이어 전환: ${layerId}`);
 });
 
-// 캔버스 컨테이너 가져오기
 export const getCanvasContainerAtom = atom((get) => {
   const state = get(pixiStateAtom);
   if (!state.activePageId || !state.activeCanvasId) return null;
@@ -232,20 +211,16 @@ export const getCanvasContainerAtom = atom((get) => {
   );
 });
 
-// 페이지 정리
 export const cleanupPageAtom = atom(null, (get, set, pageId: string) => {
   const state = get(pixiStateAtom);
 
-  // 페이지의 모든 컨테이너와 하위 요소들 정리
   const canvasContainers = state.canvasContainers[pageId];
   if (canvasContainers) {
     Object.entries(canvasContainers).forEach(([canvasId, container]) => {
-      // 스테이지에서 제거
       if (container.parent) {
         container.parent.removeChild(container);
       }
 
-      // 컨테이너와 모든 자식 요소 정리
       container.destroy({
         children: true,
         texture: true,
@@ -255,7 +230,6 @@ export const cleanupPageAtom = atom(null, (get, set, pageId: string) => {
     });
   }
 
-  // 상태에서 제거
   const newcanvasContainers = { ...state.canvasContainers };
   delete newcanvasContainers[pageId];
 
@@ -268,28 +242,23 @@ export const cleanupPageAtom = atom(null, (get, set, pageId: string) => {
   console.log(`페이지 정리 완료: ${pageId}`);
 });
 
-// 캔버스 정리
 export const cleanupCanvasAtom = atom(
   null,
   (get, set, { pageId, canvasId }: { pageId: string; canvasId: string }) => {
     const state = get(pixiStateAtom);
 
-    // 컨테이너 정리
     const container = state.canvasContainers[pageId]?.[canvasId];
     if (container) {
-      // 스테이지에서 제거
       if (container.parent) {
         container.parent.removeChild(container);
       }
 
-      // 컨테이너와 모든 자식 요소 정리
       container.destroy({
         children: true,
         texture: true,
       });
     }
 
-    // 상태에서 제거
     const newcanvasContainers = { ...state.canvasContainers };
     if (newcanvasContainers[pageId]) {
       const newCanvases = { ...newcanvasContainers[pageId] };
@@ -308,12 +277,10 @@ export const cleanupCanvasAtom = atom(
   }
 );
 
-// PIXI Application 정리
 export const destroyPixiAppAtom = atom(null, (get, set) => {
   const state = get(pixiStateAtom);
 
   if (state.app) {
-    // 모든 컨테이너 정리
     Object.keys(state.canvasContainers).forEach((pageId) => {
       Object.keys(state.canvasContainers[pageId]).forEach((canvasId) => {
         const container = state.canvasContainers[pageId][canvasId];
@@ -324,7 +291,6 @@ export const destroyPixiAppAtom = atom(null, (get, set) => {
       });
     });
 
-    // PIXI Application 정리
     state.app.destroy();
     console.log("PIXI Application 정리 완료");
   }
@@ -340,7 +306,6 @@ export const destroyPixiAppAtom = atom(null, (get, set) => {
   });
 });
 
-// 디버그용 상태 출력
 export const debugPixiStateAtom = atom((get) => {
   const state = get(pixiStateAtom);
   return {

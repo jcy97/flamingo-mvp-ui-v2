@@ -2,8 +2,15 @@ import { atom } from "jotai";
 import { Canvas } from "@/types/canvas";
 import sampleData from "@/samples/data";
 import { currentPageIdAtom } from "./pageStore";
-import { autoSelectFirstLayerAtom } from "./layerStore";
-import { switchCanvasAtom } from "./pixiStore";
+import {
+  autoSelectFirstLayerAtom,
+  layersForCurrentCanvasAtom,
+} from "./layerStore";
+import {
+  switchCanvasAtom,
+  pixiStateAtom,
+  getCanvasContainerAtom,
+} from "./pixiStore";
 
 export const canvasesAtom = atom<Canvas[]>(sampleData.canvases);
 
@@ -127,8 +134,35 @@ export const reorderCanvasesAtom = atom(
   }
 );
 
+const updateCanvasLayerOrder = (get: any, canvasId: string) => {
+  const pixiState = get(pixiStateAtom);
+  const canvasContainer = get(getCanvasContainerAtom);
+  const layersForCurrentCanvas = get(layersForCurrentCanvasAtom);
+
+  if (!canvasContainer || !canvasId) return;
+
+  canvasContainer.removeChildren();
+
+  const sortedLayers = [...layersForCurrentCanvas].sort(
+    (a, b) => a.order - b.order
+  );
+
+  sortedLayers.forEach((layer) => {
+    const layerGraphic = pixiState.layerGraphics[canvasId]?.[layer.id];
+    if (layerGraphic?.pixiSprite) {
+      canvasContainer.addChild(layerGraphic.pixiSprite);
+      layerGraphic.pixiSprite.visible = layer.isVisible;
+      layerGraphic.pixiSprite.alpha = layer.opacity;
+    }
+  });
+};
+
 export const setCurrentCanvasAtom = atom(null, (get, set, canvasId: string) => {
   set(currentCanvasIdAtom, canvasId);
   set(autoSelectFirstLayerAtom);
   set(switchCanvasAtom, canvasId);
+
+  setTimeout(() => {
+    updateCanvasLayerOrder(get, canvasId);
+  }, 0);
 });
