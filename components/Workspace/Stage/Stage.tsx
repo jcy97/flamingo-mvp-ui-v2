@@ -264,6 +264,10 @@ function Stage() {
         canvas.style.touchAction = "none";
 
         const handlePointerDown = (event: PointerEvent) => {
+          const isTextEditing = textEngineRef.current?.isCurrentlyEditing();
+          if (isTextEditing) {
+            return;
+          }
           event.preventDefault();
           const coords = getCanvasCoordinates(event.clientX, event.clientY);
           const currentTool = selectedToolIdRef.current;

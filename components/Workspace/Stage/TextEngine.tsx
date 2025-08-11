@@ -289,7 +289,6 @@ export class TextEngine {
     this.isProcessing = true;
 
     const newText = this.activeTextInput.value.replace(/^\s*|\s*$/g, "");
-
     if (newText) {
       this.editingTextLayer.text = newText;
       if (this.originalPosition) {
