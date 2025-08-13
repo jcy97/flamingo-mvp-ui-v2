@@ -40,6 +40,8 @@ function Stage() {
   const activeRenderTextureRef = useRef<PIXI.RenderTexture | null>(null);
   const lastPointerEventRef = useRef<PointerEvent | null>(null);
   const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
+  const lastPressureRef = useRef<number>(0.5);
+  const pressureSmoothing = 0.3;
 
   const [pixiState, setPixiState] = useAtom(pixiStateAtom);
 
@@ -80,13 +82,30 @@ function Stage() {
   );
 
   const getPressure = useCallback((event: PointerEvent): number => {
+    let rawPressure: number;
+
     if (event.pointerType === "pen" && event.pressure > 0) {
-      return event.pressure;
+      rawPressure = Math.pow(event.pressure, 0.8);
+    } else if (event.pointerType === "touch" && event.pressure > 0) {
+      rawPressure = Math.pow(event.pressure, 0.9);
+    } else if (event.pointerType === "mouse") {
+      const baseMousePressure = 0.45;
+      const variation = Math.sin(Date.now() * 0.001) * 0.05;
+      rawPressure = baseMousePressure + variation;
+
+      if (event.buttons === 1) {
+        rawPressure += 0.1;
+      }
+    } else {
+      rawPressure = 0.5;
     }
-    if (event.pointerType === "touch" && event.pressure > 0) {
-      return event.pressure;
-    }
-    return Math.random() * 0.3 + 0.5;
+
+    const smoothedPressure =
+      lastPressureRef.current * (1 - pressureSmoothing) +
+      rawPressure * pressureSmoothing;
+    lastPressureRef.current = smoothedPressure;
+
+    return Math.max(0.1, Math.min(1.0, smoothedPressure));
   }, []);
 
   const brushSettingsRef = useRef(brushSettings);
@@ -309,6 +328,10 @@ function Stage() {
           canvas.setPointerCapture(event.pointerId);
           lastPointerEventRef.current = event;
           isDrawingRef.current = true;
+
+          lastPressureRef.current =
+            event.pointerType === "pen" ? event.pressure : 0.5;
+
           const pressure = getPressure(event);
           const point: DrawingPoint = {
             x: coords.x,
@@ -368,6 +391,7 @@ function Stage() {
           event.preventDefault();
           canvas.releasePointerCapture(event.pointerId);
           isDrawingRef.current = false;
+          lastPressureRef.current = 0.5;
 
           const currentTool = selectedToolIdRef.current;
           if (currentTool === ToolbarItemIDs.PEN && penEngineRef.current) {
@@ -403,6 +427,7 @@ function Stage() {
             }
           }
           isDrawingRef.current = false;
+          lastPressureRef.current = 0.5;
         };
 
         canvas.addEventListener("pointerdown", handlePointerDown, {
