@@ -363,10 +363,6 @@ export const deleteLayerAtom = atom(null, (get, set, layerId: string) => {
   sampleData.layers = updatedLayers;
   set(layersAtom, updatedLayers);
 
-  // if (currentCanvasId) {
-  //   updateCanvasLayerOrder(get, currentCanvasId);
-  // }
-
   if (activeLayerId === layerId) {
     const remainingLayers = updatedLayers.filter(
       (layer) => layer.canvasId === targetLayer?.canvasId
