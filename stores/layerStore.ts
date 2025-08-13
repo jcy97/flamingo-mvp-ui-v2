@@ -290,20 +290,24 @@ export const updateLayerAtom = atom(
   ) => {
     const layers = get(layersAtom);
     const currentCanvasId = get(currentCanvasIdAtom);
+    const pixiState = get(pixiStateAtom);
+
     const updatedLayers = layers.map((layer) => {
       if (layer.id === layerId) {
         const updatedLayer = { ...layer, ...updates, updatedAt: new Date() };
 
-        if (layer.data.pixiSprite) {
+        const layerGraphic =
+          pixiState.layerGraphics[currentCanvasId!]?.[layer.id];
+        if (layerGraphic?.pixiSprite) {
           if (updates.opacity !== undefined) {
-            layer.data.pixiSprite.alpha = updates.opacity;
+            layerGraphic.pixiSprite.alpha = updates.opacity;
           }
           if (updates.isVisible !== undefined) {
-            layer.data.pixiSprite.visible = updates.isVisible;
+            layerGraphic.pixiSprite.visible = updates.isVisible;
           }
           if (updates.blendMode !== undefined) {
             try {
-              layer.data.pixiSprite.blendMode = updates.blendMode as any;
+              layerGraphic.pixiSprite.blendMode = updates.blendMode as any;
             } catch (error) {
               console.warn("블렌드모드 설정 실패:", updates.blendMode, error);
             }
@@ -359,9 +363,9 @@ export const deleteLayerAtom = atom(null, (get, set, layerId: string) => {
   sampleData.layers = updatedLayers;
   set(layersAtom, updatedLayers);
 
-  if (currentCanvasId) {
-    updateCanvasLayerOrder(get, currentCanvasId);
-  }
+  // if (currentCanvasId) {
+  //   updateCanvasLayerOrder(get, currentCanvasId);
+  // }
 
   if (activeLayerId === layerId) {
     const remainingLayers = updatedLayers.filter(
@@ -376,12 +380,16 @@ export const toggleLayerVisibilityAtom = atom(
   (get, set, layerId: string) => {
     const layers = get(layersAtom);
     const currentCanvasId = get(currentCanvasIdAtom);
+    const pixiState = get(pixiStateAtom);
+
     const updatedLayers = layers.map((layer) => {
       if (layer.id === layerId) {
         const newVisibility = !layer.isVisible;
 
-        if (layer.data.pixiSprite) {
-          layer.data.pixiSprite.visible = newVisibility;
+        const layerGraphic =
+          pixiState.layerGraphics[currentCanvasId!]?.[layer.id];
+        if (layerGraphic?.pixiSprite) {
+          layerGraphic.pixiSprite.visible = newVisibility;
         }
 
         return {
@@ -463,6 +471,11 @@ export const setActiveLayerAtom = atom(
 
     if (layerId) {
       set(switchLayerAtom, layerId);
+
+      const currentCanvasId = get(currentCanvasIdAtom);
+      if (currentCanvasId) {
+        updateCanvasLayerOrder(get, currentCanvasId);
+      }
     }
 
     console.log(`활성 레이어 변경: ${layerId}`);
