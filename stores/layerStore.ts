@@ -93,16 +93,6 @@ export const addLayerAtom = atom(null, (get, set) => {
   const newLayerId = `layer-${String(Date.now()).slice(-3)}`;
 
   try {
-    const renderTexture = PIXI.RenderTexture.create({
-      width: 800,
-      height: 600,
-      resolution: window.devicePixelRatio || 1,
-    });
-
-    const sprite = new PIXI.Sprite(renderTexture);
-    sprite.name = `layer-${newLayerId}`;
-    sprite.texture.source.scaleMode = "linear";
-
     const newOrder =
       layersForCurrentCanvas.length > 0
         ? Math.max(...layersForCurrentCanvas.map((l) => l.order)) + 1
@@ -111,7 +101,7 @@ export const addLayerAtom = atom(null, (get, set) => {
     const newLayer: Layer = {
       id: newLayerId,
       canvasId: currentCanvasId,
-      name: `새 레이어 ${layersForCurrentCanvas.length + 1}`,
+      name: `레이어 ${layersForCurrentCanvas.length + 1}`,
       order: newOrder,
       type: "brush",
       blendMode: "normal",
@@ -119,8 +109,8 @@ export const addLayerAtom = atom(null, (get, set) => {
       isVisible: true,
       isLocked: false,
       data: {
-        pixiSprite: sprite,
-        renderTexture: renderTexture,
+        pixiSprite: null!,
+        renderTexture: null!,
       },
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -129,6 +119,33 @@ export const addLayerAtom = atom(null, (get, set) => {
     const updatedLayers = [...layers, newLayer];
     sampleData.layers = updatedLayers;
     set(layersAtom, updatedLayers);
+
+    set(createLayerGraphicAtom, {
+      canvasId: currentCanvasId,
+      layerId: newLayerId,
+    });
+
+    const updatedPixiState = get(pixiStateAtom);
+    const newLayerGraphic =
+      updatedPixiState.layerGraphics?.[currentCanvasId]?.[newLayerId];
+
+    if (newLayerGraphic?.pixiSprite && newLayerGraphic?.renderTexture) {
+      canvasContainer.addChild(newLayerGraphic.pixiSprite);
+
+      const finalUpdatedLayers = get(layersAtom).map((layer) =>
+        layer.id === newLayerId
+          ? {
+              ...layer,
+              data: {
+                pixiSprite: newLayerGraphic.pixiSprite,
+                renderTexture: newLayerGraphic.renderTexture,
+              },
+            }
+          : layer
+      );
+      sampleData.layers = finalUpdatedLayers;
+      set(layersAtom, finalUpdatedLayers);
+    }
 
     updateCanvasLayerOrder(get, currentCanvasId);
 
@@ -165,16 +182,6 @@ export const addTextLayerAtom = atom(null, (get, set) => {
   const newLayerId = `text-layer-${String(Date.now()).slice(-3)}`;
 
   try {
-    const renderTexture = PIXI.RenderTexture.create({
-      width: 800,
-      height: 600,
-      resolution: window.devicePixelRatio || 1,
-    });
-
-    const sprite = new PIXI.Sprite(renderTexture);
-    sprite.name = `text-layer-${newLayerId}`;
-    sprite.texture.source.scaleMode = "linear";
-
     const newOrder =
       layersForCurrentCanvas.length > 0
         ? Math.max(...layersForCurrentCanvas.map((l) => l.order)) + 1
@@ -193,8 +200,8 @@ export const addTextLayerAtom = atom(null, (get, set) => {
       isVisible: true,
       isLocked: false,
       data: {
-        pixiSprite: sprite,
-        renderTexture: renderTexture,
+        pixiSprite: null!,
+        renderTexture: null!,
       },
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -203,6 +210,33 @@ export const addTextLayerAtom = atom(null, (get, set) => {
     const updatedLayers = [...layers, newLayer];
     sampleData.layers = updatedLayers;
     set(layersAtom, updatedLayers);
+
+    set(createLayerGraphicAtom, {
+      canvasId: currentCanvasId,
+      layerId: newLayerId,
+    });
+
+    const updatedPixiState = get(pixiStateAtom);
+    const newLayerGraphic =
+      updatedPixiState.layerGraphics?.[currentCanvasId]?.[newLayerId];
+
+    if (newLayerGraphic?.pixiSprite && newLayerGraphic?.renderTexture) {
+      canvasContainer.addChild(newLayerGraphic.pixiSprite);
+
+      const finalUpdatedLayers = get(layersAtom).map((layer) =>
+        layer.id === newLayerId
+          ? {
+              ...layer,
+              data: {
+                pixiSprite: newLayerGraphic.pixiSprite,
+                renderTexture: newLayerGraphic.renderTexture,
+              },
+            }
+          : layer
+      );
+      sampleData.layers = finalUpdatedLayers;
+      set(layersAtom, finalUpdatedLayers);
+    }
 
     updateCanvasLayerOrder(get, currentCanvasId);
 
@@ -267,8 +301,22 @@ export const autoCreateTextLayerAtom = atom(null, (get, set) => {
     const newLayerGraphic =
       updatedPixiState.layerGraphics?.[currentCanvasId]?.[newLayerId];
 
-    if (newLayerGraphic?.pixiSprite) {
+    if (newLayerGraphic?.pixiSprite && newLayerGraphic?.renderTexture) {
       canvasContainer.addChild(newLayerGraphic.pixiSprite);
+
+      const finalUpdatedLayers = get(layersAtom).map((layer) =>
+        layer.id === newLayerId
+          ? {
+              ...layer,
+              data: {
+                pixiSprite: newLayerGraphic.pixiSprite,
+                renderTexture: newLayerGraphic.renderTexture,
+              },
+            }
+          : layer
+      );
+      sampleData.layers = finalUpdatedLayers;
+      set(layersAtom, finalUpdatedLayers);
     }
 
     updateCanvasLayerOrder(get, currentCanvasId);

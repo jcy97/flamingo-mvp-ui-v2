@@ -6,6 +6,7 @@ import {
   canvasesAtom,
   canvasesForCurrentPageAtom,
   setCurrentCanvasAtom,
+  addCanvasAtom,
 } from "./canvasStore";
 import { switchPageAtom } from "./pixiStore";
 
@@ -23,40 +24,26 @@ export const currentPageAtom = atom((get) => {
 
 export const addPageAtom = atom(null, (get, set) => {
   const pages = get(pagesAtom);
-  const canvases = get(canvasesAtom);
   const newPageId = `page-${String(Date.now()).slice(-3)}`;
-  const newCanvasId = `canvas-${String(Date.now()).slice(-3)}`;
 
   const newPage: Page = {
     id: newPageId,
-    projectId: "proj-webtoon-001", //TODO 추후 실제 프로젝트 ID 들어가도록 바뀌어야 함
-    name: `새 페이지 ${pages.length + 1}`,
+    projectId: "proj-webtoon-001",
+    name: `페이지 ${pages.length + 1}`,
     order: pages.length + 1,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
 
-  const newCanvas: Canvas = {
-    id: newCanvasId,
-    pageId: newPageId,
-    name: "새 캔버스 1",
-    order: 1,
-    width: 800,
-    height: 400,
-    unit: "px",
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
-
   const updatedPages = [...pages, newPage];
-  const updatedCanvases = [...canvases, newCanvas];
-
   sampleData.pages = updatedPages;
-  sampleData.canvases = updatedCanvases;
-
   set(pagesAtom, updatedPages);
-  set(canvasesAtom, updatedCanvases);
+
   set(currentPageIdAtom, newPageId);
+
+  set(addCanvasAtom);
+
+  set(switchPageAtom, newPageId);
 });
 
 export const updatePageAtom = atom(

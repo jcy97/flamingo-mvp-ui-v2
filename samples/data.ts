@@ -23,7 +23,7 @@ const sampleData = {
       name: "캔버스 1",
       order: 1,
       width: 800,
-      height: 400,
+      height: 600,
       unit: "px" as SizeUnit,
       createdAt: new Date("2024-01-15T09:15:00Z"),
       updatedAt: new Date("2024-01-20T13:00:00Z"),
