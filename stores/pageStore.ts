@@ -3,6 +3,7 @@ import { Page } from "@/types/page";
 import { Canvas } from "@/types/canvas";
 import sampleData from "@/samples/data";
 import {
+  canvasesAtom,
   canvasesForCurrentPageAtom,
   setCurrentCanvasAtom,
 } from "./canvasStore";
@@ -22,12 +23,13 @@ export const currentPageAtom = atom((get) => {
 
 export const addPageAtom = atom(null, (get, set) => {
   const pages = get(pagesAtom);
+  const canvases = get(canvasesAtom);
   const newPageId = `page-${String(Date.now()).slice(-3)}`;
   const newCanvasId = `canvas-${String(Date.now()).slice(-3)}`;
 
   const newPage: Page = {
     id: newPageId,
-    projectId: "proj-webtoon-001",
+    projectId: "proj-webtoon-001", //TODO 추후 실제 프로젝트 ID 들어가도록 바뀌어야 함
     name: `새 페이지 ${pages.length + 1}`,
     order: pages.length + 1,
     createdAt: new Date(),
@@ -47,12 +49,13 @@ export const addPageAtom = atom(null, (get, set) => {
   };
 
   const updatedPages = [...pages, newPage];
-  const updatedCanvases = [...sampleData.canvases, newCanvas];
+  const updatedCanvases = [...canvases, newCanvas];
 
   sampleData.pages = updatedPages;
   sampleData.canvases = updatedCanvases;
 
   set(pagesAtom, updatedPages);
+  set(canvasesAtom, updatedCanvases);
   set(currentPageIdAtom, newPageId);
 });
 
