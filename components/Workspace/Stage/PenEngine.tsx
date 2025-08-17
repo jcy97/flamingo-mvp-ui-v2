@@ -70,12 +70,12 @@ export class PenEngine {
   private lastDirection: { x: number; y: number } = { x: 0, y: 0 };
 
   private tipTaperFactor = 0.95;
-  private thicknessSmoothingFactor = 0.18;
-  private minThicknessFactor = 0.15;
-  private maxThicknessFactor = 1.4;
+  private thicknessSmoothingFactor = 0.25;
+  private minThicknessFactor = 0.2;
+  private maxThicknessFactor = 1.8;
   private maxVelocity = 5.0;
-  private pressureSensitivity = 0.85;
-  private velocitySensitivity = 0.15;
+  private pressureSensitivity = 1.2;
+  private velocitySensitivity = 0.3;
 
   private strokeStartThickness = 0;
   private strokeDistance = 0;
@@ -83,7 +83,7 @@ export class PenEngine {
   private endTaperDistance = 8;
 
   private pressureHistory: number[] = [];
-  private pressureHistorySize = 5;
+  private pressureHistorySize = 3;
 
   constructor(app: PIXI.Application, initialSettings: PenSettings) {
     this.app = app;
@@ -154,77 +154,144 @@ export class PenEngine {
     const dy = this.smoothedMouseY - this.lastSmoothedMouseY;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    if (dist < 0.3) {
-      this.lastPoint = currentPoint;
-      return;
-    }
-
-    this.strokeDistance += dist;
-
     const dt = currentPoint.timestamp! - this.lastPoint.timestamp! || 16;
     let velocity = (dist / dt) * 16;
     velocity = Math.min(velocity, this.maxVelocity);
     velocity = lerp(this.lastVelocity, velocity, 0.5);
 
-    const pressure = point.pressure !== undefined ? point.pressure : 0.5;
-    this.pressureHistory.push(pressure);
-    if (this.pressureHistory.length > this.pressureHistorySize) {
-      this.pressureHistory.shift();
-    }
+    if (dist > 15) {
+      const numInterpolated = Math.ceil(dist / 8);
+      for (let i = 1; i <= numInterpolated; i++) {
+        const t = i / numInterpolated;
+        const interpX = lerp(this.lastSmoothedMouseX, this.smoothedMouseX, t);
+        const interpY = lerp(this.lastSmoothedMouseY, this.smoothedMouseY, t);
+        const interpDist = t * dist;
 
-    const avgPressure =
-      this.pressureHistory.reduce((a, b) => a + b, 0) /
-      this.pressureHistory.length;
+        this.strokeDistance += interpDist / numInterpolated;
 
-    const baseThickness = this.settings.size * 0.8;
+        const pressure = point.pressure !== undefined ? point.pressure : 0.5;
+        this.pressureHistory.push(pressure);
+        if (this.pressureHistory.length > this.pressureHistorySize) {
+          this.pressureHistory.shift();
+        }
 
-    let targetThickness = baseThickness;
+        const avgPressure =
+          this.pressureHistory.reduce((a, b) => a + b, 0) /
+          this.pressureHistory.length;
 
-    if (this.strokeDistance < this.initialTaperDistance) {
-      const taperProgress = this.strokeDistance / this.initialTaperDistance;
-      const taperFactor = easeOutQuad(taperProgress);
-      const minStart = baseThickness * 0.1;
-      const normalThickness = baseThickness * avgPressure;
-      targetThickness = lerp(minStart, normalThickness, taperFactor);
+        const baseThickness = this.settings.size * 0.8;
+        let targetThickness = baseThickness;
+
+        if (this.strokeDistance < this.initialTaperDistance) {
+          const taperProgress = this.strokeDistance / this.initialTaperDistance;
+          const taperFactor = easeOutQuad(taperProgress);
+          const minStart = baseThickness * 0.1;
+          const normalThickness = baseThickness * avgPressure;
+          targetThickness = lerp(minStart, normalThickness, taperFactor);
+        } else {
+          const pressureFactor = avgPressure * this.pressureSensitivity;
+          const velocityFactor = Math.max(
+            0.3,
+            1 - (velocity / this.maxVelocity) * this.velocitySensitivity
+          );
+
+          targetThickness = baseThickness * pressureFactor * velocityFactor;
+
+          targetThickness = Math.max(
+            baseThickness * this.minThicknessFactor,
+            Math.min(baseThickness * this.maxThicknessFactor, targetThickness)
+          );
+        }
+
+        this.lineThickness +=
+          this.thicknessSmoothingFactor *
+          (targetThickness - this.lineThickness);
+
+        const interpDx = interpX - this.lastSmoothedMouseX;
+        const interpDy = interpY - this.lastSmoothedMouseY;
+        let currentDirection = normalize({ x: interpDx, y: interpDy });
+        const smoothedDirection = normalize(
+          lerpVector(this.lastDirection, currentDirection, 0.3)
+        );
+        currentDirection = smoothedDirection;
+
+        this.drawSegment(
+          this.lastSmoothedMouseX,
+          this.lastSmoothedMouseY,
+          interpX,
+          interpY,
+          this.lastThickness,
+          this.lineThickness,
+          currentDirection
+        );
+
+        this.lastThickness = this.lineThickness;
+        this.lastDirection = currentDirection;
+        this.lastSmoothedMouseX = interpX;
+        this.lastSmoothedMouseY = interpY;
+      }
     } else {
-      const pressureFactor =
-        Math.pow(avgPressure, 0.6) * this.maxThicknessFactor;
-      const velocityFactor = 1 - (velocity / this.maxVelocity) * 0.6;
+      this.strokeDistance += dist;
 
-      targetThickness =
-        baseThickness *
-        (this.pressureSensitivity * pressureFactor +
-          this.velocitySensitivity * velocityFactor);
+      const pressure = point.pressure !== undefined ? point.pressure : 0.5;
+      this.pressureHistory.push(pressure);
+      if (this.pressureHistory.length > this.pressureHistorySize) {
+        this.pressureHistory.shift();
+      }
 
-      targetThickness = Math.max(
-        baseThickness * this.minThicknessFactor,
-        Math.min(baseThickness * this.maxThicknessFactor, targetThickness)
+      const avgPressure =
+        this.pressureHistory.reduce((a, b) => a + b, 0) /
+        this.pressureHistory.length;
+
+      const baseThickness = this.settings.size * 0.8;
+      let targetThickness = baseThickness;
+
+      if (this.strokeDistance < this.initialTaperDistance) {
+        const taperProgress = this.strokeDistance / this.initialTaperDistance;
+        const taperFactor = easeOutQuad(taperProgress);
+        const minStart = baseThickness * 0.1;
+        const normalThickness = baseThickness * avgPressure;
+        targetThickness = lerp(minStart, normalThickness, taperFactor);
+      } else {
+        const pressureFactor = avgPressure * this.pressureSensitivity;
+        const velocityFactor = Math.max(
+          0.3,
+          1 - (velocity / this.maxVelocity) * this.velocitySensitivity
+        );
+
+        targetThickness = baseThickness * pressureFactor * velocityFactor;
+
+        targetThickness = Math.max(
+          baseThickness * this.minThicknessFactor,
+          Math.min(baseThickness * this.maxThicknessFactor, targetThickness)
+        );
+      }
+
+      this.lineThickness +=
+        this.thicknessSmoothingFactor * (targetThickness - this.lineThickness);
+
+      let currentDirection = normalize({ x: dx, y: dy });
+      const smoothedDirection = normalize(
+        lerpVector(this.lastDirection, currentDirection, 0.3)
       );
+      currentDirection = smoothedDirection;
+
+      this.drawSegment(
+        this.lastSmoothedMouseX,
+        this.lastSmoothedMouseY,
+        this.smoothedMouseX,
+        this.smoothedMouseY,
+        this.lastThickness,
+        this.lineThickness,
+        currentDirection
+      );
+
+      this.lastThickness = this.lineThickness;
+      this.lastDirection = currentDirection;
+      this.lastSmoothedMouseX = this.smoothedMouseX;
+      this.lastSmoothedMouseY = this.smoothedMouseY;
     }
 
-    this.lineThickness +=
-      this.thicknessSmoothingFactor * (targetThickness - this.lineThickness);
-
-    let currentDirection = normalize({ x: dx, y: dy });
-    const smoothedDirection = normalize(
-      lerpVector(this.lastDirection, currentDirection, 0.3)
-    );
-    currentDirection = smoothedDirection;
-
-    this.drawSegment(
-      this.lastSmoothedMouseX,
-      this.lastSmoothedMouseY,
-      this.smoothedMouseX,
-      this.smoothedMouseY,
-      this.lastThickness,
-      this.lineThickness,
-      currentDirection
-    );
-
-    this.lastThickness = this.lineThickness;
-    this.lastDirection = currentDirection;
-    this.lastSmoothedMouseX = this.smoothedMouseX;
-    this.lastSmoothedMouseY = this.smoothedMouseY;
     this.lastPoint = currentPoint;
     this.lastVelocity = velocity;
   }
@@ -243,10 +310,8 @@ export class PenEngine {
     const perp = { x: -direction.y, y: direction.x };
     const color = Number("0x" + this.settings.color.replace("#", ""));
 
-    const steps = Math.max(
-      2,
-      Math.ceil(Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2) / 2)
-    );
+    const segmentLength = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+    const steps = Math.max(3, Math.ceil(segmentLength / 1.5));
 
     for (let i = 0; i < steps; i++) {
       const t = i / (steps - 1);
