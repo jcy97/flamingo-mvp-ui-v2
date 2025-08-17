@@ -5,11 +5,13 @@ import { currentPageIdAtom } from "./pageStore";
 import {
   autoSelectFirstLayerAtom,
   layersForCurrentCanvasAtom,
+  addLayerAtom,
 } from "./layerStore";
 import {
   switchCanvasAtom,
   pixiStateAtom,
   getCanvasContainerAtom,
+  createCanvasContainerAtom,
 } from "./pixiStore";
 
 export const canvasesAtom = atom<Canvas[]>(sampleData.canvases);
@@ -49,10 +51,10 @@ export const addCanvasAtom = atom(null, (get, set) => {
   const newCanvas: Canvas = {
     id: newCanvasId,
     pageId: currentPageId,
-    name: `새 캔버스 ${canvasesForCurrentPage.length + 1}`,
+    name: `캔버스 ${canvasesForCurrentPage.length + 1}`,
     order: canvasesForCurrentPage.length + 1,
     width: 800,
-    height: 400,
+    height: 600,
     unit: "px",
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -61,7 +63,17 @@ export const addCanvasAtom = atom(null, (get, set) => {
   const updatedCanvases = [...canvases, newCanvas];
   sampleData.canvases = updatedCanvases;
   set(canvasesAtom, updatedCanvases);
+
   set(currentCanvasIdAtom, newCanvasId);
+  set(createCanvasContainerAtom, {
+    pageId: currentPageId,
+    canvasId: newCanvasId,
+  });
+  set(switchCanvasAtom, newCanvasId);
+
+  setTimeout(() => {
+    set(addLayerAtom);
+  }, 0);
 });
 
 export const updateCanvasAtom = atom(

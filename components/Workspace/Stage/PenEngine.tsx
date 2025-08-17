@@ -1,5 +1,6 @@
 import * as PIXI from "pixi.js";
 import { PenSettings } from "@/types/pen";
+import { interpolateStroke, calculateSpacing } from "@/utils/brush";
 
 export interface DrawingPoint {
   x: number;
@@ -9,354 +10,533 @@ export interface DrawingPoint {
   velocity?: number;
 }
 
-interface ProcessedPoint {
-  x: number;
-  y: number;
-  size: number;
-  alpha: number;
+interface PenTexture {
+  texture: PIXI.Texture;
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+function lerpVector(
+  v1: { x: number; y: number },
+  v2: { x: number; y: number },
+  t: number
+) {
+  return {
+    x: lerp(v1.x, v2.x, t),
+    y: lerp(v1.y, v2.y, t),
+  };
+}
+
+function normalize(v: { x: number; y: number }) {
+  const len = Math.sqrt(v.x * v.x + v.y * v.y);
+  if (len === 0) return { x: 0, y: 0 };
+  return { x: v.x / len, y: v.y / len };
+}
+
+function easeInQuad(t: number): number {
+  return t * t;
+}
+
+function easeOutQuad(t: number): number {
+  return t * (2 - t);
+}
+
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
 export class PenEngine {
   private app: PIXI.Application;
   private isDrawing = false;
+  private lastPoint: DrawingPoint | null = null;
   private currentStroke: DrawingPoint[] = [];
-  private processedPoints: ProcessedPoint[] = [];
+  private penTexture: PenTexture | null = null;
   private settings: PenSettings;
   private activeLayer: PIXI.Container | null = null;
   private renderTexture: PIXI.RenderTexture | null = null;
-  private rtSprite: PIXI.Sprite | null = null;
-  private currentStrokeGraphics: PIXI.Graphics | null = null;
-  private currentStrokeContainer: PIXI.Container | null = null;
+
+  private smoothedMouseX = 0;
+  private smoothedMouseY = 0;
+
+  private lastSmoothedMouseX = 0;
+  private lastSmoothedMouseY = 0;
+
+  private lastVelocity = 0;
+  private lastThickness = 0;
+
+  private lineThickness = 0;
+  private lastDirection: { x: number; y: number } = { x: 0, y: 0 };
+
+  private tipTaperFactor = 0.95;
+  private thicknessSmoothingFactor = 0.25;
+  private minThicknessFactor = 0.2;
+  private maxThicknessFactor = 1.8;
+  private maxVelocity = 5.0;
+  private pressureSensitivity = 1.2;
+  private velocitySensitivity = 0.3;
+
+  private strokeStartThickness = 0;
+  private strokeDistance = 0;
+  private initialTaperDistance = 12;
+  private endTaperDistance = 8;
+
+  private pressureHistory: number[] = [];
+  private pressureHistorySize = 3;
 
   constructor(app: PIXI.Application, initialSettings: PenSettings) {
     this.app = app;
     this.settings = { ...initialSettings };
+    requestAnimationFrame(() => {
+      this.updatePenTexture();
+    });
   }
 
   public updateSettings(newSettings: PenSettings): void {
+    const changed =
+      this.settings.size !== newSettings.size ||
+      this.settings.color !== newSettings.color ||
+      this.settings.opacity !== newSettings.opacity;
     this.settings = { ...newSettings };
+    if (changed && !this.isDrawing) {
+      requestAnimationFrame(() => {
+        this.updatePenTexture();
+      });
+    }
   }
 
   public setActiveLayer(layer: PIXI.Container): void {
     this.activeLayer = layer;
-    this.initRenderLayer();
-  }
-
-  private initRenderLayer() {
-    if (!this.activeLayer) return;
-    if (this.rtSprite) {
-      this.activeLayer.removeChild(this.rtSprite);
-      this.rtSprite.destroy();
-      this.rtSprite = null;
-    }
-    if (this.renderTexture) {
-      this.renderTexture.destroy();
-      this.renderTexture = null;
-    }
-    if (this.currentStrokeContainer) {
-      this.activeLayer.removeChild(this.currentStrokeContainer);
-      this.currentStrokeContainer.destroy();
-      this.currentStrokeContainer = null;
-    }
-
-    const width = this.app.renderer.width;
-    const height = this.app.renderer.height;
-
-    this.renderTexture = PIXI.RenderTexture.create({
-      width,
-      height,
-    });
-
-    this.rtSprite = new PIXI.Sprite(this.renderTexture);
-    this.rtSprite.texture.source.scaleMode = "linear";
-    this.activeLayer.addChild(this.rtSprite);
-
-    this.currentStrokeContainer = new PIXI.Container();
-    this.activeLayer.addChild(this.currentStrokeContainer);
-  }
-
-  public startStroke(point: DrawingPoint): void {
-    if (!this.activeLayer || !this.currentStrokeContainer) return;
-    this.isDrawing = true;
-    this.currentStroke = [point];
-    this.processedPoints = [];
-    if (this.currentStrokeGraphics) {
-      this.currentStrokeContainer.removeChild(this.currentStrokeGraphics);
-      this.currentStrokeGraphics.destroy();
-    }
-    this.currentStrokeGraphics = new PIXI.Graphics();
-    this.currentStrokeContainer.addChild(this.currentStrokeGraphics);
-    this.updateCurrentStroke();
-  }
-
-  public continueStroke(point: DrawingPoint): void {
-    if (!this.isDrawing || !this.activeLayer) return;
-    this.currentStroke.push(point);
-    this.updateCurrentStroke();
-  }
-
-  public endStroke(): void {
-    if (!this.isDrawing) return;
-    this.commitCurrentStroke();
-    this.isDrawing = false;
-    this.currentStroke = [];
-    this.processedPoints = [];
-    if (this.currentStrokeGraphics && this.currentStrokeContainer) {
-      this.currentStrokeContainer.removeChild(this.currentStrokeGraphics);
-      this.currentStrokeGraphics.destroy();
-      this.currentStrokeGraphics = null;
-    }
   }
 
   public setSharedRenderTexture(renderTexture: PIXI.RenderTexture): void {
     this.renderTexture = renderTexture;
-    if (this.rtSprite && this.activeLayer) {
-      this.activeLayer.removeChild(this.rtSprite);
-      this.rtSprite.destroy();
-      this.rtSprite = new PIXI.Sprite(this.renderTexture);
-      this.rtSprite.texture.source.scaleMode = "linear";
-      this.activeLayer.addChildAt(this.rtSprite, 0);
+  }
+
+  public startStroke(point: DrawingPoint): void {
+    if (!this.renderTexture) return;
+
+    this.isDrawing = true;
+    this.lastPoint = { ...point, timestamp: Date.now() };
+    this.currentStroke = [this.lastPoint];
+    this.smoothedMouseX = this.lastSmoothedMouseX = point.x;
+    this.smoothedMouseY = this.lastSmoothedMouseY = point.y;
+
+    const basePressure = point.pressure !== undefined ? point.pressure : 0.3;
+    this.pressureHistory = [basePressure];
+
+    const baseThickness = this.settings.size * 0.5;
+    this.strokeStartThickness = baseThickness * 0.1;
+    this.lastThickness = this.strokeStartThickness;
+    this.lineThickness = this.strokeStartThickness;
+    this.lastVelocity = 0;
+    this.lastDirection = { x: 0, y: 0 };
+    this.strokeDistance = 0;
+
+    this.drawStartCap(point.x, point.y, this.strokeStartThickness);
+  }
+
+  public continueStroke(point: DrawingPoint): void {
+    if (!this.isDrawing || !this.lastPoint || !this.renderTexture) return;
+
+    const currentTime = Date.now();
+    const currentPoint: DrawingPoint = { ...point, timestamp: currentTime };
+    this.currentStroke.push(currentPoint);
+
+    const smoothing = this.settings.smoothing * 0.7;
+    this.smoothedMouseX =
+      smoothing * point.x + (1 - smoothing) * this.smoothedMouseX;
+    this.smoothedMouseY =
+      smoothing * point.y + (1 - smoothing) * this.smoothedMouseY;
+
+    const dx = this.smoothedMouseX - this.lastSmoothedMouseX;
+    const dy = this.smoothedMouseY - this.lastSmoothedMouseY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    const dt = currentPoint.timestamp! - this.lastPoint.timestamp! || 16;
+    let velocity = (dist / dt) * 16;
+    velocity = Math.min(velocity, this.maxVelocity);
+    velocity = lerp(this.lastVelocity, velocity, 0.5);
+
+    if (dist > 15) {
+      const numInterpolated = Math.ceil(dist / 8);
+      for (let i = 1; i <= numInterpolated; i++) {
+        const t = i / numInterpolated;
+        const interpX = lerp(this.lastSmoothedMouseX, this.smoothedMouseX, t);
+        const interpY = lerp(this.lastSmoothedMouseY, this.smoothedMouseY, t);
+        const interpDist = t * dist;
+
+        this.strokeDistance += interpDist / numInterpolated;
+
+        const pressure = point.pressure !== undefined ? point.pressure : 0.5;
+        this.pressureHistory.push(pressure);
+        if (this.pressureHistory.length > this.pressureHistorySize) {
+          this.pressureHistory.shift();
+        }
+
+        const avgPressure =
+          this.pressureHistory.reduce((a, b) => a + b, 0) /
+          this.pressureHistory.length;
+
+        const baseThickness = this.settings.size * 0.8;
+        let targetThickness = baseThickness;
+
+        if (this.strokeDistance < this.initialTaperDistance) {
+          const taperProgress = this.strokeDistance / this.initialTaperDistance;
+          const taperFactor = easeOutQuad(taperProgress);
+          const minStart = baseThickness * 0.1;
+          const normalThickness = baseThickness * avgPressure;
+          targetThickness = lerp(minStart, normalThickness, taperFactor);
+        } else {
+          const pressureFactor = avgPressure * this.pressureSensitivity;
+          const velocityFactor = Math.max(
+            0.3,
+            1 - (velocity / this.maxVelocity) * this.velocitySensitivity
+          );
+
+          targetThickness = baseThickness * pressureFactor * velocityFactor;
+
+          targetThickness = Math.max(
+            baseThickness * this.minThicknessFactor,
+            Math.min(baseThickness * this.maxThicknessFactor, targetThickness)
+          );
+        }
+
+        this.lineThickness +=
+          this.thicknessSmoothingFactor *
+          (targetThickness - this.lineThickness);
+
+        const interpDx = interpX - this.lastSmoothedMouseX;
+        const interpDy = interpY - this.lastSmoothedMouseY;
+        let currentDirection = normalize({ x: interpDx, y: interpDy });
+        const smoothedDirection = normalize(
+          lerpVector(this.lastDirection, currentDirection, 0.3)
+        );
+        currentDirection = smoothedDirection;
+
+        this.drawSegment(
+          this.lastSmoothedMouseX,
+          this.lastSmoothedMouseY,
+          interpX,
+          interpY,
+          this.lastThickness,
+          this.lineThickness,
+          currentDirection
+        );
+
+        this.lastThickness = this.lineThickness;
+        this.lastDirection = currentDirection;
+        this.lastSmoothedMouseX = interpX;
+        this.lastSmoothedMouseY = interpY;
+      }
+    } else {
+      this.strokeDistance += dist;
+
+      const pressure = point.pressure !== undefined ? point.pressure : 0.5;
+      this.pressureHistory.push(pressure);
+      if (this.pressureHistory.length > this.pressureHistorySize) {
+        this.pressureHistory.shift();
+      }
+
+      const avgPressure =
+        this.pressureHistory.reduce((a, b) => a + b, 0) /
+        this.pressureHistory.length;
+
+      const baseThickness = this.settings.size * 0.8;
+      let targetThickness = baseThickness;
+
+      if (this.strokeDistance < this.initialTaperDistance) {
+        const taperProgress = this.strokeDistance / this.initialTaperDistance;
+        const taperFactor = easeOutQuad(taperProgress);
+        const minStart = baseThickness * 0.1;
+        const normalThickness = baseThickness * avgPressure;
+        targetThickness = lerp(minStart, normalThickness, taperFactor);
+      } else {
+        const pressureFactor = avgPressure * this.pressureSensitivity;
+        const velocityFactor = Math.max(
+          0.3,
+          1 - (velocity / this.maxVelocity) * this.velocitySensitivity
+        );
+
+        targetThickness = baseThickness * pressureFactor * velocityFactor;
+
+        targetThickness = Math.max(
+          baseThickness * this.minThicknessFactor,
+          Math.min(baseThickness * this.maxThicknessFactor, targetThickness)
+        );
+      }
+
+      this.lineThickness +=
+        this.thicknessSmoothingFactor * (targetThickness - this.lineThickness);
+
+      let currentDirection = normalize({ x: dx, y: dy });
+      const smoothedDirection = normalize(
+        lerpVector(this.lastDirection, currentDirection, 0.3)
+      );
+      currentDirection = smoothedDirection;
+
+      this.drawSegment(
+        this.lastSmoothedMouseX,
+        this.lastSmoothedMouseY,
+        this.smoothedMouseX,
+        this.smoothedMouseY,
+        this.lastThickness,
+        this.lineThickness,
+        currentDirection
+      );
+
+      this.lastThickness = this.lineThickness;
+      this.lastDirection = currentDirection;
+      this.lastSmoothedMouseX = this.smoothedMouseX;
+      this.lastSmoothedMouseY = this.smoothedMouseY;
     }
+
+    this.lastPoint = currentPoint;
+    this.lastVelocity = velocity;
+  }
+
+  private drawSegment(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    thickness1: number,
+    thickness2: number,
+    direction: { x: number; y: number }
+  ): void {
+    if (!this.renderTexture) return;
+
+    const perp = { x: -direction.y, y: direction.x };
+    const color = Number("0x" + this.settings.color.replace("#", ""));
+
+    const segmentLength = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+    const steps = Math.max(3, Math.ceil(segmentLength / 1.5));
+
+    for (let i = 0; i < steps; i++) {
+      const t = i / (steps - 1);
+      const smoothT = easeInOutCubic(t);
+
+      const x = lerp(x1, x2, smoothT);
+      const y = lerp(y1, y2, smoothT);
+      const thickness = lerp(thickness1, thickness2, smoothT);
+
+      const prevT = Math.max(0, (i - 1) / (steps - 1));
+      const prevSmoothT = easeInOutCubic(prevT);
+      const prevX = lerp(x1, x2, prevSmoothT);
+      const prevY = lerp(y1, y2, prevSmoothT);
+      const prevThickness = lerp(thickness1, thickness2, prevSmoothT);
+
+      if (i > 0) {
+        const segmentGraphics = new PIXI.Graphics();
+        segmentGraphics.beginFill(color, this.settings.opacity);
+
+        const p1 = {
+          x: prevX + perp.x * prevThickness,
+          y: prevY + perp.y * prevThickness,
+        };
+        const p2 = { x: x + perp.x * thickness, y: y + perp.y * thickness };
+        const p3 = { x: x - perp.x * thickness, y: y - perp.y * thickness };
+        const p4 = {
+          x: prevX - perp.x * prevThickness,
+          y: prevY - perp.y * prevThickness,
+        };
+
+        segmentGraphics.moveTo(p1.x, p1.y);
+        segmentGraphics.lineTo(p2.x, p2.y);
+        segmentGraphics.lineTo(p3.x, p3.y);
+        segmentGraphics.lineTo(p4.x, p4.y);
+        segmentGraphics.closePath();
+        segmentGraphics.endFill();
+
+        segmentGraphics.beginFill(color, this.settings.opacity);
+        segmentGraphics.drawCircle(x, y, thickness * 0.98);
+        segmentGraphics.endFill();
+
+        this.app.renderer.render({
+          container: segmentGraphics,
+          target: this.renderTexture,
+          clear: false,
+        });
+
+        segmentGraphics.destroy();
+      }
+    }
+  }
+
+  private drawStartCap(x: number, y: number, thickness: number): void {
+    if (!this.renderTexture) return;
+
+    const color = Number("0x" + this.settings.color.replace("#", ""));
+    const graphics = new PIXI.Graphics();
+
+    const steps = 8;
+    for (let i = 0; i < steps; i++) {
+      const t = i / steps;
+      const radius = thickness * (1 - t * 0.8);
+      const alpha = this.settings.opacity * (1 - t * 0.3);
+
+      graphics.beginFill(color, alpha);
+      graphics.drawCircle(x, y, radius);
+      graphics.endFill();
+    }
+
+    this.app.renderer.render({
+      container: graphics,
+      target: this.renderTexture,
+      clear: false,
+    });
+
+    graphics.destroy();
+  }
+
+  public endStroke(): void {
+    if (!this.isDrawing) return;
+
+    const endTaperSteps = 5;
+    const taperLength = this.endTaperDistance;
+
+    if (this.lastDirection.x !== 0 || this.lastDirection.y !== 0) {
+      for (let i = 1; i <= endTaperSteps; i++) {
+        const t = i / endTaperSteps;
+        const taperFactor = 1 - easeInQuad(t);
+
+        const endX =
+          this.smoothedMouseX +
+          this.lastDirection.x * ((taperLength * t) / endTaperSteps);
+        const endY =
+          this.smoothedMouseY +
+          this.lastDirection.y * ((taperLength * t) / endTaperSteps);
+        const endThickness = this.lineThickness * taperFactor;
+
+        this.drawEndCap(endX, endY, endThickness);
+      }
+    }
+
+    this.drawEndCap(
+      this.smoothedMouseX,
+      this.smoothedMouseY,
+      this.lineThickness * 0.1
+    );
+
+    this.isDrawing = false;
+    this.lastPoint = null;
+    this.currentStroke = [];
+    this.pressureHistory = [];
+  }
+
+  private drawEndCap(x: number, y: number, thickness: number): void {
+    if (!this.renderTexture) return;
+
+    const color = Number("0x" + this.settings.color.replace("#", ""));
+    const graphics = new PIXI.Graphics();
+
+    graphics.beginFill(color, this.settings.opacity);
+    graphics.drawCircle(x, y, thickness);
+    graphics.endFill();
+
+    this.app.renderer.render({
+      container: graphics,
+      target: this.renderTexture,
+      clear: false,
+    });
+
+    graphics.destroy();
   }
 
   public isCurrentlyDrawing(): boolean {
     return this.isDrawing;
   }
 
-  private smoothPoint(points: DrawingPoint[], index: number): DrawingPoint {
-    if (index === 0 || index === points.length - 1) {
-      return points[index];
-    }
-
-    const prev = points[index - 1];
-    const current = points[index];
-    const next = points[index + 1];
-
-    const smoothingFactor = this.settings.smoothing * 0.3;
-
-    return {
-      x:
-        current.x * (1 - smoothingFactor) +
-        (prev.x + next.x) * smoothingFactor * 0.5,
-      y:
-        current.y * (1 - smoothingFactor) +
-        (prev.y + next.y) * smoothingFactor * 0.5,
-      pressure: current.pressure,
-    };
-  }
-
-  private calculateVelocity(points: DrawingPoint[], index: number): number {
-    if (index === 0) return 0;
-
-    const current = points[index];
-    const previous = points[index - 1];
-
-    const dx = current.x - previous.x;
-    const dy = current.y - previous.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-
-    const timeDiff = (current.timestamp || 0) - (previous.timestamp || 0);
-    return timeDiff > 0 ? distance / timeDiff : distance;
-  }
-
-  private processPoints(): ProcessedPoint[] {
-    const processed: ProcessedPoint[] = [];
-
-    for (let i = 0; i < this.currentStroke.length; i++) {
-      const smoothed = this.smoothPoint(this.currentStroke, i);
-      const velocity = this.calculateVelocity(this.currentStroke, i);
-
-      let pressure = smoothed.pressure !== undefined ? smoothed.pressure : 0.5;
-
-      const velocityInfluence = Math.min(velocity * 0.01, 0.3);
-      pressure = Math.max(0.1, pressure - velocityInfluence);
-
-      let size = this.settings.size * pressure;
-      if (this.settings.pressure) {
-        size *= 0.5 + pressure * 0.5;
-      }
-
-      const alpha = this.settings.opacity * (0.7 + pressure * 0.3);
-
-      processed.push({
-        x: smoothed.x,
-        y: smoothed.y,
-        size: size,
-        alpha: Math.min(1, alpha),
-      });
-    }
-
-    return processed;
-  }
-
-  private updateCurrentStroke(): void {
-    if (!this.currentStrokeGraphics || this.currentStroke.length === 0) return;
-
-    this.processedPoints = this.processPoints();
-    this.renderStroke();
-  }
-
-  private renderStroke(): void {
-    if (!this.currentStrokeGraphics || this.processedPoints.length === 0)
-      return;
-
-    this.currentStrokeGraphics.clear();
+  private drawTip(isFinal: boolean, x: number, y: number): void {
+    if (!this.renderTexture) return;
+    const taperThickness = this.tipTaperFactor * this.lineThickness;
     const color = Number("0x" + this.settings.color.replace("#", ""));
 
-    if (this.processedPoints.length === 1) {
-      const point = this.processedPoints[0];
-      this.currentStrokeGraphics.circle(point.x, point.y, point.size * 0.5);
-      this.currentStrokeGraphics.fill(color, point.alpha);
-      return;
+    const tipGraphics = new PIXI.Graphics();
+    tipGraphics.beginFill(color, this.settings.opacity);
+
+    for (let r = taperThickness; r > 0; r -= taperThickness / 4) {
+      tipGraphics.drawCircle(x, y, r);
     }
 
-    for (let i = 0; i < this.processedPoints.length - 1; i++) {
-      const current = this.processedPoints[i];
-      const next = this.processedPoints[i + 1];
-
-      this.drawSegment(current, next, color);
-    }
-  }
-
-  private drawSegment(
-    p1: ProcessedPoint,
-    p2: ProcessedPoint,
-    color: number
-  ): void {
-    if (!this.currentStrokeGraphics) return;
-
-    const dx = p2.x - p1.x;
-    const dy = p2.y - p1.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-
-    if (distance < 0.1) return;
-
-    const angle = Math.atan2(dy, dx);
-    const perpAngle = angle + Math.PI * 0.5;
-
-    const avgAlpha = (p1.alpha + p2.alpha) * 0.5;
-
-    const r1 = p1.size * 0.5;
-    const r2 = p2.size * 0.5;
-
-    const cos = Math.cos(perpAngle);
-    const sin = Math.sin(perpAngle);
-
-    const p1x1 = p1.x + cos * r1;
-    const p1y1 = p1.y + sin * r1;
-    const p1x2 = p1.x - cos * r1;
-    const p1y2 = p1.y - sin * r1;
-
-    const p2x1 = p2.x + cos * r2;
-    const p2y1 = p2.y + sin * r2;
-    const p2x2 = p2.x - cos * r2;
-    const p2y2 = p2.y - sin * r2;
-
-    this.currentStrokeGraphics.poly([
-      p1x1,
-      p1y1,
-      p2x1,
-      p2y1,
-      p2x2,
-      p2y2,
-      p1x2,
-      p1y2,
-    ]);
-    this.currentStrokeGraphics.fill(color, avgAlpha);
-
-    this.currentStrokeGraphics.circle(p1.x, p1.y, r1);
-    this.currentStrokeGraphics.fill(color, p1.alpha);
-
-    if (this.processedPoints.indexOf(p2) === this.processedPoints.length - 1) {
-      this.currentStrokeGraphics.circle(p2.x, p2.y, r2);
-      this.currentStrokeGraphics.fill(color, p2.alpha);
-    }
-  }
-
-  private commitCurrentStroke(): void {
-    if (!this.renderTexture || !this.currentStrokeGraphics) return;
-
-    const tempContainer = new PIXI.Container();
-    const highResGraphics = new PIXI.Graphics();
-    const color = Number("0x" + this.settings.color.replace("#", ""));
-
-    if (this.processedPoints.length === 1) {
-      const point = this.processedPoints[0];
-      highResGraphics.circle(point.x, point.y, point.size * 0.5);
-      highResGraphics.fill(color, point.alpha);
-    } else {
-      for (let i = 0; i < this.processedPoints.length - 1; i++) {
-        const current = this.processedPoints[i];
-        const next = this.processedPoints[i + 1];
-
-        const dx = next.x - current.x;
-        const dy = next.y - current.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
-        if (distance < 0.1) continue;
-
-        const angle = Math.atan2(dy, dx);
-        const perpAngle = angle + Math.PI * 0.5;
-        const avgAlpha = (current.alpha + next.alpha) * 0.5;
-
-        const r1 = current.size * 0.5;
-        const r2 = next.size * 0.5;
-
-        const cos = Math.cos(perpAngle);
-        const sin = Math.sin(perpAngle);
-
-        const p1x1 = current.x + cos * r1;
-        const p1y1 = current.y + sin * r1;
-        const p1x2 = current.x - cos * r1;
-        const p1y2 = current.y - sin * r1;
-
-        const p2x1 = next.x + cos * r2;
-        const p2y1 = next.y + sin * r2;
-        const p2x2 = next.x - cos * r2;
-        const p2y2 = next.y - sin * r2;
-
-        highResGraphics.poly([p1x1, p1y1, p2x1, p2y1, p2x2, p2y2, p1x2, p1y2]);
-        highResGraphics.fill(color, avgAlpha);
-
-        highResGraphics.circle(current.x, current.y, r1);
-        highResGraphics.fill(color, current.alpha);
-
-        if (i === this.processedPoints.length - 2) {
-          highResGraphics.circle(next.x, next.y, r2);
-          highResGraphics.fill(color, next.alpha);
-        }
-      }
-    }
-
-    tempContainer.addChild(highResGraphics);
+    tipGraphics.endFill();
 
     this.app.renderer.render({
-      container: tempContainer,
+      container: tipGraphics,
       target: this.renderTexture,
       clear: false,
     });
 
-    tempContainer.destroy();
+    tipGraphics.destroy();
+  }
+
+  private async updatePenTexture(): Promise<void> {
+    if (this.isDrawing) return;
+
+    if (this.penTexture?.texture) {
+      this.penTexture.texture.destroy();
+      this.penTexture = null;
+    }
+
+    this.penTexture = this.createPenTexture();
+  }
+
+  private createPenTexture(): PenTexture {
+    const size = Math.max(1, this.settings.size);
+    const graphics = new PIXI.Graphics();
+    const radius = size / 2;
+    const color = Number("0x" + this.settings.color.replace("#", ""));
+
+    graphics.beginFill(color, this.settings.opacity);
+    graphics.drawCircle(0, 0, radius);
+    graphics.endFill();
+
+    const texture = this.app.renderer.generateTexture(graphics);
+    graphics.destroy();
+
+    return { texture };
+  }
+
+  private drawPoint(point: DrawingPoint): void {
+    if (!this.renderTexture || !this.penTexture?.texture) return;
+
+    const stamp = new PIXI.Sprite(this.penTexture.texture);
+    stamp.anchor.set(0.5, 0.5);
+    stamp.x = point.x;
+    stamp.y = point.y;
+
+    stamp.alpha = Math.max(0.01, Math.min(1, this.settings.opacity));
+
+    if (this.settings.pressure && point.pressure !== undefined) {
+      const pressureScale = Math.max(0.1, point.pressure);
+      stamp.scale.set(pressureScale, pressureScale);
+    }
+
+    this.app.renderer.render({
+      container: stamp,
+      target: this.renderTexture,
+      clear: false,
+    });
+
+    stamp.destroy();
+  }
+
+  private drawInterpolatedLine(start: DrawingPoint, end: DrawingPoint): void {
+    const spacing = calculateSpacing(this.settings.size, 0.1);
+    const points = interpolateStroke(start.x, start.y, end.x, end.y, spacing);
+    points.forEach((point) => {
+      this.drawPoint(point);
+    });
   }
 
   public cleanup(): void {
     this.endStroke();
-    if (this.currentStrokeGraphics) {
-      this.currentStrokeGraphics.destroy();
-      this.currentStrokeGraphics = null;
+    if (this.penTexture?.texture) {
+      this.penTexture.texture.destroy();
     }
-    if (this.currentStrokeContainer) {
-      this.currentStrokeContainer.destroy();
-      this.currentStrokeContainer = null;
-    }
-    if (this.rtSprite) {
-      this.rtSprite.destroy();
-      this.rtSprite = null;
-    }
-    if (this.renderTexture) {
-      this.renderTexture.destroy();
-      this.renderTexture = null;
-    }
+    this.penTexture = null;
+    this.renderTexture = null;
     this.activeLayer = null;
   }
 
