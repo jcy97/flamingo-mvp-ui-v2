@@ -16,6 +16,7 @@ import { textSettingsAtom } from "@/stores/textStore";
 import { selectedToolIdAtom } from "@/stores/toolsbarStore";
 import { ToolbarItemIDs } from "@/constants/toolsbarItems";
 import { useCursor } from "@/hooks/useCursor";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { pixiStateAtom } from "@/stores/pixiStore";
 import { currentPageIdAtom } from "@/stores/pageStore";
 import { currentCanvasIdAtom } from "@/stores/canvasStore";
@@ -44,6 +45,7 @@ function Stage() {
   const pressureSmoothing = 0.3;
 
   const [pixiState, setPixiState] = useAtom(pixiStateAtom);
+  const { setIsTextEditing } = useKeyboardShortcuts();
 
   const [brushSettings] = useAtom(brushSettingsAtom);
   const [penSettings] = useAtom(penSettingsAtom);
@@ -181,6 +183,17 @@ function Stage() {
       return () => clearTimeout(timeoutId);
     }
   }, [textSettings]);
+
+  useEffect(() => {
+    const checkInterval = setInterval(() => {
+      if (textEngineRef.current) {
+        const isEditing = textEngineRef.current.isCurrentlyEditing();
+        setIsTextEditing(isEditing);
+      }
+    }, 100);
+
+    return () => clearInterval(checkInterval);
+  }, [setIsTextEditing]);
 
   const updateCanvasLayer = useCallback(() => {
     if (!appRef.current || !currentPageId || !currentCanvasId || !activeLayerId)

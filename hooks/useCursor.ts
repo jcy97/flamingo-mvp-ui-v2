@@ -37,9 +37,6 @@ export function useCursor(): string {
     case ToolbarItemIDs.ZOOM_OUT:
       return "zoom-out";
 
-    case ToolbarItemIDs.COMMENT:
-      return "pointer";
-
     default:
       return "default";
   }
