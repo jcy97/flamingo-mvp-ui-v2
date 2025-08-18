@@ -25,6 +25,7 @@ import {
   autoCreateTextLayerAtom,
   currentActiveLayerAtom,
   layersForCurrentCanvasAtom,
+  deleteLayerAtom,
 } from "@/stores/layerStore";
 
 type DrawingPoint = BrushDrawingPoint | PenDrawingPoint | EraserDrawingPoint;
@@ -61,6 +62,7 @@ function Stage() {
   const layersForCurrentCanvas = useAtomValue(layersForCurrentCanvasAtom);
   const activeLayerRef = useRef(activeLayer);
   const autoCreateTextLayer = useSetAtom(autoCreateTextLayerAtom);
+  const deleteLayer = useSetAtom(deleteLayerAtom);
 
   useEffect(() => {
     if (canvasElementRef.current) {
@@ -284,6 +286,7 @@ function Stage() {
         penEngineRef.current = new PenEngine(app, penSettings);
         eraserEngineRef.current = new EraserEngine(app, eraserSettings);
         textEngineRef.current = new TextEngine(app, textSettings);
+        textEngineRef.current.setOnLayerDelete(deleteLayer);
 
         updateCanvasLayer();
 
@@ -334,7 +337,7 @@ function Stage() {
               x: coords.x,
               y: coords.y,
             };
-            textEngineRef.current.startTextInput(textPoint);
+            textEngineRef.current.startTextInput(textPoint, textLayerId);
             return;
           }
 
