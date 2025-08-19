@@ -148,7 +148,7 @@ function BrushProperties() {
 
           <div>
             <label className="text-xs text-neutral-400 block mb-2">
-              반경: {brushRadius.toFixed(1)}px
+              크기: {brushRadius.toFixed(1)}px
             </label>
             <input
               type="range"
