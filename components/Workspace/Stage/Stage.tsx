@@ -236,6 +236,7 @@ function Stage() {
         brushEngineRef.current.setSharedRenderTexture(
           activeRenderTextureRef.current
         );
+        brushEngineRef.current.setActiveLayer(drawingLayer);
       }
 
       if (penEngineRef.current) {

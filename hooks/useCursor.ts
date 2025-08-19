@@ -23,7 +23,7 @@ export function useCursor(): string {
       return createToolCursor(penSettings.size, penSettings.color);
 
     case ToolbarItemIDs.BRUSH:
-      return createToolCursor(brushSettings.size, brushSettings.color);
+      return createToolCursor(brushSettings.radius, brushSettings.color);
 
     case ToolbarItemIDs.ERASER:
       return createToolCursor(eraserSettings.size);

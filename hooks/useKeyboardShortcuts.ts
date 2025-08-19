@@ -2,7 +2,7 @@ import { useEffect, useCallback, useRef } from "react";
 import { useAtom } from "jotai";
 import { selectedToolIdAtom } from "@/stores/toolsbarStore";
 import { ToolbarItemIDs } from "@/constants/toolsbarItems";
-import { brushSizeAtom } from "@/stores/brushStore";
+import { brushRadiusAtom } from "@/stores/brushStore";
 import { penSizeAtom } from "@/stores/penStore";
 import { eraserSizeAtom } from "@/stores/eraserStore";
 
@@ -15,7 +15,7 @@ interface ShortcutAction {
 
 export const useKeyboardShortcuts = () => {
   const [selectedToolId, setSelectedToolId] = useAtom(selectedToolIdAtom);
-  const [brushSize, setBrushSize] = useAtom(brushSizeAtom);
+  const [brushSize, setBrushSize] = useAtom(brushRadiusAtom);
   const [penSize, setPenSize] = useAtom(penSizeAtom);
   const [eraserSize, setEraserSize] = useAtom(eraserSizeAtom);
   const isTextEditingRef = useRef(false);

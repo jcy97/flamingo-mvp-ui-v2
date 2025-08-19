@@ -50,11 +50,11 @@ export const toolbarItems: ToolsbarItem[] = [
       { id: ToolbarItemIDs.HAND, label: "손", icon: Hand },
     ],
   },
-  {
-    id: ToolbarItemIDs.PEN,
-    label: "선화",
-    icon: Pencil,
-  },
+  // {
+  //   id: ToolbarItemIDs.PEN,
+  //   label: "선화",
+  //   icon: Pencil,
+  // },
   {
     id: ToolbarItemIDs.BRUSH,
     label: "브러쉬",
