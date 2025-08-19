@@ -16,6 +16,7 @@ import { textSettingsAtom } from "@/stores/textStore";
 import { selectedToolIdAtom } from "@/stores/toolsbarStore";
 import { ToolbarItemIDs } from "@/constants/toolsbarItems";
 import { useCursor } from "@/hooks/useCursor";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { pixiStateAtom } from "@/stores/pixiStore";
 import { currentPageIdAtom } from "@/stores/pageStore";
 import { currentCanvasIdAtom } from "@/stores/canvasStore";
@@ -24,6 +25,7 @@ import {
   autoCreateTextLayerAtom,
   currentActiveLayerAtom,
   layersForCurrentCanvasAtom,
+  deleteLayerAtom,
 } from "@/stores/layerStore";
 
 type DrawingPoint = BrushDrawingPoint | PenDrawingPoint | EraserDrawingPoint;
@@ -44,6 +46,7 @@ function Stage() {
   const pressureSmoothing = 0.3;
 
   const [pixiState, setPixiState] = useAtom(pixiStateAtom);
+  const { setIsTextEditing } = useKeyboardShortcuts();
 
   const [brushSettings] = useAtom(brushSettingsAtom);
   const [penSettings] = useAtom(penSettingsAtom);
@@ -59,6 +62,7 @@ function Stage() {
   const layersForCurrentCanvas = useAtomValue(layersForCurrentCanvasAtom);
   const activeLayerRef = useRef(activeLayer);
   const autoCreateTextLayer = useSetAtom(autoCreateTextLayerAtom);
+  const deleteLayer = useSetAtom(deleteLayerAtom);
 
   useEffect(() => {
     if (canvasElementRef.current) {
@@ -182,6 +186,17 @@ function Stage() {
     }
   }, [textSettings]);
 
+  useEffect(() => {
+    const checkInterval = setInterval(() => {
+      if (textEngineRef.current) {
+        const isEditing = textEngineRef.current.isCurrentlyEditing();
+        setIsTextEditing(isEditing);
+      }
+    }, 100);
+
+    return () => clearInterval(checkInterval);
+  }, [setIsTextEditing]);
+
   const updateCanvasLayer = useCallback(() => {
     if (!appRef.current || !currentPageId || !currentCanvasId || !activeLayerId)
       return;
@@ -221,6 +236,7 @@ function Stage() {
         brushEngineRef.current.setSharedRenderTexture(
           activeRenderTextureRef.current
         );
+        brushEngineRef.current.setActiveLayer(drawingLayer);
       }
 
       if (penEngineRef.current) {
@@ -271,6 +287,7 @@ function Stage() {
         penEngineRef.current = new PenEngine(app, penSettings);
         eraserEngineRef.current = new EraserEngine(app, eraserSettings);
         textEngineRef.current = new TextEngine(app, textSettings);
+        textEngineRef.current.setOnLayerDelete(deleteLayer);
 
         updateCanvasLayer();
 
@@ -321,7 +338,7 @@ function Stage() {
               x: coords.x,
               y: coords.y,
             };
-            textEngineRef.current.startTextInput(textPoint);
+            textEngineRef.current.startTextInput(textPoint, textLayerId);
             return;
           }
 

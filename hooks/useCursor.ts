@@ -23,7 +23,7 @@ export function useCursor(): string {
       return createToolCursor(penSettings.size, penSettings.color);
 
     case ToolbarItemIDs.BRUSH:
-      return createToolCursor(brushSettings.size, brushSettings.color);
+      return createToolCursor(brushSettings.radius, brushSettings.color);
 
     case ToolbarItemIDs.ERASER:
       return createToolCursor(eraserSettings.size);
@@ -36,9 +36,6 @@ export function useCursor(): string {
 
     case ToolbarItemIDs.ZOOM_OUT:
       return "zoom-out";
-
-    case ToolbarItemIDs.COMMENT:
-      return "pointer";
 
     default:
       return "default";

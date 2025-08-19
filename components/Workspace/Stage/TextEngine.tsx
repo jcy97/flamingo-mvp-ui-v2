@@ -16,11 +16,13 @@ export class TextEngine {
   private activeLayer: Layer | null = null;
   private renderTexture: PIXI.RenderTexture | null = null;
   private onTextLayerCreated?: (textLayer: PIXI.Text) => void;
+  private onLayerDelete?: (layerId: string) => void;
   private textObjects: PIXI.Text[] = [];
   private isProcessing: boolean = false;
   private layerTexts: Record<string, PIXI.Text[]> = {};
   private currentLayerId: string | null = null;
   private originalPosition: { x: number; y: number } | null = null;
+  private newlyCreatedLayerId: string | null = null;
 
   constructor(app: PIXI.Application, initialSettings: TextSettings) {
     this.app = app;
@@ -53,6 +55,10 @@ export class TextEngine {
     this.onTextLayerCreated = callback;
   }
 
+  public setOnLayerDelete(callback: (layerId: string) => void): void {
+    this.onLayerDelete = callback;
+  }
+
   public getTextAtPosition(x: number, y: number): PIXI.Text | null {
     for (const textObj of this.textObjects) {
       if (!textObj.visible) continue;
@@ -74,10 +80,12 @@ export class TextEngine {
     if (!this.activeLayer) return;
   }
 
-  public startTextInput(point: TextPoint): void {
+  public startTextInput(point: TextPoint, newLayerId?: string): void {
     if (this.activeTextInput) {
       this.completeTextInput();
     }
+
+    this.newlyCreatedLayerId = newLayerId || null;
 
     const canvas = this.app.canvas as HTMLCanvasElement;
     const rect = canvas.getBoundingClientRect();
@@ -139,6 +147,8 @@ export class TextEngine {
     if (this.activeTextInput) {
       this.completeTextInput();
     }
+
+    this.newlyCreatedLayerId = null;
 
     this.editingTextLayer = textLayer;
     this.originalPosition = { x: textLayer.x, y: textLayer.y };
@@ -278,6 +288,10 @@ export class TextEngine {
       }
       this.currentTextLayer = textLayer;
       this.onTextLayerCreated?.(textLayer);
+    } else {
+      if (this.newlyCreatedLayerId && this.onLayerDelete) {
+        this.onLayerDelete(this.newlyCreatedLayerId);
+      }
     }
 
     this.removeTextInput();
@@ -323,6 +337,11 @@ export class TextEngine {
   private cancelTextInput(): void {
     if (this.isProcessing) return;
     this.isProcessing = true;
+
+    if (this.newlyCreatedLayerId && this.onLayerDelete) {
+      this.onLayerDelete(this.newlyCreatedLayerId);
+    }
+
     this.removeTextInput();
   }
 
@@ -348,6 +367,7 @@ export class TextEngine {
       this.activeTextInput.remove();
     }
     this.activeTextInput = null;
+    this.newlyCreatedLayerId = null;
     this.isProcessing = false;
   }
 
@@ -472,5 +492,6 @@ export class TextEngine {
     this.layerTexts = {};
     this.currentLayerId = null;
     this.originalPosition = null;
+    this.newlyCreatedLayerId = null;
   }
 }

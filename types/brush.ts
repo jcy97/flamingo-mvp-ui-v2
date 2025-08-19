@@ -1,34 +1,44 @@
-export enum BrushType {
-  VECTOR = "vector",
-  IMAGE = "image",
-}
-
 export interface BrushSettings {
-  brushType: BrushType;
-  color: string;
-  size: number;
-  hardness: number;
+  radius: number;
   opacity: number;
+  hardness: number;
+  color: string;
+  pressureOpacity: number;
+  pressureSize: number;
+  speedSize: number;
+  smudgeLength: number;
+  smudgeRadius: number;
   spacing: number;
-  flow: number;
-  roundness: number;
+  jitter: number;
   angle: number;
-  pressure: boolean;
-  smoothing: number;
-  scatterX: number;
-  scatterY: number;
-  textureOpacity: number;
-  blendMode: string;
-  imageUrl?: string;
+  roundness: number;
+  dabsPerSecond: number;
+  dabsPerRadius: number;
 }
 
-export interface BrushTexture {
-  texture: any;
-  sprite: any;
-  size: number;
-  color: string;
-  hardness: number;
-  opacity: number;
+export interface BrushPreset {
+  id: string;
+  name: string;
+  settings: BrushSettings;
+}
+
+export interface BrushState {
+  x: number;
+  y: number;
+  pressure: number;
+  actualX: number;
+  actualY: number;
+  dx: number;
+  dy: number;
+  speed: number;
+  direction: number;
+  distance: number;
+  time: number;
+  strokeTime: number;
+  dabCount: number;
+  smudgeColor: { r: number; g: number; b: number; a: number };
+  lastSmudgeX: number;
+  lastSmudgeY: number;
 }
 
 export interface ColorPickerState {
@@ -56,41 +66,325 @@ export interface ColorPreset {
   colors: string[];
 }
 
-export interface BrushStroke {
-  points: number[][];
-  settings: BrushSettings;
-  timestamp: number;
-}
+export const BRUSH_PRESETS: BrushPreset[] = [
+  {
+    id: "ink",
+    name: "잉크펜",
+    settings: {
+      radius: 2,
+      opacity: 0.9,
+      hardness: 0.9,
+      color: "#000000",
+      pressureOpacity: 0.3,
+      pressureSize: 0.5,
+      speedSize: -0.3,
+      smudgeLength: 0,
+      smudgeRadius: 1.0,
+      spacing: 0.05,
+      jitter: 0,
+      angle: 0,
+      roundness: 1,
+      dabsPerSecond: 0,
+      dabsPerRadius: 2.0,
+    },
+  },
+  {
+    id: "fountain_pen",
+    name: "만년필",
+    settings: {
+      radius: 2.5,
+      opacity: 0.95,
+      hardness: 1.0,
+      color: "#000000",
+      pressureOpacity: 0.1,
+      pressureSize: 0.9,
+      speedSize: -0.4,
+      smudgeLength: 0,
+      smudgeRadius: 1.0,
+      spacing: 0.06,
+      jitter: 0,
+      angle: 0,
+      roundness: 0.9,
+      dabsPerSecond: 0,
+      dabsPerRadius: 2.5,
+    },
+  },
+  {
+    id: "pencil",
+    name: "연필",
+    settings: {
+      radius: 1.5,
+      opacity: 0.6,
+      hardness: 1,
+      color: "#000000",
+      pressureOpacity: 0.8,
+      pressureSize: 0.3,
+      speedSize: 0,
+      smudgeLength: 0,
+      smudgeRadius: 1.0,
+      spacing: 0.15,
+      jitter: 2,
+      angle: 0,
+      roundness: 1,
+      dabsPerSecond: 0,
+      dabsPerRadius: 2.0,
+    },
+  },
+  {
+    id: "sketch",
+    name: "스케치",
+    settings: {
+      radius: 4,
+      opacity: 0.7,
+      hardness: 0.3,
+      color: "#000000",
+      pressureOpacity: 0.6,
+      pressureSize: 0.4,
+      speedSize: -0.5,
+      smudgeLength: 0.05,
+      smudgeRadius: 1.0,
+      spacing: 0.1,
+      jitter: 3,
+      angle: 0,
+      roundness: 1,
+      dabsPerSecond: 0,
+      dabsPerRadius: 1.5,
+    },
+  },
+  {
+    id: "airbrush",
+    name: "에어브러쉬",
+    settings: {
+      radius: 30,
+      opacity: 0.1,
+      hardness: 0.1,
+      color: "#000000",
+      pressureOpacity: 0.8,
+      pressureSize: 0.2,
+      speedSize: 0,
+      smudgeLength: 0,
+      smudgeRadius: 1.0,
+      spacing: 0.02,
+      jitter: 5,
+      angle: 0,
+      roundness: 1,
+      dabsPerSecond: 0,
+      dabsPerRadius: 2.0,
+    },
+  },
+  {
+    id: "marker",
+    name: "마커",
+    settings: {
+      radius: 10,
+      opacity: 0.7,
+      hardness: 0.95,
+      color: "#000000",
+      pressureOpacity: 0.4,
+      pressureSize: 0.1,
+      speedSize: 0,
+      smudgeLength: 0.05,
+      smudgeRadius: 1.0,
+      spacing: 0.04,
+      jitter: 0,
+      angle: 45,
+      roundness: 0.7,
+      dabsPerSecond: 0,
+      dabsPerRadius: 2.5,
+    },
+  },
+  {
+    id: "crayon",
+    name: "크레용",
+    settings: {
+      radius: 6,
+      opacity: 0.5,
+      hardness: 0.8,
+      color: "#000000",
+      pressureOpacity: 0.8,
+      pressureSize: 0.2,
+      speedSize: 0,
+      smudgeLength: 0.02,
+      smudgeRadius: 1.0,
+      spacing: 0.2,
+      jitter: 5,
+      angle: 0,
+      roundness: 1,
+      dabsPerSecond: 0,
+      dabsPerRadius: 1.2,
+    },
+  },
+  {
+    id: "charcoal",
+    name: "목탄",
+    settings: {
+      radius: 8,
+      opacity: 0.5,
+      hardness: 0.2,
+      color: "#000000",
+      pressureOpacity: 0.9,
+      pressureSize: 0.6,
+      speedSize: -0.1,
+      smudgeLength: 0.1,
+      smudgeRadius: 1.0,
+      spacing: 0.2,
+      jitter: 15,
+      angle: 0,
+      roundness: 0.9,
+      dabsPerSecond: 0,
+      dabsPerRadius: 1.0,
+    },
+  },
+  {
+    id: "oil_brush",
+    name: "유화",
+    settings: {
+      radius: 15,
+      opacity: 0.8,
+      hardness: 0.7,
+      color: "#000000",
+      pressureOpacity: 0.5,
+      pressureSize: 0.4,
+      speedSize: 0.1,
+      smudgeLength: 0.6,
+      smudgeRadius: 1.1,
+      spacing: 0.08,
+      jitter: 1,
+      angle: 0,
+      roundness: 1,
+      dabsPerSecond: 0,
+      dabsPerRadius: 1.5,
+    },
+  },
+  {
+    id: "watercolor",
+    name: "수채화",
+    settings: {
+      radius: 25,
+      opacity: 0.3,
+      hardness: 0,
+      color: "#000000",
+      pressureOpacity: 0.6,
+      pressureSize: 0.4,
+      speedSize: 0.2,
+      smudgeLength: 0.3,
+      smudgeRadius: 1.0,
+      spacing: 0.03,
+      jitter: 10,
+      angle: 0,
+      roundness: 1,
+      dabsPerSecond: 0,
+      dabsPerRadius: 2.0,
+    },
+  },
+  {
+    id: "calligraphy",
+    name: "캘리그래피",
+    settings: {
+      radius: 3,
+      opacity: 1.0,
+      hardness: 1.0,
+      color: "#000000",
+      pressureOpacity: 0.2,
+      pressureSize: 0.8,
+      speedSize: -0.2,
+      smudgeLength: 0,
+      smudgeRadius: 1.0,
+      spacing: 0.04,
+      jitter: 0,
+      angle: 30,
+      roundness: 0.2,
+      dabsPerSecond: 0,
+      dabsPerRadius: 3.0,
+    },
+  },
+  {
+    id: "smudge",
+    name: "스머지",
+    settings: {
+      radius: 20,
+      opacity: 0.7,
+      hardness: 0.3,
+      color: "#000000",
+      pressureOpacity: 0.4,
+      pressureSize: 0.2,
+      speedSize: 0,
+      smudgeLength: 0.8,
+      smudgeRadius: 1.2,
+      spacing: 0.05,
+      jitter: 0,
+      angle: 0,
+      roundness: 1,
+      dabsPerSecond: 0,
+      dabsPerRadius: 2.0,
+    },
+  },
+  {
+    id: "dry_brush",
+    name: "마른 붓",
+    settings: {
+      radius: 12,
+      opacity: 0.4,
+      hardness: 0.9,
+      color: "#000000",
+      pressureOpacity: 0.7,
+      pressureSize: 0.2,
+      speedSize: 0.1,
+      smudgeLength: 0.2,
+      smudgeRadius: 1.0,
+      spacing: 0.25,
+      jitter: 8,
+      angle: 0,
+      roundness: 0.8,
+      dabsPerSecond: 0,
+      dabsPerRadius: 1.0,
+    },
+  },
+  {
+    id: "wet_sponge",
+    name: "젖은 스펀지",
+    settings: {
+      radius: 45,
+      opacity: 0.6,
+      hardness: 0.4,
+      color: "#000000",
+      pressureOpacity: 0.4,
+      pressureSize: 0.1,
+      speedSize: 0,
+      smudgeLength: 0.7,
+      smudgeRadius: 1.1,
+      spacing: 0.4,
+      jitter: 50,
+      angle: 0,
+      roundness: 1,
+      dabsPerSecond: 0,
+      dabsPerRadius: 0.8,
+    },
+  },
+  {
+    id: "glitter",
+    name: "반짝이",
+    settings: {
+      radius: 15,
+      opacity: 0.8,
+      hardness: 0.9,
+      color: "#000000",
+      pressureOpacity: 0,
+      pressureSize: 0.7,
+      speedSize: 0,
+      smudgeLength: 0,
+      smudgeRadius: 1.0,
+      spacing: 0.9,
+      jitter: 100,
+      angle: 0,
+      roundness: 1,
+      dabsPerSecond: 0,
+      dabsPerRadius: 0.2,
+    },
+  },
+];
 
-export interface PressureSettings {
-  size: number;
-  opacity: number;
-  flow: number;
-}
-
-export interface VelocitySettings {
-  size: number;
-  opacity: number;
-}
-
-export const DEFAULT_BRUSH_SETTINGS: BrushSettings = {
-  brushType: BrushType.VECTOR,
-  color: "#000000",
-  size: 20,
-  hardness: 0.8,
-  opacity: 1,
-  spacing: 0.1,
-  flow: 1,
-  roundness: 1,
-  angle: 0,
-  pressure: false,
-  smoothing: 0.5,
-  scatterX: 0,
-  scatterY: 0,
-  textureOpacity: 1,
-  blendMode: "normal",
-  imageUrl: "/brush/stroke_a.png",
-};
+export const DEFAULT_BRUSH_SETTINGS: BrushSettings = BRUSH_PRESETS[0].settings;
 
 export const DEFAULT_COLOR_PRESETS: ColorPreset[] = [
   {
@@ -145,6 +439,24 @@ export const DEFAULT_COLOR_PRESETS: ColorPreset[] = [
       "#16A085",
       "#2980B9",
       "#8E44AD",
+    ],
+  },
+  {
+    id: "pastel",
+    name: "파스텔",
+    colors: [
+      "#A8E6CF",
+      "#DCEDC1",
+      "#FFD3B6",
+      "#FFAAA5",
+      "#FF8B94",
+      "#E6E6FA",
+      "#D8BFD8",
+      "#B0E0E6",
+      "#ADD8E6",
+      "#F0E68C",
+      "#FFE4B5",
+      "#F5DEB3",
     ],
   },
 ];
