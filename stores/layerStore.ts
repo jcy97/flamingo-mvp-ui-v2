@@ -1,6 +1,7 @@
 import { atom } from "jotai";
 import * as PIXI from "pixi.js";
-import { Layer, BlendMode, LayerData } from "@/types/layer";
+import { Layer, LayerData } from "@/types/layer";
+import { BlendMode } from "@/constants/blendModes";
 import sampleData from "@/samples/data";
 import { currentCanvasIdAtom } from "./canvasStore";
 import {
@@ -64,6 +65,12 @@ const updateCanvasLayerOrder = (get: any, currentCanvasId: string) => {
       canvasContainer.addChild(layerGraphic.pixiSprite);
       layerGraphic.pixiSprite.visible = layer.isVisible;
       layerGraphic.pixiSprite.alpha = layer.opacity;
+      try {
+        layerGraphic.pixiSprite.blendMode = layer.blendMode as any;
+      } catch (error) {
+        console.warn("블렌드모드 설정 실패:", layer.blendMode, error);
+        layerGraphic.pixiSprite.blendMode = "normal";
+      }
     }
   });
 };
@@ -358,6 +365,7 @@ export const updateLayerAtom = atom(
               layerGraphic.pixiSprite.blendMode = updates.blendMode as any;
             } catch (error) {
               console.warn("블렌드모드 설정 실패:", updates.blendMode, error);
+              layerGraphic.pixiSprite.blendMode = "normal";
             }
           }
         }

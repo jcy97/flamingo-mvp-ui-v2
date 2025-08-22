@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useRef } from "react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import * as PIXI from "pixi.js";
+import "pixi.js/advanced-blend-modes";
 import { BrushEngine, DrawingPoint as BrushDrawingPoint } from "./BrushEngine";
 import { PenEngine, DrawingPoint as PenDrawingPoint } from "./PenEngine";
 import {
@@ -224,6 +225,7 @@ function Stage() {
         drawingLayer.addChild(layerGraphic.pixiSprite);
         layerGraphic.pixiSprite.visible = layer.isVisible;
         layerGraphic.pixiSprite.alpha = layer.opacity;
+        layerGraphic.pixiSprite.blendMode = layer.blendMode as any;
       }
     });
 
