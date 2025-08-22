@@ -30,6 +30,7 @@ export interface BrushSettings {
 export interface BrushPreset {
   id: string;
   name: string;
+  imagePath: string;
   settings: BrushSettings;
 }
 
@@ -89,6 +90,7 @@ export const BRUSH_PRESETS: BrushPreset[] = [
   {
     id: "pen",
     name: "펜",
+    imagePath: "/brush/pen_prev.png",
     settings: {
       radius: logarithmicToLinear(0.96),
       opacity: 1.0,
@@ -121,6 +123,7 @@ export const BRUSH_PRESETS: BrushPreset[] = [
   {
     id: "pencil",
     name: "연필",
+    imagePath: "/brush/pencil_prev.png",
     settings: {
       radius: logarithmicToLinear(0.2),
       opacity: 0.8,
@@ -153,6 +156,7 @@ export const BRUSH_PRESETS: BrushPreset[] = [
   {
     id: "brush",
     name: "브러쉬",
+    imagePath: "/brush/brush_prev.png",
     settings: {
       radius: logarithmicToLinear(1.01),
       opacity: 1.0,
@@ -185,6 +189,7 @@ export const BRUSH_PRESETS: BrushPreset[] = [
   {
     id: "angled_round_brush",
     name: "라운드",
+    imagePath: "/brush/round_prev.png",
     settings: {
       radius: logarithmicToLinear(3.3),
       opacity: 0.05,
@@ -217,6 +222,7 @@ export const BRUSH_PRESETS: BrushPreset[] = [
   {
     id: "modelling",
     name: "모델링",
+    imagePath: "/brush/modelling_prev.png",
     settings: {
       radius: logarithmicToLinear(1.1),
       opacity: 0.2,
@@ -246,10 +252,10 @@ export const BRUSH_PRESETS: BrushPreset[] = [
       snapToPixel: 0,
     },
   },
-
   {
     id: "charcoal",
     name: "목탄",
+    imagePath: "/brush/charcoal_prev.png",
     settings: {
       radius: logarithmicToLinear(0.7),
       opacity: 0.4,
@@ -282,6 +288,7 @@ export const BRUSH_PRESETS: BrushPreset[] = [
   {
     id: "marker",
     name: "마커",
+    imagePath: "/brush/marker_prev.png",
     settings: {
       radius: logarithmicToLinear(2.48),
       opacity: 1.0,
@@ -314,6 +321,7 @@ export const BRUSH_PRESETS: BrushPreset[] = [
   {
     id: "airbrush",
     name: "에어브러쉬",
+    imagePath: "/brush/airbrush_prev.png",
     settings: {
       radius: logarithmicToLinear(3.59),
       opacity: 1.38,
@@ -346,6 +354,7 @@ export const BRUSH_PRESETS: BrushPreset[] = [
   {
     id: "calligraphy",
     name: "캘리그래피",
+    imagePath: "/brush/calligraphy_prev.png",
     settings: {
       radius: logarithmicToLinear(2.02),
       opacity: 1.0,
@@ -378,6 +387,7 @@ export const BRUSH_PRESETS: BrushPreset[] = [
   {
     id: "smudge",
     name: "스머지",
+    imagePath: "/brush/smudge_prev.png",
     settings: {
       radius: logarithmicToLinear(1.6),
       opacity: 1.0,
@@ -410,6 +420,7 @@ export const BRUSH_PRESETS: BrushPreset[] = [
   {
     id: "watercolor",
     name: "수채화",
+    imagePath: "/brush/watercolor_prev.png",
     settings: {
       radius: logarithmicToLinear(2.0),
       opacity: 0.35,
@@ -439,10 +450,10 @@ export const BRUSH_PRESETS: BrushPreset[] = [
       snapToPixel: 0,
     },
   },
-
   {
     id: "oil_brush",
     name: "유화",
+    imagePath: "/brush/oil_prev.png",
     settings: {
       radius: logarithmicToLinear(3.15),
       opacity: 1.0,
@@ -475,6 +486,7 @@ export const BRUSH_PRESETS: BrushPreset[] = [
   {
     id: "ink",
     name: "잉크",
+    imagePath: "/brush/ink_prev.png",
     settings: {
       radius: logarithmicToLinear(0.96),
       opacity: 1.0,
@@ -507,6 +519,7 @@ export const BRUSH_PRESETS: BrushPreset[] = [
   {
     id: "dry_brush",
     name: "마른 붓",
+    imagePath: "/brush/drybrush_prev.png",
     settings: {
       radius: logarithmicToLinear(0.6),
       opacity: 0.25,
@@ -539,6 +552,7 @@ export const BRUSH_PRESETS: BrushPreset[] = [
   {
     id: "impressionism",
     name: "인상파",
+    imagePath: "/brush/impressionism_prev.png",
     settings: {
       radius: logarithmicToLinear(2.0),
       opacity: 1.0,
@@ -571,6 +585,7 @@ export const BRUSH_PRESETS: BrushPreset[] = [
   {
     id: "knife",
     name: "나이프",
+    imagePath: "/brush/knife_prev.png",
     settings: {
       radius: logarithmicToLinear(2.9),
       opacity: 1.0,

@@ -20,8 +20,8 @@ import {
   applyBrushPresetAtom,
   currentBrushPresetAtom,
 } from "@/stores/brushStore";
-import { BRUSH_PRESETS } from "@/types/brush";
 import ColorPicker from "./ColorPicker";
+import BrushPresetSelector from "./BrushPresetSelector";
 
 function BrushProperties() {
   const [currentPreset] = useAtom(currentBrushPresetAtom);
@@ -107,17 +107,10 @@ function BrushProperties() {
         </div>
         <div className="flex-1 min-w-0">
           <label className="text-xs text-neutral-400 block mb-1">프리셋</label>
-          <select
-            value={currentPreset}
-            onChange={(e) => handlePresetChange(e.target.value)}
-            className="w-full bg-neutral-600 border border-neutral-500 text-white text-xs rounded-md p-2 focus:ring-primary-500 focus:border-primary-500"
-          >
-            {BRUSH_PRESETS.map((preset) => (
-              <option key={preset.id} value={preset.id}>
-                {preset.name}
-              </option>
-            ))}
-          </select>
+          <BrushPresetSelector
+            currentPreset={currentPreset}
+            onPresetChange={handlePresetChange}
+          />
         </div>
       </div>
 
