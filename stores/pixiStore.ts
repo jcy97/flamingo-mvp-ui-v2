@@ -1,5 +1,6 @@
 import { atom } from "jotai";
 import * as PIXI from "pixi.js";
+import "pixi.js/advanced-blend-modes";
 import { canvasesAtom, currentCanvasIdAtom } from "./canvasStore";
 import { layersAtom } from "./layerStore";
 import { LayerData } from "@/types/layer";
@@ -41,6 +42,7 @@ export const initPixiAppAtom = atom(null, async (get, set) => {
       antialias: true,
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
+      useBackBuffer: true,
     });
 
     set(pixiStateAtom, {
@@ -135,6 +137,7 @@ export const createLayerGraphicAtom = atom(
     const pixiSprite = new PIXI.Sprite(renderTexture);
     pixiSprite.name = `layer-${layerId}`;
     pixiSprite.texture.source.scaleMode = "linear";
+    pixiSprite.blendMode = "normal";
 
     set(pixiStateAtom, {
       ...state,
