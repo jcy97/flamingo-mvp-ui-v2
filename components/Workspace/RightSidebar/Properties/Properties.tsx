@@ -6,6 +6,7 @@ import BrushProperties from "./BrushProperties/BrushProperties";
 import PenProperties from "./PenProperties/PenProperties";
 import EraserProperties from "./EraserProperties/EraserProperties";
 import TextProperties from "./TextProperties/TextProperties";
+import SpeechBubbleProperties from "./SpeechBubbleProperties/SpeechBubbleProperties";
 import "@/styles/scrollbar.css";
 
 function Properties() {
@@ -24,6 +25,9 @@ function Properties() {
 
       case ToolbarItemIDs.TEXT:
         return <TextProperties />;
+
+      case ToolbarItemIDs.SPEECH_BUBBLE:
+        return <SpeechBubbleProperties />;
 
       case ToolbarItemIDs.SELECT:
         return <SelectionProperties />;

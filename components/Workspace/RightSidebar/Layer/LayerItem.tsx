@@ -9,6 +9,7 @@ import {
   Square,
   Circle,
   PenTool,
+  MessageSquare,
   MoreHorizontal,
   Edit3,
   GripVertical,
@@ -129,6 +130,8 @@ function LayerItem({
         return <Circle size={16} className="text-orange-400" />;
       case "brush":
         return <PenTool size={16} className="text-pink-400" />;
+      case "speechBubble":
+        return <MessageSquare size={16} className="text-cyan-400" />;
       default:
         return <Square size={16} className="text-neutral-400" />;
     }
