@@ -17,17 +17,24 @@ import {
 
 interface ColorPickerProps {
   onClose?: () => void;
+  currentColor?: string;
+  onColorChange?: (color: string) => void;
 }
 
-function ColorPicker({ onClose }: ColorPickerProps) {
+function ColorPicker({
+  onClose,
+  currentColor: propCurrentColor,
+  onColorChange,
+}: ColorPickerProps) {
   const [brushColor, setBrushColor] = useAtom(brushColorAtom);
   const [colorPickerState, setColorPickerState] = useAtom(colorPickerStateAtom);
   const [recentColors] = useAtom(recentColorsAtom);
   const [, addRecentColor] = useAtom(addRecentColorAtom);
 
-  const [currentColor, setCurrentColor] = useState(brushColor);
+  const initialColor = propCurrentColor || brushColor;
+  const [currentColor, setCurrentColor] = useState(initialColor);
   const [hsv, setHsv] = useState(
-    hexToHsv(brushColor) || { h: 0, s: 100, v: 100 }
+    hexToHsv(initialColor) || { h: 0, s: 100, v: 100 }
   );
   const [isDragging, setIsDragging] = useState<"hue" | "sv" | null>(null);
   const [activeTab, setActiveTab] = useState<"picker" | "presets" | "recent">(
@@ -81,7 +88,11 @@ function ColorPicker({ onClose }: ColorPickerProps) {
   };
 
   const handleApply = () => {
-    setBrushColor(currentColor);
+    if (onColorChange) {
+      onColorChange(currentColor);
+    } else {
+      setBrushColor(currentColor);
+    }
     addRecentColor(currentColor);
     handleClose();
   };

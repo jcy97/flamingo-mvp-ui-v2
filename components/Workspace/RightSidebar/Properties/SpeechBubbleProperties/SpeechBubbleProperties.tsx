@@ -59,6 +59,8 @@ function SpeechBubbleProperties() {
   const [activeColorPicker, setActiveColorPicker] = React.useState<
     "bg" | "border" | "text" | null
   >(null);
+  const [currentPickerColor, setCurrentPickerColor] =
+    React.useState<string>("");
   const textTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined
   );
@@ -86,6 +88,19 @@ function SpeechBubbleProperties() {
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
       setActiveColorPicker(type);
+      let color = "";
+      switch (type) {
+        case "bg":
+          color = backgroundColor;
+          break;
+        case "border":
+          color = borderColor;
+          break;
+        case "text":
+          color = textColor;
+          break;
+      }
+      setCurrentPickerColor(color);
       setColorPickerState({
         isOpen: true,
         x: rect.left + rect.width / 2,
@@ -95,38 +110,23 @@ function SpeechBubbleProperties() {
     }
   };
 
-  useEffect(() => {
-    if (
-      !colorPickerState.isOpen &&
-      activeColorPicker &&
-      (colorPickerState as any).selectedColor
-    ) {
-      const selectedColor = (colorPickerState as any).selectedColor;
-      switch (activeColorPicker) {
-        case "bg":
-          setBackgroundColor(selectedColor);
-          break;
-        case "border":
-          setBorderColor(selectedColor);
-          break;
-        case "text":
-          setTextColor(selectedColor);
-          break;
-      }
-      addRecentColor(selectedColor);
-      setActiveColorPicker(null);
-    }
-  }, [
-    colorPickerState,
-    activeColorPicker,
-    setBackgroundColor,
-    setBorderColor,
-    setTextColor,
-    addRecentColor,
-  ]);
-
   const handleColorPickerClose = () => {
     setColorPickerState({ ...colorPickerState, isOpen: false });
+    setActiveColorPicker(null);
+  };
+
+  const handleColorChange = (color: string) => {
+    switch (activeColorPicker) {
+      case "bg":
+        setBackgroundColor(color);
+        break;
+      case "border":
+        setBorderColor(color);
+        break;
+      case "text":
+        setTextColor(color);
+        break;
+    }
   };
 
   const bubbleStyles = [
@@ -515,7 +515,11 @@ function SpeechBubbleProperties() {
         </div>
       </div>
 
-      <ColorPicker onClose={handleColorPickerClose} />
+      <ColorPicker
+        onClose={handleColorPickerClose}
+        currentColor={currentPickerColor}
+        onColorChange={handleColorChange}
+      />
     </div>
   );
 }

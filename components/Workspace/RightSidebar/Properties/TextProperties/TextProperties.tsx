@@ -46,13 +46,7 @@ function TextProperties() {
 
   const colorButtonRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    setFill(brushColor);
-    addRecentColor(brushColor);
-  }, [brushColor, setFill, addRecentColor]);
-
   const handleColorClick = () => {
-    setBrushColor(fill);
     if (colorButtonRef.current) {
       const rect = colorButtonRef.current.getBoundingClientRect();
       setColorPickerState({
@@ -62,6 +56,11 @@ function TextProperties() {
         anchorEl: colorButtonRef.current,
       });
     }
+  };
+
+  const handleColorChange = (color: string) => {
+    setFill(color);
+    setBrushColor(color);
   };
 
   const handleColorPickerClose = () => {
@@ -323,7 +322,11 @@ function TextProperties() {
         </div>
       </div>
 
-      <ColorPicker onClose={handleColorPickerClose} />
+      <ColorPicker
+        onClose={handleColorPickerClose}
+        currentColor={fill}
+        onColorChange={handleColorChange}
+      />
     </div>
   );
 }
