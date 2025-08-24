@@ -59,11 +59,15 @@ export class SpeechBubbleEngine {
       const bubbleData = this.activeBubbles.get(this.selectedBubbleId);
       if (bubbleData) {
         bubbleData.settings = { ...newSettings };
+        bubbleData.width = newSettings.width;
+        bubbleData.height = newSettings.height;
         this.redrawAll();
         if (this.isEditMode) {
           this.createHandles(bubbleData);
         }
       }
+    } else {
+      this.redrawAll();
     }
   }
 
@@ -88,6 +92,20 @@ export class SpeechBubbleEngine {
     return `bubble_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
+  private getTailAngleFromPosition(position: TailPosition): number {
+    const angleMap: Record<TailPosition, number> = {
+      right: 0,
+      "bottom-right": 45,
+      "bottom-center": 90,
+      "bottom-left": 135,
+      left: 180,
+      "top-left": 225,
+      "top-center": 270,
+      "top-right": 315,
+    };
+    return angleMap[position] || 90;
+  }
+
   private calculateTextMetrics(
     text: string,
     settings: SpeechBubbleSettings
@@ -109,14 +127,20 @@ export class SpeechBubbleEngine {
     tempText.destroy();
 
     return {
-      width: Math.max(
-        settings.minWidth || 100,
-        bounds.width + settings.padding * 2
-      ),
-      height: Math.max(
-        settings.minHeight || 50,
-        bounds.height + settings.padding * 2
-      ),
+      width:
+        Math.round(
+          Math.max(
+            settings.minWidth || 100,
+            bounds.width + settings.padding * 2
+          ) * 100
+        ) / 100,
+      height:
+        Math.round(
+          Math.max(
+            settings.minHeight || 50,
+            bounds.height + settings.padding * 2
+          ) * 100
+        ) / 100,
     };
   }
 
@@ -303,6 +327,20 @@ export class SpeechBubbleEngine {
     height: number,
     settings: SpeechBubbleSettings
   ): BubblePoint {
+    if (settings.tailAngle !== undefined) {
+      const centerX = x + width / 2;
+      const centerY = y + height / 2;
+      const angleRad = (settings.tailAngle * Math.PI) / 180;
+
+      const radiusX = width / 2;
+      const radiusY = height / 2;
+
+      const edgeX = centerX + Math.cos(angleRad) * radiusX;
+      const edgeY = centerY + Math.sin(angleRad) * radiusY;
+
+      return { x: edgeX, y: edgeY };
+    }
+
     const positions: Record<TailPosition, BubblePoint> = {
       "bottom-left": { x: x + width * 0.25, y: y + height },
       "bottom-center": { x: x + width * 0.5, y: y + height },
@@ -321,6 +359,16 @@ export class SpeechBubbleEngine {
     start: BubblePoint,
     settings: SpeechBubbleSettings
   ): BubblePoint {
+    if (settings.tailAngle !== undefined) {
+      const angleRad = (settings.tailAngle * Math.PI) / 180;
+      const length = settings.tailLength;
+
+      return {
+        x: start.x + Math.cos(angleRad) * length,
+        y: start.y + Math.sin(angleRad) * length,
+      };
+    }
+
     const length = settings.tailLength;
     const directions: Record<TailPosition, { dx: number; dy: number }> = {
       "bottom-left": { dx: -length * 0.3, dy: length },
@@ -511,16 +559,28 @@ export class SpeechBubbleEngine {
       const tailEnd = this.getTailEndPoint(tailStart, bubbleData.settings);
 
       const tailHandle = new PIXI.Graphics();
-      tailHandle.circle(0, 0, 6);
-      tailHandle.fill({ color: 0xff9900, alpha: 0.8 });
-      tailHandle.stroke({ color: 0xffffff, width: 1 });
+      tailHandle.circle(0, 0, 15);
+      tailHandle.fill({ color: 0xff9900, alpha: 0.0 });
+      tailHandle.circle(0, 0, 8);
+      tailHandle.fill({ color: 0xff9900, alpha: 0.9 });
+      tailHandle.stroke({ color: 0xffffff, width: 2 });
+
       tailHandle.x = tailEnd.x;
       tailHandle.y = tailEnd.y;
       tailHandle.eventMode = "static";
-      tailHandle.cursor = "move";
+      tailHandle.cursor = "grab";
 
       tailHandle.on("pointerdown", (event) => {
+        tailHandle.cursor = "grabbing";
         this.startHandleDrag(event, "tail", "tail", bubbleData);
+      });
+
+      tailHandle.on("pointerup", () => {
+        tailHandle.cursor = "grab";
+      });
+
+      tailHandle.on("pointerupoutside", () => {
+        tailHandle.cursor = "grab";
       });
 
       if (this.activeLayer) {
@@ -597,32 +657,16 @@ export class SpeechBubbleEngine {
         const angle = Math.atan2(tailY, tailX);
         const distance = Math.sqrt(tailX * tailX + tailY * tailY);
 
+        const minDistance = Math.min(bubbleData.width, bubbleData.height) / 3;
+        const effectiveDistance = Math.max(0, distance - minDistance);
+
         bubbleData.settings.tailLength = Math.min(
-          150,
-          Math.max(
-            20,
-            distance - Math.max(bubbleData.width, bubbleData.height) / 2
-          )
+          200,
+          Math.max(5, effectiveDistance * 0.8)
         );
 
         const angleDeg = (angle * 180) / Math.PI;
-        if (angleDeg > -22.5 && angleDeg <= 22.5) {
-          bubbleData.settings.tailPosition = "right";
-        } else if (angleDeg > 22.5 && angleDeg <= 67.5) {
-          bubbleData.settings.tailPosition = "bottom-right";
-        } else if (angleDeg > 67.5 && angleDeg <= 112.5) {
-          bubbleData.settings.tailPosition = "bottom-center";
-        } else if (angleDeg > 112.5 && angleDeg <= 157.5) {
-          bubbleData.settings.tailPosition = "bottom-left";
-        } else if (angleDeg > 157.5 || angleDeg <= -157.5) {
-          bubbleData.settings.tailPosition = "left";
-        } else if (angleDeg > -157.5 && angleDeg <= -112.5) {
-          bubbleData.settings.tailPosition = "top-left";
-        } else if (angleDeg > -112.5 && angleDeg <= -67.5) {
-          bubbleData.settings.tailPosition = "top-center";
-        } else if (angleDeg > -67.5 && angleDeg <= -22.5) {
-          bubbleData.settings.tailPosition = "top-right";
-        }
+        bubbleData.settings.tailAngle = (angleDeg + 360) % 360;
       } else {
         this.handleResize(
           this.dragType,
@@ -682,19 +726,37 @@ export class SpeechBubbleEngine {
         break;
     }
 
-    bubbleData.width = Math.max(50, bubbleData.width);
-    bubbleData.height = Math.max(30, bubbleData.height);
+    bubbleData.width = Math.max(50, Math.round(bubbleData.width * 100) / 100);
+    bubbleData.height = Math.max(30, Math.round(bubbleData.height * 100) / 100);
 
     bubbleData.settings.width = bubbleData.width;
     bubbleData.settings.height = bubbleData.height;
     bubbleData.settings.autoSize = false;
+
+    this.redrawAll();
   }
 
   public handlePointerUp(): void {
+    const wasResizing =
+      this.isDragging && this.dragType && this.dragType !== "tail";
+
     this.isDragging = false;
     this.dragType = null;
     this.dragStartPoint = null;
     this.originalBubbleData = null;
+
+    this.handles.forEach((handle) => {
+      if (handle.type === "tail") {
+        handle.graphic.cursor = "grab";
+      }
+    });
+
+    if (wasResizing && this.selectedBubbleId && this.onSelectionChange) {
+      const bubbleData = this.activeBubbles.get(this.selectedBubbleId);
+      if (bubbleData) {
+        this.onSelectionChange(bubbleData.settings);
+      }
+    }
   }
 
   private redrawAll(): void {
@@ -707,6 +769,12 @@ export class SpeechBubbleEngine {
     }
 
     for (const [id, bubbleData] of this.activeBubbles) {
+      if (bubbleData.settings.tailAngle === undefined) {
+        bubbleData.settings.tailAngle = this.getTailAngleFromPosition(
+          bubbleData.settings.tailPosition
+        );
+      }
+
       if (
         bubbleData.settings.autoSize &&
         bubbleData.settings.text &&
@@ -727,28 +795,6 @@ export class SpeechBubbleEngine {
       }
 
       const bubbleGraphics = new PIXI.Graphics();
-
-      this.drawBubbleShape(
-        bubbleGraphics,
-        bubbleData.x,
-        bubbleData.y,
-        bubbleData.width,
-        bubbleData.height,
-        bubbleData.settings
-      );
-
-      bubbleGraphics.fill({
-        color: this.hexToNumber(bubbleData.settings.backgroundColor),
-        alpha: 1,
-      });
-
-      if (bubbleData.settings.borderWidth > 0) {
-        bubbleGraphics.stroke({
-          color: this.hexToNumber(bubbleData.settings.borderColor),
-          width: bubbleData.settings.borderWidth,
-          alpha: 1,
-        });
-      }
 
       if (bubbleData.settings.tailStyle !== "none") {
         this.drawTail(
@@ -772,6 +818,28 @@ export class SpeechBubbleEngine {
             alpha: 1,
           });
         }
+      }
+
+      this.drawBubbleShape(
+        bubbleGraphics,
+        bubbleData.x,
+        bubbleData.y,
+        bubbleData.width,
+        bubbleData.height,
+        bubbleData.settings
+      );
+
+      bubbleGraphics.fill({
+        color: this.hexToNumber(bubbleData.settings.backgroundColor),
+        alpha: 1,
+      });
+
+      if (bubbleData.settings.borderWidth > 0) {
+        bubbleGraphics.stroke({
+          color: this.hexToNumber(bubbleData.settings.borderColor),
+          width: bubbleData.settings.borderWidth,
+          alpha: 1,
+        });
       }
 
       bubbleGraphics.alpha = bubbleData.settings.opacity;
@@ -830,7 +898,12 @@ export class SpeechBubbleEngine {
       width: this.settings.width,
       height: this.settings.height,
       layerId: this.currentLayerId,
-      settings: { ...this.settings },
+      settings: {
+        ...this.settings,
+        tailAngle:
+          this.settings.tailAngle ||
+          this.getTailAngleFromPosition(this.settings.tailPosition),
+      },
     };
 
     this.activeBubbles.set(bubbleId, bubbleData);
@@ -845,10 +918,12 @@ export class SpeechBubbleEngine {
     const bubbleData = this.activeBubbles.get(this.selectedBubbleId);
     if (!bubbleData) return;
 
-    bubbleData.width = Math.abs(point.x - this.startPoint.x);
-    bubbleData.height = Math.abs(point.y - this.startPoint.y);
-    bubbleData.x = Math.min(this.startPoint.x, point.x);
-    bubbleData.y = Math.min(this.startPoint.y, point.y);
+    bubbleData.width =
+      Math.round(Math.abs(point.x - this.startPoint.x) * 100) / 100;
+    bubbleData.height =
+      Math.round(Math.abs(point.y - this.startPoint.y) * 100) / 100;
+    bubbleData.x = Math.round(Math.min(this.startPoint.x, point.x) * 100) / 100;
+    bubbleData.y = Math.round(Math.min(this.startPoint.y, point.y) * 100) / 100;
 
     bubbleData.settings.width = bubbleData.width;
     bubbleData.settings.height = bubbleData.height;
@@ -935,7 +1010,8 @@ export class SpeechBubbleEngine {
           const tailDistance = Math.sqrt(
             Math.pow(point.x - tailEnd.x, 2) + Math.pow(point.y - tailEnd.y, 2)
           );
-          if (tailDistance <= 20) {
+          // 꼬리 핸들 클릭 영역 확장 (20 -> 30)
+          if (tailDistance <= 30) {
             return true;
           }
         }
@@ -1003,6 +1079,10 @@ export class SpeechBubbleEngine {
     this.isEditMode = false;
 
     this.redrawAll();
+
+    if (this.onSelectionChange) {
+      this.onSelectionChange(null);
+    }
   }
 
   public getSelectedBubbleSettings(): SpeechBubbleSettings | null {

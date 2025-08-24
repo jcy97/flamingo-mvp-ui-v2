@@ -105,9 +105,10 @@ export const bubbleWidthAtom = atom(
   (get) => get(speechBubbleSettingsAtom).width,
   (get, set, newWidth: number) => {
     const currentSettings = get(speechBubbleSettingsAtom);
+    const roundedWidth = Math.round(newWidth * 100) / 100;
     set(speechBubbleSettingsAtom, {
       ...currentSettings,
-      width: Math.max(50, Math.min(500, newWidth)),
+      width: Math.max(50, Math.min(500, roundedWidth)),
     });
   }
 );
@@ -116,9 +117,10 @@ export const bubbleHeightAtom = atom(
   (get) => get(speechBubbleSettingsAtom).height,
   (get, set, newHeight: number) => {
     const currentSettings = get(speechBubbleSettingsAtom);
+    const roundedHeight = Math.round(newHeight * 100) / 100;
     set(speechBubbleSettingsAtom, {
       ...currentSettings,
-      height: Math.max(30, Math.min(400, newHeight)),
+      height: Math.max(30, Math.min(400, roundedHeight)),
     });
   }
 );
@@ -159,7 +161,7 @@ export const bubbleTailLengthAtom = atom(
     const currentSettings = get(speechBubbleSettingsAtom);
     set(speechBubbleSettingsAtom, {
       ...currentSettings,
-      tailLength: Math.max(10, Math.min(100, newLength)),
+      tailLength: Math.max(5, Math.min(200, newLength)),
     });
   }
 );
@@ -182,6 +184,18 @@ export const bubbleTailCurveAtom = atom(
     set(speechBubbleSettingsAtom, {
       ...currentSettings,
       tailCurve: Math.max(0, Math.min(1, newCurve)),
+    });
+  }
+);
+
+export const bubbleTailAngleAtom = atom(
+  (get) => get(speechBubbleSettingsAtom).tailAngle,
+  (get, set, newAngle: number | undefined) => {
+    const currentSettings = get(speechBubbleSettingsAtom);
+    set(speechBubbleSettingsAtom, {
+      ...currentSettings,
+      tailAngle:
+        newAngle !== undefined ? ((newAngle % 360) + 360) % 360 : undefined,
     });
   }
 );

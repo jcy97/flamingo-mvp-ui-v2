@@ -242,8 +242,9 @@ function SpeechBubbleProperties() {
               </label>
               <input
                 type="number"
-                value={width}
-                onChange={(e) => setWidth(parseInt(e.target.value))}
+                step="0.01"
+                value={Math.round(width * 100) / 100}
+                onChange={(e) => setWidth(parseFloat(e.target.value) || 0)}
                 disabled={autoSize}
                 className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs text-neutral-200 disabled:opacity-50"
               />
@@ -254,8 +255,9 @@ function SpeechBubbleProperties() {
               </label>
               <input
                 type="number"
-                value={height}
-                onChange={(e) => setHeight(parseInt(e.target.value))}
+                step="0.01"
+                value={Math.round(height * 100) / 100}
+                onChange={(e) => setHeight(parseFloat(e.target.value) || 0)}
                 disabled={autoSize}
                 className="w-full bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs text-neutral-200 disabled:opacity-50"
               />

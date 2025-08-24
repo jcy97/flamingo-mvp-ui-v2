@@ -15,6 +15,7 @@ export interface SpeechBubbleSettings {
   autoSize: boolean;
   tailStyle: TailStyle;
   tailPosition: TailPosition;
+  tailAngle?: number;
   tailLength: number;
   tailWidth: number;
   tailCurve: number;
@@ -101,6 +102,7 @@ export const DEFAULT_SPEECH_BUBBLE_SETTINGS: SpeechBubbleSettings = {
   autoSize: true,
   tailStyle: "pointed",
   tailPosition: "bottom-center",
+  tailAngle: 90,
   tailLength: 30,
   tailWidth: 20,
   tailCurve: 0.3,

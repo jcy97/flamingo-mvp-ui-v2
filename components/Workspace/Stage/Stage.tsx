@@ -235,21 +235,33 @@ function Stage() {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Delete" || event.key === "Backspace") {
+        if (
+          event.target instanceof HTMLInputElement ||
+          event.target instanceof HTMLTextAreaElement ||
+          textEngineRef.current?.isCurrentlyEditing()
+        ) {
+          return;
+        }
+
         const currentTool = selectedToolIdRef.current;
         if (
           currentTool === ToolbarItemIDs.SPEECH_BUBBLE &&
-          speechBubbleEngineRef.current &&
-          !textEngineRef.current?.isCurrentlyEditing()
+          speechBubbleEngineRef.current
         ) {
-          event.preventDefault();
-          speechBubbleEngineRef.current.deleteSelectedBubble();
+          const selectedBubbleSettings =
+            speechBubbleEngineRef.current.getSelectedBubbleSettings();
+          if (selectedBubbleSettings && activeLayerId) {
+            event.preventDefault();
+            speechBubbleEngineRef.current.deleteSelectedBubble();
+            deleteLayer(activeLayerId);
+          }
         }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [deleteLayer, activeLayerId]);
 
   const updateCanvasLayer = useCallback(() => {
     if (!appRef.current || !currentPageId || !currentCanvasId || !activeLayerId)
@@ -362,7 +374,10 @@ function Stage() {
         );
         speechBubbleEngineRef.current.setOnSelectionChange((settings) => {
           if (settings) {
-            setSpeechBubbleSettings(settings);
+            setSpeechBubbleSettings((prev) => ({
+              ...prev,
+              ...settings,
+            }));
           } else {
             setSpeechBubbleSettings(DEFAULT_SPEECH_BUBBLE_SETTINGS);
           }
