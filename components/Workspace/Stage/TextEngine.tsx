@@ -47,7 +47,9 @@ export class TextEngine {
     this.textObjects = this.layerTexts[layer.id] || [];
   }
 
-  public setSharedRenderTexture(renderTexture: PIXI.RenderTexture): void {
+  public setSharedRenderTexture(
+    renderTexture: PIXI.RenderTexture | null
+  ): void {
     this.renderTexture = renderTexture;
   }
 
@@ -418,7 +420,12 @@ export class TextEngine {
   }
 
   private renderAllTextsToTexture(): void {
-    if (!this.renderTexture) return;
+    if (
+      !this.renderTexture ||
+      !this.activeLayer ||
+      this.activeLayer.type !== "text"
+    )
+      return;
 
     this.app.renderer.render({
       container: new PIXI.Container(),
@@ -449,7 +456,12 @@ export class TextEngine {
   }
 
   private renderTextToTexture(textLayer: PIXI.Text): void {
-    if (!this.renderTexture) return;
+    if (
+      !this.renderTexture ||
+      !this.activeLayer ||
+      this.activeLayer.type !== "text"
+    )
+      return;
 
     try {
       const textSprite = new PIXI.Text(textLayer.text, textLayer.style);

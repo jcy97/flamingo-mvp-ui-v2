@@ -71,7 +71,9 @@ export class SpeechBubbleEngine {
     }
   }
 
-  public setSharedRenderTexture(renderTexture: PIXI.RenderTexture): void {
+  public setSharedRenderTexture(
+    renderTexture: PIXI.RenderTexture | null
+  ): void {
     this.renderTexture = renderTexture;
   }
 
@@ -760,7 +762,7 @@ export class SpeechBubbleEngine {
   }
 
   private redrawAll(): void {
-    if (!this.renderTexture) return;
+    if (!this.renderTexture || !this.currentLayerId) return;
 
     if (this.bubbleContainer) {
       this.bubbleContainer.removeChildren();
@@ -769,6 +771,7 @@ export class SpeechBubbleEngine {
     }
 
     for (const [id, bubbleData] of this.activeBubbles) {
+      if (bubbleData.layerId !== this.currentLayerId) continue;
       if (bubbleData.settings.tailAngle === undefined) {
         bubbleData.settings.tailAngle = this.getTailAngleFromPosition(
           bubbleData.settings.tailPosition
@@ -884,7 +887,8 @@ export class SpeechBubbleEngine {
   }
 
   public startDrawing(point: DrawingPoint): void {
-    if (!this.renderTexture || !this.activeLayer) return;
+    if (!this.renderTexture || !this.activeLayer || !this.currentLayerId)
+      return;
 
     this.isDrawing = true;
     this.startPoint = point;

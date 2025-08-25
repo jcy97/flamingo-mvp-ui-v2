@@ -320,23 +320,33 @@ function Stage() {
       }
 
       if (textEngineRef.current && activeLayerRef.current) {
-        textEngineRef.current.setActiveLayer(activeLayerRef.current);
-        textEngineRef.current.setSharedRenderTexture(
-          activeRenderTextureRef.current
-        );
+        if (activeLayerRef.current.type === "text") {
+          textEngineRef.current.setActiveLayer(activeLayerRef.current);
+          textEngineRef.current.setSharedRenderTexture(
+            activeRenderTextureRef.current
+          );
+        } else {
+          textEngineRef.current.setSharedRenderTexture(null);
+        }
       }
 
       if (speechBubbleEngineRef.current) {
-        speechBubbleEngineRef.current.setSharedRenderTexture(
-          activeRenderTextureRef.current
-        );
-        speechBubbleEngineRef.current.setActiveLayer(drawingLayer);
-        const speechBubbleLayerId =
-          activeLayerRef.current?.type === "speechBubble"
-            ? activeLayerRef.current.id
-            : null;
-        speechBubbleEngineRef.current.setCurrentLayerId(speechBubbleLayerId);
-        speechBubbleEngineRef.current.updateLayerSelection(speechBubbleLayerId);
+        if (activeLayerRef.current?.type === "speechBubble") {
+          speechBubbleEngineRef.current.setSharedRenderTexture(
+            activeRenderTextureRef.current
+          );
+          speechBubbleEngineRef.current.setActiveLayer(drawingLayer);
+          speechBubbleEngineRef.current.setCurrentLayerId(
+            activeLayerRef.current.id
+          );
+          speechBubbleEngineRef.current.updateLayerSelection(
+            activeLayerRef.current.id
+          );
+        } else {
+          speechBubbleEngineRef.current.setSharedRenderTexture(null);
+          speechBubbleEngineRef.current.setCurrentLayerId(null);
+          speechBubbleEngineRef.current.updateLayerSelection(null);
+        }
       }
     }
   }, [
