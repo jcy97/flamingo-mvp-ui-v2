@@ -31,7 +31,8 @@ export type BubbleStyle =
   | "rectangle"
   | "ellipse"
   | "cloud"
-  | "jagged";
+  | "jagged"
+  | "flash";
 
 export type TailStyle =
   | "pointed"

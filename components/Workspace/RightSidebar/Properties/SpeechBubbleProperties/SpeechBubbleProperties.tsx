@@ -134,6 +134,7 @@ function SpeechBubbleProperties() {
     { value: "thought", label: "생각" },
     { value: "shout", label: "외침" },
     { value: "whisper", label: "속삭임" },
+    { value: "flash", label: "플래시" },
     { value: "rectangle", label: "사각형" },
     { value: "ellipse", label: "타원" },
     { value: "cloud", label: "구름" },
