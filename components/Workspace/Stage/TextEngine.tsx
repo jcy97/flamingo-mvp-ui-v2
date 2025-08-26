@@ -47,7 +47,9 @@ export class TextEngine {
     this.textObjects = this.layerTexts[layer.id] || [];
   }
 
-  public setSharedRenderTexture(renderTexture: PIXI.RenderTexture): void {
+  public setSharedRenderTexture(
+    renderTexture: PIXI.RenderTexture | null
+  ): void {
     this.renderTexture = renderTexture;
   }
 
@@ -90,10 +92,15 @@ export class TextEngine {
     const canvas = this.app.canvas as HTMLCanvasElement;
     const rect = canvas.getBoundingClientRect();
 
+    const scaleX = rect.width / this.app.screen.width;
+    const scaleY = rect.height / this.app.screen.height;
+    const screenX = point.x * scaleX + rect.left;
+    const screenY = point.y * scaleY + rect.top;
+
     const textarea = document.createElement("textarea");
     textarea.style.position = "absolute";
-    textarea.style.left = `${rect.left + point.x}px`;
-    textarea.style.top = `${rect.top + point.y}px`;
+    textarea.style.left = `${screenX}px`;
+    textarea.style.top = `${screenY}px`;
     textarea.style.minWidth = "100px";
     textarea.style.minHeight = "20px";
     textarea.style.background = "transparent";
@@ -158,13 +165,18 @@ export class TextEngine {
     const canvas = this.app.canvas as HTMLCanvasElement;
     const rect = canvas.getBoundingClientRect();
 
+    const scaleX = rect.width / this.app.screen.width;
+    const scaleY = rect.height / this.app.screen.height;
+    const screenX = textLayer.x * scaleX + rect.left;
+    const screenY = textLayer.y * scaleY + rect.top;
+
     const fillColor = this.getFillColorAsString(textLayer.style.fill);
 
     const textarea = document.createElement("textarea");
     textarea.value = textLayer.text;
     textarea.style.position = "absolute";
-    textarea.style.left = `${rect.left + textLayer.x}px`;
-    textarea.style.top = `${rect.top + textLayer.y}px`;
+    textarea.style.left = `${screenX}px`;
+    textarea.style.top = `${screenY}px`;
     textarea.style.background = "transparent";
     textarea.style.border = "1px dashed #007acc";
     textarea.style.outline = "none";
@@ -418,7 +430,12 @@ export class TextEngine {
   }
 
   private renderAllTextsToTexture(): void {
-    if (!this.renderTexture) return;
+    if (
+      !this.renderTexture ||
+      !this.activeLayer ||
+      this.activeLayer.type !== "text"
+    )
+      return;
 
     this.app.renderer.render({
       container: new PIXI.Container(),
@@ -449,7 +466,12 @@ export class TextEngine {
   }
 
   private renderTextToTexture(textLayer: PIXI.Text): void {
-    if (!this.renderTexture) return;
+    if (
+      !this.renderTexture ||
+      !this.activeLayer ||
+      this.activeLayer.type !== "text"
+    )
+      return;
 
     try {
       const textSprite = new PIXI.Text(textLayer.text, textLayer.style);

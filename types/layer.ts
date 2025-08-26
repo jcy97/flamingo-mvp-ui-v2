@@ -16,7 +16,7 @@ export interface Layer {
   updatedAt: Date;
 }
 
-export type LayerType = "brush" | "text" | "shape" | "image";
+export type LayerType = "brush" | "text" | "shape" | "image" | "speechBubble";
 
 export interface LayerData {
   pixiSprite: PIXI.Sprite | null;

@@ -1,6 +1,6 @@
 import { atom } from "jotai";
 import * as PIXI from "pixi.js";
-import { Layer, LayerData } from "@/types/layer";
+import { Layer, LayerData, LayerType } from "@/types/layer";
 import { BlendMode } from "@/constants/blendModes";
 import sampleData from "@/samples/data";
 import { currentCanvasIdAtom } from "./canvasStore";
@@ -10,6 +10,7 @@ import {
   switchLayerAtom,
   createLayerGraphicAtom,
 } from "./pixiStore";
+import { selectedToolIdAtom } from "./toolsbarStore";
 
 export const layersAtom = atom<Layer[]>(sampleData.layers);
 
@@ -79,6 +80,7 @@ export const addLayerAtom = atom(null, (get, set) => {
   const currentCanvasId = get(currentCanvasIdAtom);
   const pixiState = get(pixiStateAtom);
   const canvasContainer = get(getCanvasContainerAtom);
+  const selectedToolId = get(selectedToolIdAtom);
 
   if (!currentCanvasId) {
     console.warn("현재 캔버스가 선택되지 않았습니다.");
@@ -105,12 +107,29 @@ export const addLayerAtom = atom(null, (get, set) => {
         ? Math.max(...layersForCurrentCanvas.map((l) => l.order)) + 1
         : 0;
 
+    let layerType: LayerType = "brush";
+    let layerName = `레이어 ${layersForCurrentCanvas.length + 1}`;
+
+    if (selectedToolId === "speechBubble") {
+      layerType = "speechBubble";
+      const speechBubbleLayers = layersForCurrentCanvas.filter(
+        (l) => l.type === "speechBubble"
+      );
+      layerName = `말풍선 ${speechBubbleLayers.length + 1}`;
+    } else if (selectedToolId === "text") {
+      layerType = "text";
+      const textLayers = layersForCurrentCanvas.filter(
+        (l) => l.type === "text"
+      );
+      layerName = `텍스트 ${textLayers.length + 1}`;
+    }
+
     const newLayer: Layer = {
       id: newLayerId,
       canvasId: currentCanvasId,
-      name: `레이어 ${layersForCurrentCanvas.length + 1}`,
+      name: layerName,
       order: newOrder,
-      type: "brush",
+      type: layerType,
       blendMode: "normal",
       opacity: 1,
       isVisible: true,

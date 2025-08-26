@@ -15,6 +15,7 @@ import {
   ZoomOut,
   Pipette,
   Pencil,
+  MessageSquare,
   LucideIcon,
 } from "lucide-react";
 import { ToolsbarItem } from "@/types/toolsbar";
@@ -25,6 +26,7 @@ export enum ToolbarItemIDs {
   BRUSH = "brush",
   ERASER = "eraser",
   TEXT = "text",
+  SPEECH_BUBBLE = "speechBubble",
   CIRCLE = "circle",
   SQUARE = "square",
   TRIANGLE = "triangle",
@@ -50,11 +52,6 @@ export const toolbarItems: ToolsbarItem[] = [
       { id: ToolbarItemIDs.HAND, label: "손", icon: Hand },
     ],
   },
-  // {
-  //   id: ToolbarItemIDs.PEN,
-  //   label: "선화",
-  //   icon: Pencil,
-  // },
   {
     id: ToolbarItemIDs.BRUSH,
     label: "브러쉬",
@@ -80,6 +77,11 @@ export const toolbarItems: ToolsbarItem[] = [
       { id: ToolbarItemIDs.SQUARE, label: "사각형", icon: Square },
       { id: ToolbarItemIDs.TRIANGLE, label: "삼각형", icon: Triangle },
       { id: ToolbarItemIDs.POLYGON, label: "다각형", icon: Hexagon },
+      {
+        id: ToolbarItemIDs.SPEECH_BUBBLE,
+        label: "말풍선",
+        icon: MessageSquare,
+      },
     ],
   },
   {

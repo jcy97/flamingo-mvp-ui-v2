@@ -6,6 +6,7 @@ export interface Canvas {
   width: number;
   height: number;
   unit: SizeUnit;
+  backgroundColor: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -18,6 +19,7 @@ export interface CanvasCreateRequest {
   width: number;
   height: number;
   unit: SizeUnit;
+  backgroundColor?: string;
   order?: number;
 }
 
@@ -26,5 +28,6 @@ export interface CanvasUpdateRequest {
   width?: number;
   height?: number;
   unit?: SizeUnit;
+  backgroundColor?: string;
   order?: number;
 }

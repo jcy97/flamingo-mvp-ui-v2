@@ -3,6 +3,7 @@ import { Settings, GripVertical, Trash2, Edit3 } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { useSetAtom } from "jotai";
 import { updateCanvasAtom, deleteCanvasAtom } from "@/stores/canvasStore";
+import CanvasConfigModal from "@/components/Common/Modal/CanvasConfigModal";
 
 interface CanvasItemProps {
   data: Canvas;
@@ -30,6 +31,7 @@ function CanvasItem({
   const [isEditing, setIsEditing] = useState(false);
   const [editingName, setEditingName] = useState(data.name);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const updateCanvas = useSetAtom(updateCanvasAtom);
@@ -116,6 +118,29 @@ function CanvasItem({
     setShowDropdown(false);
   };
 
+  const handleConfigClick = () => {
+    setIsConfigModalOpen(true);
+    setShowDropdown(false);
+  };
+
+  const handleConfigConfirm = (
+    width: number,
+    height: number,
+    backgroundColor: string
+  ) => {
+    updateCanvas({
+      canvasId: data.id,
+      width,
+      height,
+      backgroundColor,
+    });
+    setIsConfigModalOpen(false);
+  };
+
+  const handleConfigClose = () => {
+    setIsConfigModalOpen(false);
+  };
+
   return (
     <div
       className={`w-[85%] aspect-[4/3] min-w-[140px] rounded-xl border-2 flex flex-col cursor-pointer transition-all duration-200 ${
@@ -179,6 +204,13 @@ function CanvasItem({
                 이름 변경
               </button>
               <button
+                onClick={handleConfigClick}
+                className="w-full px-3 py-2 text-left text-sm text-neutral-300 hover:bg-neutral-700 flex items-center gap-2"
+              >
+                <Settings size={12} />
+                캔버스 설정
+              </button>
+              <button
                 onClick={handleDeleteClick}
                 className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-neutral-700 flex items-center gap-2"
               >
@@ -192,6 +224,13 @@ function CanvasItem({
       <div className="flex-1 bg-neutral-100 rounded-bl-xl rounded-br-xl">
         {/* Canvas preview content goes here */}
       </div>
+      <CanvasConfigModal
+        isOpen={isConfigModalOpen}
+        onClose={handleConfigClose}
+        onConfirm={handleConfigConfirm}
+        mode="edit"
+        canvasData={data}
+      />
     </div>
   );
 }

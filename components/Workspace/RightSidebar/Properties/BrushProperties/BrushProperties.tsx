@@ -341,7 +341,7 @@ function BrushProperties() {
         </div>
       </div>
 
-      <ColorPicker />
+      <ColorPicker currentColor={brushColor} onColorChange={setBrushColor} />
     </div>
   );
 }

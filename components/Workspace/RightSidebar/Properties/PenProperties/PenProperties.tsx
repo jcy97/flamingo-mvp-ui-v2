@@ -28,23 +28,9 @@ function PenProperties() {
 
   const colorButtonRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    if (!colorPickerState.isOpen && brushColor !== penColor) {
-      setPenColor(brushColor);
-      addRecentColor(brushColor);
-    }
-  }, [
-    brushColor,
-    colorPickerState.isOpen,
-    penColor,
-    setPenColor,
-    addRecentColor,
-  ]);
-
   const handleColorClick = () => {
     if (colorButtonRef.current) {
       const rect = colorButtonRef.current.getBoundingClientRect();
-      setBrushColor(penColor);
       setColorPickerState({
         isOpen: true,
         x: rect.left + rect.width / 2,
@@ -52,6 +38,11 @@ function PenProperties() {
         anchorEl: colorButtonRef.current,
       });
     }
+  };
+
+  const handleColorChange = (color: string) => {
+    setPenColor(color);
+    setBrushColor(color);
   };
 
   const handleColorPickerClose = () => {
@@ -164,7 +155,11 @@ function PenProperties() {
         </div>
       </div>
 
-      <ColorPicker onClose={handleColorPickerClose} />
+      <ColorPicker
+        onClose={handleColorPickerClose}
+        currentColor={penColor}
+        onColorChange={handleColorChange}
+      />
     </div>
   );
 }
