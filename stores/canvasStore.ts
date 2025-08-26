@@ -13,6 +13,7 @@ import {
   getCanvasContainerAtom,
   createCanvasContainerAtom,
   resizeCanvasAndLayersAtom,
+  PixiState,
 } from "./pixiStore";
 
 export const canvasesAtom = atom<Canvas[]>(sampleData.canvases);
@@ -129,8 +130,7 @@ export const updateCanvasAtom = atom(
     }
 
     if (backgroundColor !== undefined) {
-      const { pixiStateAtom } = require("./pixiStore");
-      const pixiState = get(pixiStateAtom);
+      const pixiState: PixiState = get(pixiStateAtom);
       if (pixiState.app) {
         const bgColor =
           backgroundColor === "TRANSPARENT"

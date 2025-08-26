@@ -1,6 +1,7 @@
+import { BlendMode } from "@/constants/blendModes";
 import { User } from "@/types/auth";
 import { Canvas, SizeUnit } from "@/types/canvas";
-import { BlendMode, Layer, LayerType } from "@/types/layer";
+import { Layer, LayerType } from "@/types/layer";
 import { Page } from "@/types/page";
 import { Project } from "@/types/project";
 
