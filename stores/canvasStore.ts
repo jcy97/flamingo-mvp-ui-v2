@@ -12,6 +12,7 @@ import {
   pixiStateAtom,
   getCanvasContainerAtom,
   createCanvasContainerAtom,
+  resizeCanvasAndLayersAtom,
 } from "./pixiStore";
 
 export const canvasesAtom = atom<Canvas[]>(sampleData.canvases);
@@ -53,9 +54,10 @@ export const addCanvasAtom = atom(null, (get, set) => {
     pageId: currentPageId,
     name: `캔버스 ${canvasesForCurrentPage.length + 1}`,
     order: canvasesForCurrentPage.length + 1,
-    width: 800,
-    height: 600,
+    width: 1920,
+    height: 1080,
     unit: "px",
+    backgroundColor: "#FFFFFF",
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -73,21 +75,72 @@ export const addCanvasAtom = atom(null, (get, set) => {
 
   setTimeout(() => {
     set(addLayerAtom);
-  }, 0);
+  }, 100);
 });
 
 export const updateCanvasAtom = atom(
   null,
-  (get, set, { canvasId, name }: { canvasId: string; name: string }) => {
+  (
+    get,
+    set,
+    {
+      canvasId,
+      name,
+      width,
+      height,
+      backgroundColor,
+    }: {
+      canvasId: string;
+      name?: string;
+      width?: number;
+      height?: number;
+      backgroundColor?: string;
+    }
+  ) => {
     const canvases = get(canvasesAtom);
+    const targetCanvas = canvases.find((c) => c.id === canvasId);
+
+    if (!targetCanvas) return;
+
     const updatedCanvases = canvases.map((canvas) =>
       canvas.id === canvasId
-        ? { ...canvas, name, updatedAt: new Date() }
+        ? {
+            ...canvas,
+            ...(name !== undefined && { name }),
+            ...(width !== undefined && { width }),
+            ...(height !== undefined && { height }),
+            ...(backgroundColor !== undefined && { backgroundColor }),
+            updatedAt: new Date(),
+          }
         : canvas
     );
 
     sampleData.canvases = updatedCanvases;
     set(canvasesAtom, updatedCanvases);
+
+    if (width !== undefined || height !== undefined) {
+      setTimeout(() => {
+        set(resizeCanvasAndLayersAtom, {
+          canvasId,
+          width: width || targetCanvas.width,
+          height: height || targetCanvas.height,
+        });
+      }, 50);
+    }
+
+    if (backgroundColor !== undefined) {
+      const { pixiStateAtom } = require("./pixiStore");
+      const pixiState = get(pixiStateAtom);
+      if (pixiState.app) {
+        const bgColor =
+          backgroundColor === "TRANSPARENT"
+            ? 0x000000
+            : parseInt(backgroundColor.replace("#", "0x"));
+        pixiState.app.renderer.background.color = bgColor;
+        pixiState.app.renderer.background.alpha =
+          backgroundColor === "TRANSPARENT" ? 0 : 1;
+      }
+    }
   }
 );
 

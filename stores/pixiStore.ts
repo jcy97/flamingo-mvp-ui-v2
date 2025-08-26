@@ -1,7 +1,6 @@
 import { atom } from "jotai";
 import * as PIXI from "pixi.js";
 import "pixi.js/advanced-blend-modes";
-import { canvasesAtom, currentCanvasIdAtom } from "./canvasStore";
 import { layersAtom } from "./layerStore";
 import { LayerData } from "@/types/layer";
 import { currentPageIdAtom } from "./pageStore";
@@ -9,6 +8,7 @@ import { currentPageIdAtom } from "./pageStore";
 export interface PixiState {
   app: PIXI.Application | null;
   isInitialized: boolean;
+  isFullyReady: boolean;
   canvasContainers: Record<string, Record<string, PIXI.Container>>;
   layerGraphics: Record<string, Record<string, LayerData>>;
   activePageId: string | null;
@@ -19,6 +19,7 @@ export interface PixiState {
 export const pixiStateAtom = atom<PixiState>({
   app: null,
   isInitialized: false,
+  isFullyReady: false,
   canvasContainers: {},
   layerGraphics: {},
   activePageId: null,
@@ -28,16 +29,20 @@ export const pixiStateAtom = atom<PixiState>({
 
 export const initPixiAppAtom = atom(null, async (get, set) => {
   const state = get(pixiStateAtom);
-  const canvases = get(canvasesAtom);
   const currentPageId = get(currentPageIdAtom);
-  const currentCanvasId = get(currentCanvasIdAtom);
 
   if (state.isInitialized || state.app) return;
+
   try {
+    const { canvasesAtom, currentCanvasIdAtom } = await import("./canvasStore");
+    const canvases = get(canvasesAtom);
+    const currentCanvasId = get(currentCanvasIdAtom);
+    const currentCanvas = canvases.find((c) => c.id === currentCanvasId);
+
     const app = new PIXI.Application();
     await app.init({
-      width: 800,
-      height: 600,
+      width: currentCanvas?.width || 1920,
+      height: currentCanvas?.height || 1080,
       backgroundColor: 0xffffff,
       antialias: true,
       resolution: window.devicePixelRatio || 1,
@@ -55,12 +60,22 @@ export const initPixiAppAtom = atom(null, async (get, set) => {
 
     console.log("PIXI Application 초기화 완료");
 
-    canvases.forEach((canvas) => {
-      set(createCanvasContainerAtom, {
+    const containerPromises = canvases.map(async (canvas) => {
+      await set(createCanvasContainerAtom, {
         pageId: canvas.pageId,
         canvasId: canvas.id,
       });
     });
+
+    await Promise.all(containerPromises);
+
+    const updatedState = get(pixiStateAtom);
+    set(pixiStateAtom, {
+      ...updatedState,
+      isFullyReady: true,
+    });
+
+    console.log("PIXI 전체 초기화 완료 - 캔버스 컨테이너 생성됨");
   } catch (error) {
     console.error("PIXI Application 초기화 실패:", error);
   }
@@ -68,7 +83,11 @@ export const initPixiAppAtom = atom(null, async (get, set) => {
 
 export const createCanvasContainerAtom = atom(
   null,
-  (get, set, { pageId, canvasId }: { pageId: string; canvasId: string }) => {
+  async (
+    get,
+    set,
+    { pageId, canvasId }: { pageId: string; canvasId: string }
+  ) => {
     const state = get(pixiStateAtom);
     if (!state.app) {
       console.warn("PIXI App이 초기화되지 않았습니다.");
@@ -116,9 +135,111 @@ export const createCanvasContainerAtom = atom(
   }
 );
 
+export const resizeCanvasAndLayersAtom = atom(
+  null,
+  (
+    get,
+    set,
+    {
+      canvasId,
+      width,
+      height,
+    }: { canvasId: string; width: number; height: number }
+  ) => {
+    const state = get(pixiStateAtom);
+    const layers = get(layersAtom);
+
+    if (state.app) {
+      state.app.renderer.resize(width, height);
+      console.log(`PIXI 앱 크기 변경: ${width}x${height}`);
+
+      setTimeout(() => {
+        if (state.app) {
+          state.app.renderer.resize(width, height);
+          console.log(`PIXI 앱 크기 재확인: ${width}x${height}`);
+        }
+      }, 100);
+    }
+
+    const layersInCanvas = layers.filter(
+      (layer) => layer.canvasId === canvasId
+    );
+
+    layersInCanvas.forEach((layer) => {
+      const layerGraphic = state.layerGraphics[canvasId]?.[layer.id];
+      if (layerGraphic?.renderTexture && layerGraphic?.pixiSprite) {
+        const oldTexture = layerGraphic.renderTexture;
+
+        const newRenderTexture = PIXI.RenderTexture.create({
+          width,
+          height,
+          resolution: 1,
+        });
+
+        const tempSprite = new PIXI.Sprite(oldTexture);
+        if (state.app?.renderer) {
+          state.app.renderer.render({
+            container: tempSprite,
+            target: newRenderTexture,
+          });
+        }
+
+        layerGraphic.pixiSprite.texture = newRenderTexture;
+        oldTexture.destroy();
+
+        const updatedState = get(pixiStateAtom);
+        set(pixiStateAtom, {
+          ...updatedState,
+          layerGraphics: {
+            ...updatedState.layerGraphics,
+            [canvasId]: {
+              ...updatedState.layerGraphics[canvasId],
+              [layer.id]: {
+                pixiSprite: layerGraphic.pixiSprite,
+                renderTexture: newRenderTexture,
+              },
+            },
+          },
+        });
+
+        const updatedLayers = get(layersAtom).map((l) =>
+          l.id === layer.id
+            ? {
+                ...l,
+                data: {
+                  pixiSprite: layerGraphic.pixiSprite,
+                  renderTexture: newRenderTexture,
+                },
+              }
+            : l
+        );
+        set(layersAtom, updatedLayers);
+
+        tempSprite.destroy();
+      }
+    });
+
+    console.log(`캔버스 크기 조정 완료: ${canvasId} (${width}x${height})`);
+  }
+);
+
 export const createLayerGraphicAtom = atom(
   null,
-  (get, set, { canvasId, layerId }: { canvasId: string; layerId: string }) => {
+  async (
+    get,
+    set,
+    {
+      canvasId,
+      layerId,
+      width,
+      height,
+    }: {
+      canvasId: string;
+      layerId: string;
+      width?: number;
+      height?: number;
+    }
+  ) => {
     const state = get(pixiStateAtom);
     const currentLayerGraphics = state.layerGraphics || {};
     const layerOfCanvas = currentLayerGraphics[canvasId] || {};
@@ -128,9 +249,15 @@ export const createLayerGraphicAtom = atom(
       return;
     }
 
+    const { canvasesAtom } = await import("./canvasStore");
+    const canvases = get(canvasesAtom);
+    const canvas = canvases.find((c) => c.id === canvasId);
+    const textureWidth = width || canvas?.width || 1920;
+    const textureHeight = height || canvas?.height || 1080;
+
     const renderTexture = PIXI.RenderTexture.create({
-      width: 800,
-      height: 600,
+      width: textureWidth,
+      height: textureHeight,
       resolution: 1,
     });
 
@@ -301,6 +428,7 @@ export const destroyPixiAppAtom = atom(null, (get, set) => {
   set(pixiStateAtom, {
     app: null,
     isInitialized: false,
+    isFullyReady: false,
     canvasContainers: {},
     layerGraphics: {},
     activePageId: null,

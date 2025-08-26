@@ -26,7 +26,7 @@ import { useCursor } from "@/hooks/useCursor";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { pixiStateAtom } from "@/stores/pixiStore";
 import { currentPageIdAtom } from "@/stores/pageStore";
-import { currentCanvasIdAtom } from "@/stores/canvasStore";
+import { currentCanvasIdAtom, currentCanvasAtom } from "@/stores/canvasStore";
 import {
   activeLayerIdAtom,
   autoCreateTextLayerAtom,
@@ -73,6 +73,7 @@ function Stage() {
 
   const currentPageId = useAtomValue(currentPageIdAtom);
   const currentCanvasId = useAtomValue(currentCanvasIdAtom);
+  const currentCanvas = useAtomValue(currentCanvasAtom);
   const activeLayerId = useAtomValue(activeLayerIdAtom);
   const activeLayer = useAtomValue(currentActiveLayerAtom);
   const layersForCurrentCanvas = useAtomValue(layersForCurrentCanvasAtom);
@@ -92,14 +93,16 @@ function Stage() {
       if (!appRef.current) return { x: 0, y: 0 };
       const canvas = appRef.current.canvas;
       const rect = canvas.getBoundingClientRect();
-      const scaleX = 800 / rect.width;
-      const scaleY = 600 / rect.height;
+
+      const scaleX = appRef.current.screen.width / rect.width;
+      const scaleY = appRef.current.screen.height / rect.height;
+
       return {
         x: (clientX - rect.left) * scaleX,
         y: (clientY - rect.top) * scaleY,
       };
     },
-    []
+    [pixiState.app]
   );
 
   const getPressure = useCallback((event: PointerEvent): number => {
@@ -267,13 +270,30 @@ function Stage() {
     if (!appRef.current || !currentPageId || !currentCanvasId || !activeLayerId)
       return;
 
+    if (!pixiState.isFullyReady) {
+      console.log(
+        "PIXI가 아직 완전히 준비되지 않았습니다. 잠시 후 다시 시도합니다."
+      );
+      return;
+    }
+
+    if (!pixiState.canvasContainers[currentPageId]) {
+      console.warn(`페이지 컨테이너가 존재하지 않습니다: ${currentPageId}`);
+      return;
+    }
+
     if (currentLayerRef.current) {
       appRef.current.stage.removeChild(currentLayerRef.current);
     }
 
     const drawingLayer =
       pixiState.canvasContainers[currentPageId][currentCanvasId];
-    if (!drawingLayer) return;
+    if (!drawingLayer) {
+      console.warn(
+        `캔버스 컨테이너가 존재하지 않습니다: ${currentPageId}/${currentCanvasId}`
+      );
+      return;
+    }
 
     appRef.current.stage.addChild(drawingLayer);
     currentLayerRef.current = drawingLayer;
@@ -362,12 +382,31 @@ function Stage() {
   }, [updateCanvasLayer]);
 
   useEffect(() => {
+    if (pixiState.app && currentCanvas && canvasElementRef.current) {
+      const displaySize = getDisplaySize();
+
+      pixiState.app.renderer.resize(currentCanvas.width, currentCanvas.height);
+
+      setTimeout(() => {
+        if (canvasElementRef.current) {
+          canvasElementRef.current.style.width = `${displaySize.width}px`;
+          canvasElementRef.current.style.height = `${displaySize.height}px`;
+        }
+      }, 0);
+
+      console.log(
+        `Stage 좌표 업데이트: PIXI=${currentCanvas.width}x${currentCanvas.height}, Display=${displaySize.width}x${displaySize.height}`
+      );
+    }
+  }, [currentCanvas?.width, currentCanvas?.height, pixiState.app]);
+
+  useEffect(() => {
     if (!canvasRef.current || appRef.current) return;
 
     const initApp = async () => {
       try {
         const app = pixiState.app;
-        if (!app) return;
+        if (!app || !pixiState.isFullyReady) return;
         if (!canvasRef.current) return;
 
         appRef.current = app;
@@ -402,6 +441,10 @@ function Stage() {
         canvas.style.width = "100%";
         canvas.style.height = "100%";
         canvas.style.touchAction = "none";
+
+        if (currentCanvas) {
+          app.renderer.resize(currentCanvas.width, currentCanvas.height);
+        }
 
         const handlePointerDown = (event: PointerEvent) => {
           const isTextEditing = textEngineRef.current?.isCurrentlyEditing();
@@ -670,14 +713,63 @@ function Stage() {
         canvasElementRef.current = null;
       }
     };
-  }, [pixiState.app]);
+  }, [pixiState.app, pixiState.isFullyReady]);
+
+  const getDisplaySize = () => {
+    if (!currentCanvas) return { width: 800, height: 450 };
+
+    const aspectRatio = currentCanvas.width / currentCanvas.height;
+    const maxWidth = window.innerWidth * 0.5;
+    const maxHeight = window.innerHeight * 0.7;
+
+    let displayWidth, displayHeight;
+
+    if (currentCanvas.width <= maxWidth && currentCanvas.height <= maxHeight) {
+      displayWidth = currentCanvas.width;
+      displayHeight = currentCanvas.height;
+    } else {
+      if (aspectRatio > maxWidth / maxHeight) {
+        displayWidth = maxWidth;
+        displayHeight = maxWidth / aspectRatio;
+      } else {
+        displayHeight = maxHeight;
+        displayWidth = maxHeight * aspectRatio;
+      }
+    }
+
+    return {
+      width: Math.max(displayWidth, 300),
+      height: Math.max(displayHeight, 200),
+    };
+  };
+
+  const displaySize = getDisplaySize();
+  const canvasBackgroundColor =
+    currentCanvas?.backgroundColor === "TRANSPARENT"
+      ? "transparent"
+      : currentCanvas?.backgroundColor || "#FFFFFF";
 
   return (
     <div className="relative flex h-full w-full items-center justify-center">
       <div
         ref={canvasRef}
         className="border-4 border-gray-300 rounded-lg"
-        style={{ width: "800px", height: "600px", backgroundColor: "#f8f8f8" }}
+        style={{
+          width: `${displaySize.width}px`,
+          height: `${displaySize.height}px`,
+          backgroundColor:
+            canvasBackgroundColor === "transparent"
+              ? "#f8f8f8"
+              : canvasBackgroundColor,
+          backgroundImage:
+            canvasBackgroundColor === "transparent"
+              ? "linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc), linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc)"
+              : "none",
+          backgroundSize:
+            canvasBackgroundColor === "transparent" ? "20px 20px" : "none",
+          backgroundPosition:
+            canvasBackgroundColor === "transparent" ? "0 0, 10px 10px" : "none",
+        }}
       />
     </div>
   );
