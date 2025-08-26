@@ -1,5 +1,8 @@
 import { useAtomValue } from "jotai";
-import { selectedToolIdAtom } from "@/stores/toolsbarStore";
+import {
+  selectedToolIdAtom,
+  isTemporaryHandToolAtom,
+} from "@/stores/toolsbarStore";
 import { brushSettingsAtom } from "@/stores/brushStore";
 import { penSettingsAtom } from "@/stores/penStore";
 import { eraserSettingsAtom } from "@/stores/eraserStore";
@@ -8,11 +11,16 @@ import { createToolCursor } from "@/utils/cursor";
 
 export function useCursor(): string {
   const selectedToolId = useAtomValue(selectedToolIdAtom);
+  const isTemporaryHandTool = useAtomValue(isTemporaryHandToolAtom);
   const brushSettings = useAtomValue(brushSettingsAtom);
   const penSettings = useAtomValue(penSettingsAtom);
   const eraserSettings = useAtomValue(eraserSettingsAtom);
 
-  switch (selectedToolId) {
+  const currentTool = isTemporaryHandTool
+    ? ToolbarItemIDs.HAND
+    : selectedToolId;
+
+  switch (currentTool) {
     case ToolbarItemIDs.SELECT:
       return "default";
 

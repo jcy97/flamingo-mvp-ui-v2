@@ -1,6 +1,10 @@
 import { useEffect, useCallback, useRef } from "react";
-import { useAtom } from "jotai";
-import { selectedToolIdAtom } from "@/stores/toolsbarStore";
+import { useAtom, useSetAtom } from "jotai";
+import {
+  selectedToolIdAtom,
+  activateTemporaryHandToolAtom,
+  deactivateTemporaryHandToolAtom,
+} from "@/stores/toolsbarStore";
 import { ToolbarItemIDs } from "@/constants/toolsbarItems";
 import { brushRadiusAtom } from "@/stores/brushStore";
 import { penSizeAtom } from "@/stores/penStore";
@@ -18,7 +22,12 @@ export const useKeyboardShortcuts = () => {
   const [brushSize, setBrushSize] = useAtom(brushRadiusAtom);
   const [penSize, setPenSize] = useAtom(penSizeAtom);
   const [eraserSize, setEraserSize] = useAtom(eraserSizeAtom);
+  const activateTemporaryHandTool = useSetAtom(activateTemporaryHandToolAtom);
+  const deactivateTemporaryHandTool = useSetAtom(
+    deactivateTemporaryHandToolAtom
+  );
   const isTextEditingRef = useRef(false);
+  const spaceKeyPressedRef = useRef(false);
 
   const setIsTextEditing = useCallback((value: boolean) => {
     isTextEditingRef.current = value;
@@ -122,6 +131,13 @@ export const useKeyboardShortcuts = () => {
 
       const key = event.key.toLowerCase();
 
+      if (key === " " && !spaceKeyPressedRef.current) {
+        event.preventDefault();
+        spaceKeyPressedRef.current = true;
+        activateTemporaryHandTool();
+        return;
+      }
+
       for (const shortcut of shortcuts) {
         const keys = Array.isArray(shortcut.key)
           ? shortcut.key
@@ -138,9 +154,31 @@ export const useKeyboardShortcuts = () => {
       }
     };
 
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (isTextEditingRef.current) return;
+      if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement
+      )
+        return;
+
+      const key = event.key.toLowerCase();
+
+      if (key === " " && spaceKeyPressedRef.current) {
+        event.preventDefault();
+        spaceKeyPressedRef.current = false;
+        deactivateTemporaryHandTool();
+        return;
+      }
+    };
+
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [shortcuts]);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [shortcuts, activateTemporaryHandTool, deactivateTemporaryHandTool]);
 
   return { setIsTextEditing };
 };

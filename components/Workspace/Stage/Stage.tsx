@@ -20,13 +20,22 @@ import { eraserSettingsAtom } from "@/stores/eraserStore";
 import { textSettingsAtom } from "@/stores/textStore";
 import { speechBubbleSettingsAtom } from "@/stores/speechBubbleStore";
 import { DEFAULT_SPEECH_BUBBLE_SETTINGS } from "@/types/speechBubble";
-import { selectedToolIdAtom } from "@/stores/toolsbarStore";
+import {
+  selectedToolIdAtom,
+  isTemporaryHandToolAtom,
+} from "@/stores/toolsbarStore";
 import { ToolbarItemIDs } from "@/constants/toolsbarItems";
 import { useCursor } from "@/hooks/useCursor";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { pixiStateAtom } from "@/stores/pixiStore";
 import { currentPageIdAtom } from "@/stores/pageStore";
 import { currentCanvasIdAtom, currentCanvasAtom } from "@/stores/canvasStore";
+import {
+  viewportAtom,
+  zoomInAtom,
+  zoomOutAtom,
+  panViewportAtom,
+} from "@/stores/viewportStore";
 import {
   activeLayerIdAtom,
   autoCreateTextLayerAtom,
@@ -35,6 +44,7 @@ import {
   deleteLayerAtom,
   addLayerAtom,
 } from "@/stores/layerStore";
+import ZoomIndicator from "@/components/Common/ZoomIndicator";
 
 type DrawingPoint =
   | BrushDrawingPoint
@@ -57,9 +67,16 @@ function Stage() {
   const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
   const lastPressureRef = useRef<number>(0.5);
   const pressureSmoothing = 0.3;
+  const isPanningRef = useRef<boolean>(false);
+  const lastPanPointRef = useRef<{ x: number; y: number } | null>(null);
 
   const [pixiState, setPixiState] = useAtom(pixiStateAtom);
   const { setIsTextEditing } = useKeyboardShortcuts();
+
+  const [viewport, setViewport] = useAtom(viewportAtom);
+  const zoomIn = useSetAtom(zoomInAtom);
+  const zoomOut = useSetAtom(zoomOutAtom);
+  const panViewport = useSetAtom(panViewportAtom);
 
   const [brushSettings] = useAtom(brushSettingsAtom);
   const [penSettings] = useAtom(penSettingsAtom);
@@ -69,6 +86,7 @@ function Stage() {
     speechBubbleSettingsAtom
   );
   const [selectedToolId] = useAtom(selectedToolIdAtom);
+  const isTemporaryHandTool = useAtomValue(isTemporaryHandToolAtom);
   const cursorStyle = useCursor();
 
   const currentPageId = useAtomValue(currentPageIdAtom);
@@ -88,21 +106,38 @@ function Stage() {
     }
   }, [cursorStyle]);
 
+  const getStageTransform = useCallback(() => {
+    return `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`;
+  }, [viewport]);
+
   const getCanvasCoordinates = useCallback(
     (clientX: number, clientY: number) => {
-      if (!appRef.current) return { x: 0, y: 0 };
-      const canvas = appRef.current.canvas;
-      const rect = canvas.getBoundingClientRect();
+      if (!appRef.current || !canvasRef.current) return { x: 0, y: 0 };
 
-      const scaleX = appRef.current.screen.width / rect.width;
-      const scaleY = appRef.current.screen.height / rect.height;
+      const stageRect = canvasRef.current.getBoundingClientRect();
+      const canvas = appRef.current.canvas;
+      const canvasRect = canvas.getBoundingClientRect();
+
+      const stageCenterX = stageRect.left + stageRect.width / 2;
+      const stageCenterY = stageRect.top + stageRect.height / 2;
+
+      const transformedMouseX =
+        (clientX - stageCenterX - viewport.x) / viewport.zoom;
+      const transformedMouseY =
+        (clientY - stageCenterY - viewport.y) / viewport.zoom;
+
+      const canvasCenterX = stageRect.width / 2;
+      const canvasCenterY = stageRect.height / 2;
+
+      const scaleX = appRef.current.screen.width / stageRect.width;
+      const scaleY = appRef.current.screen.height / stageRect.height;
 
       return {
-        x: (clientX - rect.left) * scaleX,
-        y: (clientY - rect.top) * scaleY,
+        x: (transformedMouseX + canvasCenterX) * scaleX,
+        y: (transformedMouseY + canvasCenterY) * scaleY,
       };
     },
-    [pixiState.app]
+    [viewport]
   );
 
   const getPressure = useCallback((event: PointerEvent): number => {
@@ -138,6 +173,7 @@ function Stage() {
   const textSettingsRef = useRef(textSettings);
   const speechBubbleSettingsRef = useRef(speechBubbleSettings);
   const selectedToolIdRef = useRef(selectedToolId);
+  const isTemporaryHandToolRef = useRef(isTemporaryHandTool);
 
   useEffect(() => {
     brushSettingsRef.current = brushSettings;
@@ -162,6 +198,10 @@ function Stage() {
   useEffect(() => {
     selectedToolIdRef.current = selectedToolId;
   }, [selectedToolId]);
+
+  useEffect(() => {
+    isTemporaryHandToolRef.current = isTemporaryHandTool;
+  }, [isTemporaryHandTool]);
 
   useEffect(() => {
     activeLayerRef.current = activeLayer;
@@ -453,7 +493,9 @@ function Stage() {
           }
           event.preventDefault();
           const coords = getCanvasCoordinates(event.clientX, event.clientY);
-          const currentTool = selectedToolIdRef.current;
+          const currentTool = isTemporaryHandToolRef.current
+            ? ToolbarItemIDs.HAND
+            : selectedToolIdRef.current;
 
           if (
             (currentTool == ToolbarItemIDs.BRUSH ||
@@ -544,7 +586,9 @@ function Stage() {
 
         const handlePointerMove = (event: PointerEvent) => {
           const coords = getCanvasCoordinates(event.clientX, event.clientY);
-          const currentTool = selectedToolIdRef.current;
+          const currentTool = isTemporaryHandToolRef.current
+            ? ToolbarItemIDs.HAND
+            : selectedToolIdRef.current;
 
           if (
             currentTool === ToolbarItemIDs.SPEECH_BUBBLE &&
@@ -590,7 +634,9 @@ function Stage() {
         };
 
         const handlePointerUp = (event: PointerEvent) => {
-          const currentTool = selectedToolIdRef.current;
+          const currentTool = isTemporaryHandToolRef.current
+            ? ToolbarItemIDs.HAND
+            : selectedToolIdRef.current;
 
           if (
             currentTool === ToolbarItemIDs.SPEECH_BUBBLE &&
@@ -627,8 +673,11 @@ function Stage() {
         };
 
         const handlePointerLeave = () => {
+          const currentTool = isTemporaryHandToolRef.current
+            ? ToolbarItemIDs.HAND
+            : selectedToolIdRef.current;
+
           if (isDrawingRef.current) {
-            const currentTool = selectedToolIdRef.current;
             if (currentTool === ToolbarItemIDs.PEN && penEngineRef.current) {
               penEngineRef.current.endStroke();
             } else if (
@@ -750,10 +799,10 @@ function Stage() {
       : currentCanvas?.backgroundColor || "#FFFFFF";
 
   return (
-    <div className="relative flex h-full w-full items-center justify-center">
+    <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
       <div
         ref={canvasRef}
-        className="border-4 border-gray-300 rounded-lg"
+        className="border-4 border-gray-300 rounded-lg origin-center"
         style={{
           width: `${displaySize.width}px`,
           height: `${displaySize.height}px`,
@@ -769,6 +818,8 @@ function Stage() {
             canvasBackgroundColor === "transparent" ? "20px 20px" : "none",
           backgroundPosition:
             canvasBackgroundColor === "transparent" ? "0 0, 10px 10px" : "none",
+          transform: getStageTransform(),
+          transformOrigin: "center center",
         }}
       />
     </div>
