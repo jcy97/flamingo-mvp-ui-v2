@@ -349,7 +349,7 @@ function LayerItem({
           </div>
 
           <div className="text-xs text-neutral-500">
-            {Math.round(layer.opacity * 100)}%
+            {Math.round(layer.opacity)}%
           </div>
         </div>
       </div>
