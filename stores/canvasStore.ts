@@ -16,6 +16,44 @@ import {
   PixiState,
 } from "./pixiStore";
 
+const validateCanvasSize = (
+  width: number,
+  height: number
+): { width: number; height: number; isValid: boolean } => {
+  const maxSize = 16384;
+  const maxArea = maxSize * maxSize * 0.5;
+
+  if (width > maxSize || height > maxSize || width * height > maxArea) {
+    const aspectRatio = width / height;
+    let newWidth = width;
+    let newHeight = height;
+
+    if (width > maxSize) {
+      newWidth = maxSize;
+      newHeight = Math.floor(newWidth / aspectRatio);
+    }
+
+    if (newHeight > maxSize) {
+      newHeight = maxSize;
+      newWidth = Math.floor(newHeight * aspectRatio);
+    }
+
+    if (newWidth * newHeight > maxArea) {
+      const scale = Math.sqrt(maxArea / (newWidth * newHeight));
+      newWidth = Math.floor(newWidth * scale);
+      newHeight = Math.floor(newHeight * scale);
+    }
+
+    return {
+      width: Math.max(100, newWidth),
+      height: Math.max(100, newHeight),
+      isValid: false,
+    };
+  }
+
+  return { width, height, isValid: true };
+};
+
 export const canvasesAtom = atom<Canvas[]>(sampleData.canvases);
 
 export const currentCanvasIdAtom = atom<string | null>(null);
@@ -103,13 +141,30 @@ export const updateCanvasAtom = atom(
 
     if (!targetCanvas) return;
 
+    let finalWidth = width !== undefined ? width : targetCanvas.width;
+    let finalHeight = height !== undefined ? height : targetCanvas.height;
+    let sizeWarning = false;
+
+    if (width !== undefined || height !== undefined) {
+      const validated = validateCanvasSize(finalWidth, finalHeight);
+      finalWidth = validated.width;
+      finalHeight = validated.height;
+      sizeWarning = !validated.isValid;
+
+      if (sizeWarning) {
+        console.warn(
+          `캔버스 크기가 제한을 초과하여 조정되었습니다: ${width}x${height} -> ${finalWidth}x${finalHeight}`
+        );
+      }
+    }
+
     const updatedCanvases = canvases.map((canvas) =>
       canvas.id === canvasId
         ? {
             ...canvas,
             ...(name !== undefined && { name }),
-            ...(width !== undefined && { width }),
-            ...(height !== undefined && { height }),
+            width: finalWidth,
+            height: finalHeight,
             ...(backgroundColor !== undefined && { backgroundColor }),
             updatedAt: new Date(),
           }
@@ -123,8 +178,8 @@ export const updateCanvasAtom = atom(
       setTimeout(() => {
         set(resizeCanvasAndLayersAtom, {
           canvasId,
-          width: width || targetCanvas.width,
-          height: height || targetCanvas.height,
+          width: finalWidth,
+          height: finalHeight,
         });
       }, 50);
     }
@@ -141,6 +196,8 @@ export const updateCanvasAtom = atom(
           backgroundColor === "TRANSPARENT" ? 0 : 1;
       }
     }
+
+    return sizeWarning;
   }
 );
 

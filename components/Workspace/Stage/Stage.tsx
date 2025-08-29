@@ -123,7 +123,6 @@ function Stage() {
 
       const stageRect = canvasRef.current.getBoundingClientRect();
       const canvas = appRef.current.canvas;
-      const canvasRect = canvas.getBoundingClientRect();
 
       const stageCenterX = stageRect.left + stageRect.width / 2;
       const stageCenterY = stageRect.top + stageRect.height / 2;
@@ -846,22 +845,17 @@ function Stage() {
     if (!currentCanvas) return { width: 800, height: 450 };
 
     const aspectRatio = currentCanvas.width / currentCanvas.height;
-    const maxWidth = window.innerWidth * 0.5;
-    const maxHeight = window.innerHeight * 0.7;
+    const maxWidth = window.innerWidth * 0.6;
+    const maxHeight = window.innerHeight * 0.8;
 
     let displayWidth, displayHeight;
 
-    if (currentCanvas.width <= maxWidth && currentCanvas.height <= maxHeight) {
-      displayWidth = currentCanvas.width;
-      displayHeight = currentCanvas.height;
+    if (aspectRatio > maxWidth / maxHeight) {
+      displayWidth = maxWidth;
+      displayHeight = maxWidth / aspectRatio;
     } else {
-      if (aspectRatio > maxWidth / maxHeight) {
-        displayWidth = maxWidth;
-        displayHeight = maxWidth / aspectRatio;
-      } else {
-        displayHeight = maxHeight;
-        displayWidth = maxHeight * aspectRatio;
-      }
+      displayHeight = maxHeight;
+      displayWidth = maxHeight * aspectRatio;
     }
 
     return {

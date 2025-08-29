@@ -128,12 +128,17 @@ function CanvasItem({
     height: number,
     backgroundColor: string
   ) => {
-    updateCanvas({
+    const sizeWarning = updateCanvas({
       canvasId: data.id,
       width,
       height,
       backgroundColor,
     });
+
+    if (sizeWarning) {
+      console.warn("캔버스 크기가 시스템 제한으로 인해 조정되었습니다.");
+    }
+
     setIsConfigModalOpen(false);
   };
 
@@ -221,9 +226,7 @@ function CanvasItem({
           )}
         </div>
       </div>
-      <div className="flex-1 bg-neutral-100 rounded-bl-xl rounded-br-xl">
-        {/* Canvas preview content goes here */}
-      </div>
+      <div className="flex-1 bg-neutral-100 rounded-bl-xl rounded-br-xl"></div>
       <CanvasConfigModal
         isOpen={isConfigModalOpen}
         onClose={handleConfigClose}
