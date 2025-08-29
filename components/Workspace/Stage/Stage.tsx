@@ -23,10 +23,13 @@ import { DEFAULT_SPEECH_BUBBLE_SETTINGS } from "@/types/speechBubble";
 import {
   selectedToolIdAtom,
   isTemporaryHandToolAtom,
+  isTemporaryZoomInToolAtom,
+  isTemporaryZoomOutToolAtom,
 } from "@/stores/toolsbarStore";
 import { ToolbarItemIDs } from "@/constants/toolsbarItems";
 import { useCursor } from "@/hooks/useCursor";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useGestureControls } from "@/hooks/useGestureControls";
 import { pixiStateAtom } from "@/stores/pixiStore";
 import { currentPageIdAtom } from "@/stores/pageStore";
 import { currentCanvasIdAtom, currentCanvasAtom } from "@/stores/canvasStore";
@@ -71,7 +74,9 @@ function Stage() {
   const lastPanPointRef = useRef<{ x: number; y: number } | null>(null);
 
   const [pixiState, setPixiState] = useAtom(pixiStateAtom);
-  const { setIsTextEditing } = useKeyboardShortcuts();
+  const { setIsTextEditing, isZoomInModeActive, isZoomOutModeActive } =
+    useKeyboardShortcuts();
+  const { attachToElement } = useGestureControls();
 
   const [viewport, setViewport] = useAtom(viewportAtom);
   const zoomIn = useSetAtom(zoomInAtom);
@@ -87,6 +92,8 @@ function Stage() {
   );
   const [selectedToolId] = useAtom(selectedToolIdAtom);
   const isTemporaryHandTool = useAtomValue(isTemporaryHandToolAtom);
+  const isTemporaryZoomInTool = useAtomValue(isTemporaryZoomInToolAtom);
+  const isTemporaryZoomOutTool = useAtomValue(isTemporaryZoomOutToolAtom);
   const cursorStyle = useCursor();
 
   const currentPageId = useAtomValue(currentPageIdAtom);
@@ -174,6 +181,8 @@ function Stage() {
   const speechBubbleSettingsRef = useRef(speechBubbleSettings);
   const selectedToolIdRef = useRef(selectedToolId);
   const isTemporaryHandToolRef = useRef(isTemporaryHandTool);
+  const isTemporaryZoomInToolRef = useRef(isTemporaryZoomInTool);
+  const isTemporaryZoomOutToolRef = useRef(isTemporaryZoomOutTool);
 
   useEffect(() => {
     brushSettingsRef.current = brushSettings;
@@ -204,8 +213,22 @@ function Stage() {
   }, [isTemporaryHandTool]);
 
   useEffect(() => {
+    isTemporaryZoomInToolRef.current = isTemporaryZoomInTool;
+  }, [isTemporaryZoomInTool]);
+
+  useEffect(() => {
+    isTemporaryZoomOutToolRef.current = isTemporaryZoomOutTool;
+  }, [isTemporaryZoomOutTool]);
+
+  useEffect(() => {
     activeLayerRef.current = activeLayer;
   }, [activeLayer]);
+
+  useEffect(() => {
+    if (canvasRef.current) {
+      attachToElement(canvasRef.current);
+    }
+  }, [attachToElement]);
 
   useEffect(() => {
     if (brushEngineRef.current && !isDrawingRef.current) {
@@ -492,10 +515,46 @@ function Stage() {
             return;
           }
           event.preventDefault();
+
           const coords = getCanvasCoordinates(event.clientX, event.clientY);
-          const currentTool = isTemporaryHandToolRef.current
-            ? ToolbarItemIDs.HAND
-            : selectedToolIdRef.current;
+
+          let currentTool = selectedToolIdRef.current;
+
+          if (isTemporaryZoomInToolRef.current) {
+            currentTool = ToolbarItemIDs.ZOOM_IN;
+          } else if (isTemporaryZoomOutToolRef.current) {
+            currentTool = ToolbarItemIDs.ZOOM_OUT;
+          } else if (isTemporaryHandToolRef.current) {
+            currentTool = ToolbarItemIDs.HAND;
+          }
+
+          if (currentTool === ToolbarItemIDs.ZOOM_IN) {
+            const containerRect = canvasRef.current!.getBoundingClientRect();
+            const centerX = containerRect.width / 2;
+            const centerY = containerRect.height / 2;
+
+            const zoomPoint = {
+              x: event.clientX - containerRect.left - centerX,
+              y: event.clientY - containerRect.top - centerY,
+            };
+
+            zoomIn(zoomPoint);
+            return;
+          }
+
+          if (currentTool === ToolbarItemIDs.ZOOM_OUT) {
+            const containerRect = canvasRef.current!.getBoundingClientRect();
+            const centerX = containerRect.width / 2;
+            const centerY = containerRect.height / 2;
+
+            const zoomPoint = {
+              x: event.clientX - containerRect.left - centerX,
+              y: event.clientY - containerRect.top - centerY,
+            };
+
+            zoomOut(zoomPoint);
+            return;
+          }
 
           if (
             (currentTool == ToolbarItemIDs.BRUSH ||
@@ -586,9 +645,16 @@ function Stage() {
 
         const handlePointerMove = (event: PointerEvent) => {
           const coords = getCanvasCoordinates(event.clientX, event.clientY);
-          const currentTool = isTemporaryHandToolRef.current
-            ? ToolbarItemIDs.HAND
-            : selectedToolIdRef.current;
+
+          let currentTool = selectedToolIdRef.current;
+
+          if (isTemporaryZoomInToolRef.current) {
+            currentTool = ToolbarItemIDs.ZOOM_IN;
+          } else if (isTemporaryZoomOutToolRef.current) {
+            currentTool = ToolbarItemIDs.ZOOM_OUT;
+          } else if (isTemporaryHandToolRef.current) {
+            currentTool = ToolbarItemIDs.HAND;
+          }
 
           if (
             currentTool === ToolbarItemIDs.SPEECH_BUBBLE &&
@@ -634,9 +700,15 @@ function Stage() {
         };
 
         const handlePointerUp = (event: PointerEvent) => {
-          const currentTool = isTemporaryHandToolRef.current
-            ? ToolbarItemIDs.HAND
-            : selectedToolIdRef.current;
+          let currentTool = selectedToolIdRef.current;
+
+          if (isTemporaryZoomInToolRef.current) {
+            currentTool = ToolbarItemIDs.ZOOM_IN;
+          } else if (isTemporaryZoomOutToolRef.current) {
+            currentTool = ToolbarItemIDs.ZOOM_OUT;
+          } else if (isTemporaryHandToolRef.current) {
+            currentTool = ToolbarItemIDs.HAND;
+          }
 
           if (
             currentTool === ToolbarItemIDs.SPEECH_BUBBLE &&
@@ -673,9 +745,15 @@ function Stage() {
         };
 
         const handlePointerLeave = () => {
-          const currentTool = isTemporaryHandToolRef.current
-            ? ToolbarItemIDs.HAND
-            : selectedToolIdRef.current;
+          let currentTool = selectedToolIdRef.current;
+
+          if (isTemporaryZoomInToolRef.current) {
+            currentTool = ToolbarItemIDs.ZOOM_IN;
+          } else if (isTemporaryZoomOutToolRef.current) {
+            currentTool = ToolbarItemIDs.ZOOM_OUT;
+          } else if (isTemporaryHandToolRef.current) {
+            currentTool = ToolbarItemIDs.HAND;
+          }
 
           if (isDrawingRef.current) {
             if (currentTool === ToolbarItemIDs.PEN && penEngineRef.current) {
@@ -802,7 +880,7 @@ function Stage() {
     <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
       <div
         ref={canvasRef}
-        className="border-4 border-gray-300 rounded-lg origin-center"
+        className="origin-center"
         style={{
           width: `${displaySize.width}px`,
           height: `${displaySize.height}px`,

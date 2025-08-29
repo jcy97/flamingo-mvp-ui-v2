@@ -4,11 +4,16 @@ import {
   selectedToolIdAtom,
   activateTemporaryHandToolAtom,
   deactivateTemporaryHandToolAtom,
+  activateTemporaryZoomInToolAtom,
+  deactivateTemporaryZoomInToolAtom,
+  activateTemporaryZoomOutToolAtom,
+  deactivateTemporaryZoomOutToolAtom,
 } from "@/stores/toolsbarStore";
 import { ToolbarItemIDs } from "@/constants/toolsbarItems";
 import { brushRadiusAtom } from "@/stores/brushStore";
 import { penSizeAtom } from "@/stores/penStore";
 import { eraserSizeAtom } from "@/stores/eraserStore";
+import { zoomInAtom, zoomOutAtom } from "@/stores/viewportStore";
 
 interface ShortcutAction {
   key: string | string[];
@@ -26,8 +31,24 @@ export const useKeyboardShortcuts = () => {
   const deactivateTemporaryHandTool = useSetAtom(
     deactivateTemporaryHandToolAtom
   );
+  const activateTemporaryZoomInTool = useSetAtom(
+    activateTemporaryZoomInToolAtom
+  );
+  const deactivateTemporaryZoomInTool = useSetAtom(
+    deactivateTemporaryZoomInToolAtom
+  );
+  const activateTemporaryZoomOutTool = useSetAtom(
+    activateTemporaryZoomOutToolAtom
+  );
+  const deactivateTemporaryZoomOutTool = useSetAtom(
+    deactivateTemporaryZoomOutToolAtom
+  );
+  const zoomIn = useSetAtom(zoomInAtom);
+  const zoomOut = useSetAtom(zoomOutAtom);
   const isTextEditingRef = useRef(false);
   const spaceKeyPressedRef = useRef(false);
+  const zKeyPressedRef = useRef(false);
+  const xKeyPressedRef = useRef(false);
 
   const setIsTextEditing = useCallback((value: boolean) => {
     isTextEditingRef.current = value;
@@ -138,6 +159,20 @@ export const useKeyboardShortcuts = () => {
         return;
       }
 
+      if (key === "z" && !zKeyPressedRef.current) {
+        event.preventDefault();
+        zKeyPressedRef.current = true;
+        activateTemporaryZoomInTool();
+        return;
+      }
+
+      if (key === "x" && !xKeyPressedRef.current) {
+        event.preventDefault();
+        xKeyPressedRef.current = true;
+        activateTemporaryZoomOutTool();
+        return;
+      }
+
       for (const shortcut of shortcuts) {
         const keys = Array.isArray(shortcut.key)
           ? shortcut.key
@@ -170,6 +205,20 @@ export const useKeyboardShortcuts = () => {
         deactivateTemporaryHandTool();
         return;
       }
+
+      if (key === "z" && zKeyPressedRef.current) {
+        event.preventDefault();
+        zKeyPressedRef.current = false;
+        deactivateTemporaryZoomInTool();
+        return;
+      }
+
+      if (key === "x" && xKeyPressedRef.current) {
+        event.preventDefault();
+        xKeyPressedRef.current = false;
+        deactivateTemporaryZoomOutTool();
+        return;
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -178,7 +227,21 @@ export const useKeyboardShortcuts = () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [shortcuts, activateTemporaryHandTool, deactivateTemporaryHandTool]);
+  }, [
+    shortcuts,
+    activateTemporaryHandTool,
+    deactivateTemporaryHandTool,
+    activateTemporaryZoomInTool,
+    deactivateTemporaryZoomInTool,
+    activateTemporaryZoomOutTool,
+    deactivateTemporaryZoomOutTool,
+    zoomIn,
+    zoomOut,
+  ]);
 
-  return { setIsTextEditing };
+  return {
+    setIsTextEditing,
+    isZoomInModeActive: () => zKeyPressedRef.current,
+    isZoomOutModeActive: () => xKeyPressedRef.current,
+  };
 };

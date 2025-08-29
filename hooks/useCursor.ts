@@ -2,6 +2,8 @@ import { useAtomValue } from "jotai";
 import {
   selectedToolIdAtom,
   isTemporaryHandToolAtom,
+  isTemporaryZoomInToolAtom,
+  isTemporaryZoomOutToolAtom,
 } from "@/stores/toolsbarStore";
 import { brushSettingsAtom } from "@/stores/brushStore";
 import { penSettingsAtom } from "@/stores/penStore";
@@ -12,13 +14,21 @@ import { createToolCursor } from "@/utils/cursor";
 export function useCursor(): string {
   const selectedToolId = useAtomValue(selectedToolIdAtom);
   const isTemporaryHandTool = useAtomValue(isTemporaryHandToolAtom);
+  const isTemporaryZoomInTool = useAtomValue(isTemporaryZoomInToolAtom);
+  const isTemporaryZoomOutTool = useAtomValue(isTemporaryZoomOutToolAtom);
   const brushSettings = useAtomValue(brushSettingsAtom);
   const penSettings = useAtomValue(penSettingsAtom);
   const eraserSettings = useAtomValue(eraserSettingsAtom);
 
-  const currentTool = isTemporaryHandTool
-    ? ToolbarItemIDs.HAND
-    : selectedToolId;
+  let currentTool = selectedToolId;
+
+  if (isTemporaryZoomInTool) {
+    currentTool = ToolbarItemIDs.ZOOM_IN;
+  } else if (isTemporaryZoomOutTool) {
+    currentTool = ToolbarItemIDs.ZOOM_OUT;
+  } else if (isTemporaryHandTool) {
+    currentTool = ToolbarItemIDs.HAND;
+  }
 
   switch (currentTool) {
     case ToolbarItemIDs.SELECT:
