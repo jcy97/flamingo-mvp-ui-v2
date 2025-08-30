@@ -11,6 +11,7 @@ export interface PixiState {
   isFullyReady: boolean;
   canvasContainers: Record<string, Record<string, PIXI.Container>>;
   layerGraphics: Record<string, Record<string, LayerData>>;
+  canvasThumbnails: Record<string, string>;
   activePageId: string | null;
   activeCanvasId: string | null;
   activeLayerId: string | null;
@@ -23,6 +24,7 @@ export const pixiStateAtom = atom<PixiState>({
   isFullyReady: false,
   canvasContainers: {},
   layerGraphics: {},
+  canvasThumbnails: {},
   activePageId: null,
   activeCanvasId: null,
   activeLayerId: null,
@@ -67,6 +69,70 @@ const validateTextureSize = (
   }
 };
 
+export const generateCanvasThumbnailAtom = atom(
+  null,
+  async (
+    get,
+    set,
+    { canvasId, pageId }: { canvasId: string; pageId: string }
+  ) => {
+    const state = get(pixiStateAtom);
+    if (!state.app || !state.canvasContainers[pageId]?.[canvasId]) {
+      return;
+    }
+
+    const { canvasesAtom } = await import("./canvasStore");
+    const canvases = get(canvasesAtom);
+    const canvas = canvases.find((c) => c.id === canvasId);
+    if (!canvas) return;
+
+    const container = state.canvasContainers[pageId][canvasId];
+
+    const renderTexture = PIXI.RenderTexture.create({
+      width: canvas.width,
+      height: canvas.height,
+      resolution: 0.1,
+    });
+
+    state.app.renderer.render({
+      container: container,
+      target: renderTexture,
+      clear: true,
+    });
+
+    const canvasElement = state.app.renderer.extract.canvas(renderTexture);
+    const base64 = canvasElement.toDataURL!("image/png", 0.8);
+
+    renderTexture.destroy();
+
+    const currentState = get(pixiStateAtom);
+    set(pixiStateAtom, {
+      ...currentState,
+      canvasThumbnails: {
+        ...currentState.canvasThumbnails,
+        [canvasId]: base64,
+      },
+    });
+  }
+);
+
+export const updateAllThumbnailsAtom = atom(null, async (get, set) => {
+  const state = get(pixiStateAtom);
+  if (!state.app || !state.isFullyReady) return;
+
+  const { canvasesAtom } = await import("./canvasStore");
+  const canvases = get(canvasesAtom);
+
+  const thumbnailPromises = canvases.map((canvas) =>
+    set(generateCanvasThumbnailAtom, {
+      canvasId: canvas.id,
+      pageId: canvas.pageId,
+    })
+  );
+
+  await Promise.all(thumbnailPromises);
+});
+
 export const initPixiAppAtom = atom(null, async (get, set) => {
   const state = get(pixiStateAtom);
   const currentPageId = get(currentPageIdAtom);
@@ -92,7 +158,6 @@ export const initPixiAppAtom = atom(null, async (get, set) => {
     });
 
     const maxTextureSize = getMaxTextureSize(app.renderer);
-    console.log(`WebGL 최대 텍스처 크기: ${maxTextureSize}x${maxTextureSize}`);
 
     set(pixiStateAtom, {
       ...state,
@@ -102,8 +167,6 @@ export const initPixiAppAtom = atom(null, async (get, set) => {
       activeCanvasId: currentCanvasId,
       maxTextureSize,
     });
-
-    console.log("PIXI Application 초기화 완료");
 
     const containerPromises = canvases.map(async (canvas) => {
       await set(createCanvasContainerAtom, {
@@ -120,7 +183,7 @@ export const initPixiAppAtom = atom(null, async (get, set) => {
       isFullyReady: true,
     });
 
-    console.log("PIXI 전체 초기화 완료 - 캔버스 컨테이너 생성됨");
+    await set(updateAllThumbnailsAtom);
   } catch (error) {
     console.error("PIXI Application 초기화 실패:", error);
   }
@@ -168,21 +231,20 @@ export const createCanvasContainerAtom = atom(
       },
     });
 
-    console.log(`캔버스 컨테이너 생성: ${pageId}/${canvasId}`);
-
     const layers = get(layersAtom);
     const layersInCanvas = layers.filter(
       (layer) => layer.canvasId === canvasId
     );
-    layersInCanvas.forEach((layer) => {
-      set(createLayerGraphicAtom, { canvasId, layerId: layer.id });
-    });
+
+    for (const layer of layersInCanvas) {
+      await set(createLayerGraphicAtom, { canvasId, layerId: layer.id });
+    }
   }
 );
 
 export const resizeCanvasAndLayersAtom = atom(
   null,
-  (
+  async (
     get,
     set,
     {
@@ -209,7 +271,6 @@ export const resizeCanvasAndLayersAtom = atom(
 
     if (state.app) {
       state.app.renderer.resize(width, height);
-      console.log(`PIXI 앱 크기 변경: ${width}x${height}`);
     }
 
     const layersInCanvas = layers.filter(
@@ -274,7 +335,20 @@ export const resizeCanvasAndLayersAtom = atom(
       }
     });
 
-    console.log(`캔버스 크기 조정 완료: ${canvasId} (${width}x${height})`);
+    const canvas = layers.find((l) => l.canvasId === canvasId);
+    if (canvas) {
+      const { canvasesAtom } = await import("./canvasStore");
+      const canvases = get(canvasesAtom);
+      const canvasData = canvases.find((c) => c.id === canvasId);
+      if (canvasData) {
+        setTimeout(() => {
+          set(generateCanvasThumbnailAtom, {
+            canvasId,
+            pageId: canvasData.pageId,
+          });
+        }, 100);
+      }
+    }
   }
 );
 
@@ -365,10 +439,6 @@ export const createLayerGraphicAtom = atom(
           },
         },
       });
-
-      console.log(
-        `레이어 그래픽 초기화 완료: ${canvasId}/${layerId} (${textureWidth}x${textureHeight})`
-      );
     } catch (error) {
       console.error(`레이어 그래픽 생성 실패 ${canvasId}/${layerId}:`, error);
 
@@ -409,11 +479,6 @@ export const switchPageAtom = atom(null, (get, set, pageId: string) => {
     Object.values(canvasContainers).forEach((container) => {
       state.app!.stage.addChild(container);
     });
-    console.log(
-      `페이지 전환: ${pageId}, 컨테이너 ${
-        Object.keys(canvasContainers).length
-      }개 로드`
-    );
   } else {
     console.warn(`페이지 컨테이너를 찾을 수 없습니다: ${pageId}`);
   }
@@ -431,19 +496,14 @@ export const switchCanvasAtom = atom(null, (get, set, canvasId: string) => {
     ...state,
     activeCanvasId: canvasId,
   });
-
-  console.log(`캔버스 전환: ${canvasId}`);
 });
 
 export const switchLayerAtom = atom(null, (get, set, layerId: string) => {
   const state = get(pixiStateAtom);
-  console.log(state);
   set(pixiStateAtom, {
     ...state,
     activeLayerId: layerId,
   });
-
-  console.log(`레이어 전환: ${layerId}`);
 });
 
 export const getCanvasContainerAtom = atom((get) => {
@@ -454,6 +514,21 @@ export const getCanvasContainerAtom = atom((get) => {
     state.canvasContainers[state.activePageId]?.[state.activeCanvasId] || null
   );
 });
+
+export const refreshCanvasThumbnailAtom = atom(
+  null,
+  async (get, set, canvasId: string) => {
+    const { canvasesAtom } = await import("./canvasStore");
+    const canvases = get(canvasesAtom);
+    const canvas = canvases.find((c) => c.id === canvasId);
+    if (!canvas) return;
+
+    await set(generateCanvasThumbnailAtom, {
+      canvasId,
+      pageId: canvas.pageId,
+    });
+  }
+);
 
 export const cleanupPageAtom = atom(null, (get, set, pageId: string) => {
   const state = get(pixiStateAtom);
@@ -469,21 +544,25 @@ export const cleanupPageAtom = atom(null, (get, set, pageId: string) => {
         children: true,
         texture: true,
       });
-
-      console.log(`캔버스 컨테이너 정리: ${pageId}/${canvasId}`);
     });
   }
 
   const newcanvasContainers = { ...state.canvasContainers };
   delete newcanvasContainers[pageId];
 
+  const newThumbnails = { ...state.canvasThumbnails };
+  if (canvasContainers) {
+    Object.keys(canvasContainers).forEach((canvasId) => {
+      delete newThumbnails[canvasId];
+    });
+  }
+
   set(pixiStateAtom, {
     ...state,
     canvasContainers: newcanvasContainers,
+    canvasThumbnails: newThumbnails,
     activePageId: state.activePageId === pageId ? null : state.activePageId,
   });
-
-  console.log(`페이지 정리 완료: ${pageId}`);
 });
 
 export const cleanupCanvasAtom = atom(
@@ -510,14 +589,16 @@ export const cleanupCanvasAtom = atom(
       newcanvasContainers[pageId] = newCanvases;
     }
 
+    const newThumbnails = { ...state.canvasThumbnails };
+    delete newThumbnails[canvasId];
+
     set(pixiStateAtom, {
       ...state,
       canvasContainers: newcanvasContainers,
+      canvasThumbnails: newThumbnails,
       activeCanvasId:
         state.activeCanvasId === canvasId ? null : state.activeCanvasId,
     });
-
-    console.log(`캔버스 정리 완료: ${pageId}/${canvasId}`);
   }
 );
 
@@ -536,7 +617,6 @@ export const destroyPixiAppAtom = atom(null, (get, set) => {
     });
 
     state.app.destroy();
-    console.log("PIXI Application 정리 완료");
   }
 
   set(pixiStateAtom, {
@@ -545,6 +625,7 @@ export const destroyPixiAppAtom = atom(null, (get, set) => {
     isFullyReady: false,
     canvasContainers: {},
     layerGraphics: {},
+    canvasThumbnails: {},
     activePageId: null,
     activeCanvasId: null,
     activeLayerId: null,
@@ -562,6 +643,7 @@ export const debugPixiStateAtom = atom((get) => {
       (total, page) => total + Object.keys(page).length,
       0
     ),
+    thumbnailsCount: Object.keys(state.canvasThumbnails).length,
     activePageId: state.activePageId,
     activeCanvasId: state.activeCanvasId,
     activeLayerId: state.activeLayerId,

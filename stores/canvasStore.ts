@@ -3,203 +3,105 @@ import { Canvas } from "@/types/canvas";
 import sampleData from "@/samples/data";
 import { currentPageIdAtom } from "./pageStore";
 import {
-  autoSelectFirstLayerAtom,
-  layersForCurrentCanvasAtom,
-  addLayerAtom,
-} from "./layerStore";
-import {
-  switchCanvasAtom,
-  pixiStateAtom,
-  getCanvasContainerAtom,
-  createCanvasContainerAtom,
   resizeCanvasAndLayersAtom,
-  PixiState,
-  createLayerGraphicAtom,
+  cleanupCanvasAtom,
+  switchCanvasAtom,
+  generateCanvasThumbnailAtom,
 } from "./pixiStore";
-
-const validateCanvasSize = (
-  width: number,
-  height: number
-): { width: number; height: number; isValid: boolean } => {
-  const maxSize = 16384;
-  const maxArea = maxSize * maxSize * 0.5;
-
-  if (width > maxSize || height > maxSize || width * height > maxArea) {
-    const aspectRatio = width / height;
-    let newWidth = width;
-    let newHeight = height;
-
-    if (width > maxSize) {
-      newWidth = maxSize;
-      newHeight = Math.floor(newWidth / aspectRatio);
-    }
-
-    if (newHeight > maxSize) {
-      newHeight = maxSize;
-      newWidth = Math.floor(newHeight * aspectRatio);
-    }
-
-    if (newWidth * newHeight > maxArea) {
-      const scale = Math.sqrt(maxArea / (newWidth * newHeight));
-      newWidth = Math.floor(newWidth * scale);
-      newHeight = Math.floor(newHeight * scale);
-    }
-
-    return {
-      width: Math.max(100, newWidth),
-      height: Math.max(100, newHeight),
-      isValid: false,
-    };
-  }
-
-  return { width, height, isValid: true };
-};
+import { cleanupCanvasLayersAtom } from "./layerStore";
 
 export const canvasesAtom = atom<Canvas[]>(sampleData.canvases);
-
-export const currentCanvasIdAtom = atom<string | null>(null);
 
 export const canvasesForCurrentPageAtom = atom((get) => {
   const canvases = get(canvasesAtom);
   const currentPageId = get(currentPageIdAtom);
   if (!currentPageId) return [];
-  return canvases.filter((canvas) => canvas.pageId === currentPageId);
+  return canvases
+    .filter((canvas) => canvas.pageId === currentPageId)
+    .sort((a, b) => a.order - b.order);
 });
+
+export const currentCanvasIdAtom = atom<string | null>(null);
 
 export const currentCanvasAtom = atom((get) => {
   const canvases = get(canvasesAtom);
   const currentCanvasId = get(currentCanvasIdAtom);
-  return canvases.find((canvas) => canvas.id === currentCanvasId) || null;
-});
 
-export const autoSelectFirstCanvasAtom = atom(null, (get, set) => {
-  const canvasesForCurrentPage = get(canvasesForCurrentPageAtom);
-  if (canvasesForCurrentPage.length > 0) {
-    set(setCurrentCanvasAtom, canvasesForCurrentPage[0].id);
-  } else {
-    set(currentCanvasIdAtom, null);
+  if (currentCanvasId) {
+    const canvas = canvases.find((c) => c.id === currentCanvasId);
+    if (canvas) return canvas;
   }
-});
 
-export const addCanvasAtom = atom(null, (get, set) => {
-  const currentPageId = get(currentPageIdAtom);
-  if (!currentPageId) return;
-
-  const canvases = get(canvasesAtom);
   const canvasesForCurrentPage = get(canvasesForCurrentPageAtom);
-  const newCanvasId = `canvas-${String(Date.now()).slice(-3)}`;
-
-  const newCanvas: Canvas = {
-    id: newCanvasId,
-    pageId: currentPageId,
-    name: `캔버스 ${canvasesForCurrentPage.length + 1}`,
-    order: canvasesForCurrentPage.length + 1,
-    width: 1920,
-    height: 1080,
-    unit: "px",
-    backgroundColor: "#FFFFFF",
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
-
-  const updatedCanvases = [...canvases, newCanvas];
-  sampleData.canvases = updatedCanvases;
-  set(canvasesAtom, updatedCanvases);
-
-  set(currentCanvasIdAtom, newCanvasId);
-  set(createCanvasContainerAtom, {
-    pageId: currentPageId,
-    canvasId: newCanvasId,
-  });
-  set(switchCanvasAtom, newCanvasId);
-
-  setTimeout(() => {
-    set(addLayerAtom);
-  }, 100);
+  return canvasesForCurrentPage[0] || null;
 });
 
-export const duplicateCanvasAtom = atom(
+export const setCurrentCanvasAtom = atom(null, (get, set, canvasId: string) => {
+  set(currentCanvasIdAtom, canvasId);
+  set(switchCanvasAtom, canvasId);
+});
+
+export const addCanvasAtom = atom(
   null,
-  async (get, set, canvasId: string) => {
+  async (
+    get,
+    set,
+    canvasData: {
+      pageId: string;
+      name: string;
+      width: number;
+      height: number;
+      backgroundColor?: string;
+    }
+  ): Promise<string> => {
     const canvases = get(canvasesAtom);
-    const { layersAtom } = await import("./layerStore");
-    const { duplicatePixiCanvasLayers, generateUniqueId } = await import(
-      "@/utils/pixiDuplication"
+    const canvasesForPage = canvases.filter(
+      (c) => c.pageId === canvasData.pageId
     );
+    const newOrder =
+      canvasesForPage.length > 0
+        ? Math.max(...canvasesForPage.map((c) => c.order)) + 1
+        : 1;
 
-    const layers = get(layersAtom);
-    const pixiState = get(pixiStateAtom);
-
-    const originalCanvas = canvases.find((c) => c.id === canvasId);
-    if (!originalCanvas) return;
-
-    const newCanvasId = generateUniqueId("canvas");
-    const originalLayers = layers.filter((l) => l.canvasId === canvasId);
-
-    const layerIdMap = new Map<string, string>();
-    originalLayers.forEach((layer) => {
-      layerIdMap.set(layer.id, generateUniqueId("layer"));
-    });
-
-    const duplicatedCanvas: Canvas = {
-      ...originalCanvas,
-      id: newCanvasId,
-      name: `${originalCanvas.name}-복사본`,
-      order: get(canvasesForCurrentPageAtom).length + 1,
+    const newCanvas: Canvas = {
+      id: `canvas-${Date.now()}`,
+      pageId: canvasData.pageId,
+      name: canvasData.name,
+      order: newOrder,
+      width: canvasData.width,
+      height: canvasData.height,
+      unit: "px",
+      backgroundColor: canvasData.backgroundColor || "#FFFFFF",
       createdAt: new Date(),
       updatedAt: new Date(),
     };
 
-    const duplicatedLayers = originalLayers.map((layer) => ({
-      ...layer,
-      id: layerIdMap.get(layer.id)!,
-      canvasId: newCanvasId,
-      data: {
-        pixiSprite: null!,
-        renderTexture: null!,
-      },
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }));
-
-    const updatedCanvases = [...canvases, duplicatedCanvas];
-    const updatedLayers = [...layers, ...duplicatedLayers];
-
+    const updatedCanvases = [...canvases, newCanvas];
     sampleData.canvases = updatedCanvases;
-    sampleData.layers = updatedLayers;
-
     set(canvasesAtom, updatedCanvases);
-    set(layersAtom, updatedLayers);
 
+    set(currentCanvasIdAtom, newCanvas.id);
+
+    const { addLayerAtom } = await import("./layerStore");
+    await set(addLayerAtom);
+
+    const { createCanvasContainerAtom, generateCanvasThumbnailAtom } =
+      await import("./pixiStore");
     await set(createCanvasContainerAtom, {
-      pageId: duplicatedCanvas.pageId,
-      canvasId: newCanvasId,
+      pageId: canvasData.pageId,
+      canvasId: newCanvas.id,
     });
 
-    for (const layer of duplicatedLayers) {
-      await set(createLayerGraphicAtom, {
-        canvasId: newCanvasId,
-        layerId: layer.id,
-      });
-    }
+    await set(switchCanvasAtom, newCanvas.id);
 
-    if (pixiState.app) {
-      await duplicatePixiCanvasLayers({
-        originalCanvasId: canvasId,
-        newCanvasId,
-        layerIdMap,
-        pixiState,
-        pixiApp: pixiState.app,
-        setPixiState: (updater) => {
-          const currentState = get(pixiStateAtom);
-          set(pixiStateAtom, updater(currentState));
-        },
-        newPageId: duplicatedCanvas.pageId,
-        duplicatedLayers,
+    setTimeout(() => {
+      set(generateCanvasThumbnailAtom, {
+        canvasId: newCanvas.id,
+        pageId: canvasData.pageId,
       });
-    }
+    }, 100);
 
-    set(currentCanvasIdAtom, newCanvasId);
+    return newCanvas.id;
   }
 );
 
@@ -223,65 +125,48 @@ export const updateCanvasAtom = atom(
     }
   ) => {
     const canvases = get(canvasesAtom);
-    const targetCanvas = canvases.find((c) => c.id === canvasId);
+    const originalCanvas = canvases.find((c) => c.id === canvasId);
+    if (!originalCanvas) return false;
 
-    if (!targetCanvas) return;
-
-    let finalWidth = width !== undefined ? width : targetCanvas.width;
-    let finalHeight = height !== undefined ? height : targetCanvas.height;
     let sizeWarning = false;
+    const updatedCanvases = canvases.map((canvas) => {
+      if (canvas.id === canvasId) {
+        const updatedCanvas = {
+          ...canvas,
+          ...(name && { name }),
+          ...(width && { width }),
+          ...(height && { height }),
+          ...(backgroundColor && { backgroundColor }),
+          updatedAt: new Date(),
+        };
 
-    if (width !== undefined || height !== undefined) {
-      const validated = validateCanvasSize(finalWidth, finalHeight);
-      finalWidth = validated.width;
-      finalHeight = validated.height;
-      sizeWarning = !validated.isValid;
+        if (
+          (width && width !== canvas.width) ||
+          (height && height !== canvas.height)
+        ) {
+          setTimeout(() => {
+            set(resizeCanvasAndLayersAtom, {
+              canvasId,
+              width: width || canvas.width,
+              height: height || canvas.height,
+            });
+          }, 100);
+        }
 
-      if (sizeWarning) {
-        console.warn(
-          `캔버스 크기가 제한을 초과하여 조정되었습니다: ${width}x${height} -> ${finalWidth}x${finalHeight}`
-        );
+        return updatedCanvas;
       }
-    }
-
-    const updatedCanvases = canvases.map((canvas) =>
-      canvas.id === canvasId
-        ? {
-            ...canvas,
-            ...(name !== undefined && { name }),
-            width: finalWidth,
-            height: finalHeight,
-            ...(backgroundColor !== undefined && { backgroundColor }),
-            updatedAt: new Date(),
-          }
-        : canvas
-    );
+      return canvas;
+    });
 
     sampleData.canvases = updatedCanvases;
     set(canvasesAtom, updatedCanvases);
 
-    if (width !== undefined || height !== undefined) {
-      setTimeout(() => {
-        set(resizeCanvasAndLayersAtom, {
-          canvasId,
-          width: finalWidth,
-          height: finalHeight,
-        });
-      }, 50);
-    }
-
-    if (backgroundColor !== undefined) {
-      const pixiState: PixiState = get(pixiStateAtom);
-      if (pixiState.app) {
-        const bgColor =
-          backgroundColor === "TRANSPARENT"
-            ? 0x000000
-            : parseInt(backgroundColor.replace("#", "0x"));
-        pixiState.app.renderer.background.color = bgColor;
-        pixiState.app.renderer.background.alpha =
-          backgroundColor === "TRANSPARENT" ? 0 : 1;
-      }
-    }
+    setTimeout(() => {
+      set(generateCanvasThumbnailAtom, {
+        canvasId,
+        pageId: originalCanvas.pageId,
+      });
+    }, 200);
 
     return sizeWarning;
   }
@@ -289,22 +174,70 @@ export const updateCanvasAtom = atom(
 
 export const deleteCanvasAtom = atom(null, (get, set, canvasId: string) => {
   const canvases = get(canvasesAtom);
-  const currentCanvasId = get(currentCanvasIdAtom);
+  const targetCanvas = canvases.find((canvas) => canvas.id === canvasId);
   const canvasesForCurrentPage = get(canvasesForCurrentPageAtom);
+  const currentCanvasId = get(currentCanvasIdAtom);
 
-  if (canvasesForCurrentPage.length <= 1) return;
+  if (canvasesForCurrentPage.length <= 1) {
+    console.warn("마지막 캔버스는 삭제할 수 없습니다.");
+    return;
+  }
 
-  const updatedCanvases = canvases.filter((canvas) => canvas.id !== canvasId);
-  sampleData.canvases = updatedCanvases;
-  set(canvasesAtom, updatedCanvases);
+  if (targetCanvas) {
+    set(cleanupCanvasAtom, {
+      pageId: targetCanvas.pageId,
+      canvasId: targetCanvas.id,
+    });
+    set(cleanupCanvasLayersAtom, canvasId);
 
-  if (currentCanvasId === canvasId) {
-    const remainingCanvases = updatedCanvases.filter(
-      (canvas) => canvas.pageId === get(currentPageIdAtom)
-    );
-    set(currentCanvasIdAtom, remainingCanvases[0]?.id || null);
+    const updatedCanvases = canvases.filter((canvas) => canvas.id !== canvasId);
+    sampleData.canvases = updatedCanvases;
+    set(canvasesAtom, updatedCanvases);
+
+    if (currentCanvasId === canvasId) {
+      const remainingCanvases = updatedCanvases.filter(
+        (canvas) => canvas.pageId === targetCanvas.pageId
+      );
+      if (remainingCanvases.length > 0) {
+        set(setCurrentCanvasAtom, remainingCanvases[0].id);
+      }
+    }
   }
 });
+
+export const duplicateCanvasAtom = atom(
+  null,
+  async (get, set, canvasId: string) => {
+    const canvases = get(canvasesAtom);
+    const originalCanvas = canvases.find((c) => c.id === canvasId);
+    if (!originalCanvas) return;
+
+    const newCanvasId = `canvas-${Date.now()}`;
+    const canvasesForPage = canvases.filter(
+      (c) => c.pageId === originalCanvas.pageId
+    );
+
+    const duplicatedCanvas: Canvas = {
+      ...originalCanvas,
+      id: newCanvasId,
+      name: `${originalCanvas.name} 복사본`,
+      order: Math.max(...canvasesForPage.map((c) => c.order)) + 1,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const updatedCanvases = [...canvases, duplicatedCanvas];
+    sampleData.canvases = updatedCanvases;
+    set(canvasesAtom, updatedCanvases);
+
+    setTimeout(() => {
+      set(generateCanvasThumbnailAtom, {
+        canvasId: newCanvasId,
+        pageId: originalCanvas.pageId,
+      });
+    }, 200);
+  }
+);
 
 export const reorderCanvasesAtom = atom(
   null,
@@ -317,60 +250,72 @@ export const reorderCanvasesAtom = atom(
     const canvasesForCurrentPage = get(canvasesForCurrentPageAtom);
     const currentPageId = get(currentPageIdAtom);
 
-    if (!currentPageId) return;
+    if (!currentPageId || dragIndex === hoverIndex) return;
 
-    const draggedCanvas = canvasesForCurrentPage[dragIndex];
-    const newCanvasesForPage = [...canvasesForCurrentPage];
+    const reorderedCanvases = [...canvasesForCurrentPage];
+    const [draggedCanvas] = reorderedCanvases.splice(dragIndex, 1);
+    reorderedCanvases.splice(hoverIndex, 0, draggedCanvas);
 
-    newCanvasesForPage.splice(dragIndex, 1);
-    newCanvasesForPage.splice(hoverIndex, 0, draggedCanvas);
+    const canvasesWithUpdatedOrder = reorderedCanvases.map((canvas, index) => ({
+      ...canvas,
+      order: index + 1,
+      updatedAt: new Date(),
+    }));
 
-    const reorderedCanvasesForPage = newCanvasesForPage.map(
-      (canvas, index) => ({
-        ...canvas,
-        order: index + 1,
-      })
-    );
-
-    const otherCanvases = canvases.filter(
+    const otherPageCanvases = canvases.filter(
       (canvas) => canvas.pageId !== currentPageId
     );
-    const updatedCanvases = [...otherCanvases, ...reorderedCanvasesForPage];
 
+    const allUpdatedCanvases = [
+      ...otherPageCanvases,
+      ...canvasesWithUpdatedOrder,
+    ];
+
+    set(canvasesAtom, allUpdatedCanvases);
+    sampleData.canvases = allUpdatedCanvases;
+  }
+);
+
+export const autoSelectFirstCanvasAtom = atom(null, (get, set) => {
+  const canvasesForCurrentPage = get(canvasesForCurrentPageAtom);
+  const currentCanvasId = get(currentCanvasIdAtom);
+
+  if (canvasesForCurrentPage.length > 0) {
+    const firstCanvas = canvasesForCurrentPage[0];
+    if (currentCanvasId !== firstCanvas.id) {
+      set(setCurrentCanvasAtom, firstCanvas.id);
+    }
+  } else {
+    set(currentCanvasIdAtom, null);
+  }
+});
+
+export const cleanupPageCanvasesAtom = atom(
+  null,
+  (get, set, pageId: string) => {
+    const canvases = get(canvasesAtom);
+    const pageCanvases = canvases.filter((canvas) => canvas.pageId === pageId);
+
+    pageCanvases.forEach((canvas) => {
+      set(cleanupCanvasAtom, { pageId, canvasId: canvas.id });
+      set(cleanupCanvasLayersAtom, canvas.id);
+    });
+
+    const updatedCanvases = canvases.filter(
+      (canvas) => canvas.pageId !== pageId
+    );
     sampleData.canvases = updatedCanvases;
     set(canvasesAtom, updatedCanvases);
   }
 );
 
-const updateCanvasLayerOrder = (get: any, canvasId: string) => {
-  const pixiState = get(pixiStateAtom);
-  const canvasContainer = get(getCanvasContainerAtom);
-  const layersForCurrentCanvas = get(layersForCurrentCanvasAtom);
+export const debugCanvasStateAtom = atom((get) => {
+  const canvases = get(canvasesForCurrentPageAtom);
+  const currentCanvasId = get(currentCanvasIdAtom);
 
-  if (!canvasContainer || !canvasId) return;
-
-  canvasContainer.removeChildren();
-
-  const sortedLayers = [...layersForCurrentCanvas].sort(
-    (a, b) => a.order - b.order
-  );
-
-  sortedLayers.forEach((layer) => {
-    const layerGraphic = pixiState.layerGraphics[canvasId]?.[layer.id];
-    if (layerGraphic?.pixiSprite) {
-      canvasContainer.addChild(layerGraphic.pixiSprite);
-      layerGraphic.pixiSprite.visible = layer.isVisible;
-      layerGraphic.pixiSprite.alpha = layer.opacity;
-    }
-  });
-};
-
-export const setCurrentCanvasAtom = atom(null, (get, set, canvasId: string) => {
-  set(currentCanvasIdAtom, canvasId);
-  set(autoSelectFirstLayerAtom);
-  set(switchCanvasAtom, canvasId);
-
-  setTimeout(() => {
-    updateCanvasLayerOrder(get, canvasId);
-  }, 0);
+  return {
+    totalCanvases: canvases.length,
+    currentCanvasId,
+    canvasNames: canvases.map((c) => c.name),
+  };
 });

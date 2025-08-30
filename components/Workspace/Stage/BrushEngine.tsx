@@ -253,7 +253,9 @@ export class BrushEngine {
     },
     color: { r: number; g: number; b: number; a: number }
   ): void {
-    if (!this.renderTexture) return;
+    if (!this.renderTexture) {
+      return;
+    }
 
     if (this.settings.snapToPixel > 0) {
       x = Math.round(x);
@@ -310,7 +312,9 @@ export class BrushEngine {
   }
 
   public startStroke(point: DrawingPoint): void {
-    if (!this.renderTexture) return;
+    if (!this.renderTexture) {
+      return;
+    }
 
     this.isDrawing = true;
     this.states.x = point.x;
@@ -339,7 +343,9 @@ export class BrushEngine {
   }
 
   public continueStroke(point: DrawingPoint): void {
-    if (!this.isDrawing || !this.renderTexture) return;
+    if (!this.isDrawing || !this.renderTexture) {
+      return;
+    }
 
     const now = performance.now();
     const dt = Math.min(0.1, (now - this.lastTime) / 1000);

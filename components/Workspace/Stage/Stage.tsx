@@ -30,7 +30,7 @@ import { ToolbarItemIDs } from "@/constants/toolsbarItems";
 import { useCursor } from "@/hooks/useCursor";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useGestureControls } from "@/hooks/useGestureControls";
-import { pixiStateAtom } from "@/stores/pixiStore";
+import { pixiStateAtom, refreshCanvasThumbnailAtom } from "@/stores/pixiStore";
 import { currentPageIdAtom } from "@/stores/pageStore";
 import { currentCanvasIdAtom, currentCanvasAtom } from "@/stores/canvasStore";
 import {
@@ -46,6 +46,7 @@ import {
   layersForCurrentCanvasAtom,
   deleteLayerAtom,
   addLayerAtom,
+  autoSelectFirstLayerAtom,
 } from "@/stores/layerStore";
 import ZoomIndicator from "@/components/Common/ZoomIndicator";
 
@@ -101,18 +102,23 @@ function Stage() {
   const currentCanvas = useAtomValue(currentCanvasAtom);
   const activeLayerId = useAtomValue(activeLayerIdAtom);
   const activeLayer = useAtomValue(currentActiveLayerAtom);
+  const effectiveActiveLayerId = activeLayer?.id || activeLayerId;
   const layersForCurrentCanvas = useAtomValue(layersForCurrentCanvasAtom);
   const activeLayerRef = useRef(activeLayer);
   const autoCreateTextLayer = useSetAtom(autoCreateTextLayerAtom);
   const deleteLayer = useSetAtom(deleteLayerAtom);
   const addLayer = useSetAtom(addLayerAtom);
+  const autoSelectFirstLayer = useSetAtom(autoSelectFirstLayerAtom);
+  const refreshCanvasThumbnail = useSetAtom(refreshCanvasThumbnailAtom);
 
   const getDisplaySize = useCallback(() => {
     if (!currentCanvas) return { width: 800, height: 450 };
 
     const aspectRatio = currentCanvas.width / currentCanvas.height;
-    const maxWidth = window.innerWidth * 0.6;
-    const maxHeight = window.innerHeight * 0.8;
+    const maxWidth =
+      typeof window !== "undefined" ? window.innerWidth * 0.6 : 1200;
+    const maxHeight =
+      typeof window !== "undefined" ? window.innerHeight * 0.8 : 800;
 
     let displayWidth, displayHeight;
 
@@ -374,27 +380,36 @@ function Stage() {
         ) {
           const selectedBubbleSettings =
             speechBubbleEngineRef.current.getSelectedBubbleSettings();
-          if (selectedBubbleSettings && activeLayerId) {
+          if (selectedBubbleSettings && effectiveActiveLayerId) {
             event.preventDefault();
             speechBubbleEngineRef.current.deleteSelectedBubble();
-            deleteLayer(activeLayerId);
+            deleteLayer(effectiveActiveLayerId);
           }
         }
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [deleteLayer, activeLayerId]);
+    if (typeof window !== "undefined") {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("keydown", handleKeyDown);
+      }
+    };
+  }, [deleteLayer, effectiveActiveLayerId]);
 
   const updateCanvasLayer = useCallback(() => {
-    if (!appRef.current || !currentPageId || !currentCanvasId || !activeLayerId)
+    if (
+      !appRef.current ||
+      !currentPageId ||
+      !currentCanvasId ||
+      !effectiveActiveLayerId
+    ) {
       return;
+    }
 
     if (!pixiState.isFullyReady) {
-      console.log(
-        "PIXI가 아직 완전히 준비되지 않았습니다. 잠시 후 다시 시도합니다."
-      );
       return;
     }
 
@@ -436,7 +451,7 @@ function Stage() {
     });
 
     const activeLayerGraphic =
-      pixiState.layerGraphics[currentCanvasId]?.[activeLayerId];
+      pixiState.layerGraphics[currentCanvasId]?.[effectiveActiveLayerId];
     if (activeLayerGraphic?.renderTexture) {
       activeRenderTextureRef.current = activeLayerGraphic.renderTexture;
 
@@ -494,13 +509,19 @@ function Stage() {
     pixiState,
     currentPageId,
     currentCanvasId,
-    activeLayerId,
+    effectiveActiveLayerId,
     layersForCurrentCanvas,
   ]);
 
   useEffect(() => {
     updateCanvasLayer();
   }, [updateCanvasLayer]);
+
+  useEffect(() => {
+    if (!effectiveActiveLayerId && layersForCurrentCanvas.length > 0) {
+      autoSelectFirstLayer();
+    }
+  }, [effectiveActiveLayerId, layersForCurrentCanvas, autoSelectFirstLayer]);
 
   useEffect(() => {
     if (pixiState.app && currentCanvas && canvasElementRef.current) {
@@ -514,10 +535,6 @@ function Stage() {
           canvasElementRef.current.style.height = `${displaySize.height}px`;
         }
       }, 0);
-
-      console.log(
-        `Stage 좌표 업데이트: PIXI=${currentCanvas.width}x${currentCanvas.height}, Display=${displaySize.width}x${displaySize.height}`
-      );
     }
   }, [currentCanvas?.width, currentCanvas?.height, pixiState.app]);
 
@@ -538,6 +555,11 @@ function Stage() {
         eraserEngineRef.current = new EraserEngine(app, eraserSettings);
         textEngineRef.current = new TextEngine(app, textSettings);
         textEngineRef.current.setOnLayerDelete(deleteLayer);
+        textEngineRef.current.setOnThumbnailUpdate(() => {
+          if (currentCanvasId) {
+            refreshCanvasThumbnail(currentCanvasId);
+          }
+        });
         speechBubbleEngineRef.current = new SpeechBubbleEngine(
           app,
           speechBubbleSettings
@@ -550,6 +572,11 @@ function Stage() {
             }));
           } else {
             setSpeechBubbleSettings(DEFAULT_SPEECH_BUBBLE_SETTINGS);
+          }
+        });
+        speechBubbleEngineRef.current.setOnThumbnailUpdate(() => {
+          if (currentCanvasId) {
+            refreshCanvasThumbnail(currentCanvasId);
           }
         });
 
@@ -573,7 +600,15 @@ function Stage() {
           canvas.style.height = `${currentCanvas.height * uniformScale}px`;
         }
 
-        const handlePointerDown = (event: PointerEvent) => {
+        const scheduleCanvasThumbnailUpdate = () => {
+          if (currentCanvasId) {
+            setTimeout(() => {
+              refreshCanvasThumbnail(currentCanvasId);
+            }, 50);
+          }
+        };
+
+        const handlePointerDown = async (event: PointerEvent) => {
           const isTextEditing = textEngineRef.current?.isCurrentlyEditing();
           if (isTextEditing) {
             return;
@@ -651,7 +686,7 @@ function Stage() {
                 return;
               }
             }
-            const textLayerId = autoCreateTextLayer();
+            const textLayerId = await autoCreateTextLayer();
             if (!textLayerId) {
               console.error("텍스트 레이어 생성 실패");
               return;
@@ -672,7 +707,7 @@ function Stage() {
             const selected =
               speechBubbleEngineRef.current.selectBubbleAt(coords);
             if (!selected) {
-              addLayer();
+              await addLayer();
               setTimeout(() => {
                 const newActiveLayer = activeLayerRef.current;
                 if (newActiveLayer) {
@@ -817,6 +852,9 @@ function Stage() {
               speechBubbleEngineRef.current.endDrawing();
               canvas.releasePointerCapture(event.pointerId);
               isDrawingRef.current = false;
+              if (currentCanvasId) {
+                setTimeout(() => refreshCanvasThumbnail(currentCanvasId), 50);
+              }
             }
             return;
           }
@@ -829,16 +867,25 @@ function Stage() {
 
           if (currentTool === ToolbarItemIDs.PEN && penEngineRef.current) {
             penEngineRef.current.endStroke();
+            if (currentCanvasId) {
+              setTimeout(() => refreshCanvasThumbnail(currentCanvasId), 50);
+            }
           } else if (
             currentTool === ToolbarItemIDs.BRUSH &&
             brushEngineRef.current
           ) {
             brushEngineRef.current.endStroke();
+            if (currentCanvasId) {
+              setTimeout(() => refreshCanvasThumbnail(currentCanvasId), 50);
+            }
           } else if (
             currentTool === ToolbarItemIDs.ERASER &&
             eraserEngineRef.current
           ) {
             eraserEngineRef.current.endStroke();
+            if (currentCanvasId) {
+              setTimeout(() => refreshCanvasThumbnail(currentCanvasId), 50);
+            }
           }
         };
 
@@ -877,6 +924,7 @@ function Stage() {
             ) {
               speechBubbleEngineRef.current.endDrawing();
             }
+            scheduleCanvasThumbnailUpdate();
           }
           isDrawingRef.current = false;
           lastPressureRef.current = 0.5;

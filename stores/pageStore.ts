@@ -22,7 +22,7 @@ export const currentPageAtom = atom((get) => {
   return pages.find((page) => page.id === currentPageId) || null;
 });
 
-export const addPageAtom = atom(null, (get, set) => {
+export const addPageAtom = atom(null, async (get, set) => {
   const pages = get(pagesAtom);
   const newPageId = `page-${String(Date.now()).slice(-3)}`;
 
@@ -41,7 +41,14 @@ export const addPageAtom = atom(null, (get, set) => {
 
   set(currentPageIdAtom, newPageId);
 
-  set(addCanvasAtom);
+  const { addCanvasAtom } = await import("./canvasStore");
+  await set(addCanvasAtom, {
+    pageId: newPageId,
+    name: "캔버스 1",
+    width: 1920,
+    height: 1080,
+    backgroundColor: "#FFFFFF",
+  });
 
   set(switchPageAtom, newPageId);
 });
