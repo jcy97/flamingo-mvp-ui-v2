@@ -124,9 +124,20 @@ function Stage() {
       displayWidth = maxHeight * aspectRatio;
     }
 
+    const minSize = 200;
+    if (displayWidth < minSize || displayHeight < minSize) {
+      if (displayWidth < displayHeight) {
+        displayWidth = minSize;
+        displayHeight = minSize / aspectRatio;
+      } else {
+        displayHeight = minSize;
+        displayWidth = minSize * aspectRatio;
+      }
+    }
+
     return {
-      width: Math.max(displayWidth, 300),
-      height: Math.max(displayHeight, 200),
+      width: displayWidth,
+      height: displayHeight,
     };
   }, [currentCanvas]);
 
@@ -245,10 +256,18 @@ function Stage() {
 
   useEffect(() => {
     selectedToolIdRef.current = selectedToolId;
+    if (selectedToolId !== ToolbarItemIDs.HAND && isPanningRef.current) {
+      isPanningRef.current = false;
+      lastPanPointRef.current = null;
+    }
   }, [selectedToolId]);
 
   useEffect(() => {
     isTemporaryHandToolRef.current = isTemporaryHandTool;
+    if (!isTemporaryHandTool && isPanningRef.current) {
+      isPanningRef.current = false;
+      lastPanPointRef.current = null;
+    }
   }, [isTemporaryHandTool]);
 
   useEffect(() => {
@@ -601,6 +620,17 @@ function Stage() {
             return;
           }
 
+          if (currentTool === ToolbarItemIDs.HAND) {
+            isPanningRef.current = true;
+            lastPanPointRef.current = {
+              x: event.clientX,
+              y: event.clientY,
+            };
+            canvas.setPointerCapture(event.pointerId);
+            event.preventDefault();
+            return;
+          }
+
           if (
             (currentTool == ToolbarItemIDs.BRUSH ||
               currentTool == ToolbarItemIDs.PEN ||
@@ -701,6 +731,22 @@ function Stage() {
             currentTool = ToolbarItemIDs.HAND;
           }
 
+          if (currentTool === ToolbarItemIDs.HAND && isPanningRef.current) {
+            if (lastPanPointRef.current) {
+              const deltaX = event.clientX - lastPanPointRef.current.x;
+              const deltaY = event.clientY - lastPanPointRef.current.y;
+
+              panViewport({ x: deltaX, y: deltaY });
+
+              lastPanPointRef.current = {
+                x: event.clientX,
+                y: event.clientY,
+              };
+            }
+            event.preventDefault();
+            return;
+          }
+
           if (
             currentTool === ToolbarItemIDs.SPEECH_BUBBLE &&
             speechBubbleEngineRef.current
@@ -755,6 +801,13 @@ function Stage() {
             currentTool = ToolbarItemIDs.HAND;
           }
 
+          if (isPanningRef.current) {
+            isPanningRef.current = false;
+            lastPanPointRef.current = null;
+            canvas.releasePointerCapture(event.pointerId);
+            return;
+          }
+
           if (
             currentTool === ToolbarItemIDs.SPEECH_BUBBLE &&
             speechBubbleEngineRef.current
@@ -798,6 +851,11 @@ function Stage() {
             currentTool = ToolbarItemIDs.ZOOM_OUT;
           } else if (isTemporaryHandToolRef.current) {
             currentTool = ToolbarItemIDs.HAND;
+          }
+
+          if (isPanningRef.current) {
+            isPanningRef.current = false;
+            lastPanPointRef.current = null;
           }
 
           if (isDrawingRef.current) {
@@ -888,6 +946,7 @@ function Stage() {
   }, [pixiState.app, pixiState.isFullyReady]);
 
   const displaySize = getDisplaySize();
+
   const canvasBackgroundColor =
     currentCanvas?.backgroundColor === "TRANSPARENT"
       ? "transparent"
@@ -899,8 +958,6 @@ function Stage() {
         ref={canvasRef}
         className="origin-center"
         style={{
-          width: `${displaySize.width}px`,
-          height: `${displaySize.height}px`,
           backgroundColor:
             canvasBackgroundColor === "transparent"
               ? "#f8f8f8"
