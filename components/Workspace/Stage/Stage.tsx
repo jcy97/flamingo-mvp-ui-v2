@@ -107,11 +107,52 @@ function Stage() {
   const deleteLayer = useSetAtom(deleteLayerAtom);
   const addLayer = useSetAtom(addLayerAtom);
 
+  const getDisplaySize = useCallback(() => {
+    if (!currentCanvas) return { width: 800, height: 450 };
+
+    const aspectRatio = currentCanvas.width / currentCanvas.height;
+    const maxWidth = window.innerWidth * 0.6;
+    const maxHeight = window.innerHeight * 0.8;
+
+    let displayWidth, displayHeight;
+
+    if (aspectRatio > maxWidth / maxHeight) {
+      displayWidth = maxWidth;
+      displayHeight = maxWidth / aspectRatio;
+    } else {
+      displayHeight = maxHeight;
+      displayWidth = maxHeight * aspectRatio;
+    }
+
+    return {
+      width: Math.max(displayWidth, 300),
+      height: Math.max(displayHeight, 200),
+    };
+  }, [currentCanvas]);
+
   useEffect(() => {
     if (canvasElementRef.current) {
       canvasElementRef.current.style.cursor = cursorStyle;
     }
   }, [cursorStyle]);
+
+  useEffect(() => {
+    if (canvasElementRef.current && currentCanvas && appRef.current) {
+      appRef.current.renderer.resize(currentCanvas.width, currentCanvas.height);
+
+      const displaySize = getDisplaySize();
+      const scaleX = displaySize.width / currentCanvas.width;
+      const scaleY = displaySize.height / currentCanvas.height;
+      const uniformScale = Math.min(scaleX, scaleY);
+
+      canvasElementRef.current.style.width = `${
+        currentCanvas.width * uniformScale
+      }px`;
+      canvasElementRef.current.style.height = `${
+        currentCanvas.height * uniformScale
+      }px`;
+    }
+  }, [currentCanvas, getDisplaySize]);
 
   const getStageTransform = useCallback(() => {
     return `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`;
@@ -122,7 +163,6 @@ function Stage() {
       if (!appRef.current || !canvasRef.current) return { x: 0, y: 0 };
 
       const stageRect = canvasRef.current.getBoundingClientRect();
-      const canvas = appRef.current.canvas;
 
       const stageCenterX = stageRect.left + stageRect.width / 2;
       const stageCenterY = stageRect.top + stageRect.height / 2;
@@ -500,12 +540,18 @@ function Stage() {
         canvasElementRef.current = canvas;
         canvas.style.cursor = cursorStyle;
         canvas.style.display = "block";
-        canvas.style.width = "100%";
-        canvas.style.height = "100%";
         canvas.style.touchAction = "none";
 
         if (currentCanvas) {
           app.renderer.resize(currentCanvas.width, currentCanvas.height);
+
+          const displaySize = getDisplaySize();
+          const scaleX = displaySize.width / currentCanvas.width;
+          const scaleY = displaySize.height / currentCanvas.height;
+          const uniformScale = Math.min(scaleX, scaleY);
+
+          canvas.style.width = `${currentCanvas.width * uniformScale}px`;
+          canvas.style.height = `${currentCanvas.height * uniformScale}px`;
         }
 
         const handlePointerDown = (event: PointerEvent) => {
@@ -840,29 +886,6 @@ function Stage() {
       }
     };
   }, [pixiState.app, pixiState.isFullyReady]);
-
-  const getDisplaySize = () => {
-    if (!currentCanvas) return { width: 800, height: 450 };
-
-    const aspectRatio = currentCanvas.width / currentCanvas.height;
-    const maxWidth = window.innerWidth * 0.6;
-    const maxHeight = window.innerHeight * 0.8;
-
-    let displayWidth, displayHeight;
-
-    if (aspectRatio > maxWidth / maxHeight) {
-      displayWidth = maxWidth;
-      displayHeight = maxWidth / aspectRatio;
-    } else {
-      displayHeight = maxHeight;
-      displayWidth = maxHeight * aspectRatio;
-    }
-
-    return {
-      width: Math.max(displayWidth, 300),
-      height: Math.max(displayHeight, 200),
-    };
-  };
 
   const displaySize = getDisplaySize();
   const canvasBackgroundColor =

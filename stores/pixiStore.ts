@@ -210,13 +210,6 @@ export const resizeCanvasAndLayersAtom = atom(
     if (state.app) {
       state.app.renderer.resize(width, height);
       console.log(`PIXI 앱 크기 변경: ${width}x${height}`);
-
-      setTimeout(() => {
-        if (state.app) {
-          state.app.renderer.resize(width, height);
-          console.log(`PIXI 앱 크기 재확인: ${width}x${height}`);
-        }
-      }, 100);
     }
 
     const layersInCanvas = layers.filter(
