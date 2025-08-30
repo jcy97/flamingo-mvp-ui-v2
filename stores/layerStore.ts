@@ -189,11 +189,14 @@ export const duplicateLayerAtom = atom(
     const layers = get(layersAtom);
     const pixiState = get(pixiStateAtom);
     const currentCanvasId = get(currentCanvasIdAtom);
+    const { duplicatePixiLayer, generateUniqueId } = await import(
+      "@/utils/pixiDuplication"
+    );
 
     const originalLayer = layers.find((l) => l.id === layerId);
     if (!originalLayer || !currentCanvasId) return;
 
-    const newLayerId = `layer-${String(Date.now()).slice(-3)}`;
+    const newLayerId = generateUniqueId("layer");
     const layersForCurrentCanvas = get(layersForCurrentCanvasAtom);
 
     const duplicatedLayer: Layer = {
@@ -219,28 +222,31 @@ export const duplicateLayerAtom = atom(
     });
 
     if (pixiState.app) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
       const originalLayerGraphic =
         pixiState.layerGraphics[currentCanvasId]?.[layerId];
-      const newLayerGraphic =
-        pixiState.layerGraphics[currentCanvasId]?.[newLayerId];
 
-      if (
-        originalLayerGraphic?.renderTexture &&
-        newLayerGraphic?.renderTexture
-      ) {
-        const tempContainer = new PIXI.Container();
-        const tempSprite = new PIXI.Sprite(originalLayerGraphic.renderTexture);
-        tempContainer.addChild(tempSprite);
-
-        pixiState.app.renderer.render({
-          container: tempContainer,
-          target: newLayerGraphic.renderTexture,
-          clear: true,
+      if (originalLayerGraphic) {
+        const duplicatedLayerData = await duplicatePixiLayer({
+          originalLayerData: originalLayerGraphic,
+          pixiApp: pixiState.app,
+          targetCanvasId: currentCanvasId,
+          targetLayerId: newLayerId,
         });
 
-        tempContainer.destroy({ children: true });
+        if (duplicatedLayerData) {
+          const { pixiStateAtom } = await import("./pixiStore");
+          const currentState = get(pixiStateAtom);
+          set(pixiStateAtom, {
+            ...currentState,
+            layerGraphics: {
+              ...currentState.layerGraphics,
+              [currentCanvasId]: {
+                ...currentState.layerGraphics[currentCanvasId],
+                [newLayerId]: duplicatedLayerData,
+              },
+            },
+          });
+        }
       }
     }
 

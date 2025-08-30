@@ -123,14 +123,23 @@ export const duplicateCanvasAtom = atom(
   async (get, set, canvasId: string) => {
     const canvases = get(canvasesAtom);
     const { layersAtom } = await import("./layerStore");
+    const { duplicatePixiCanvasLayers, generateUniqueId } = await import(
+      "@/utils/pixiDuplication"
+    );
+
     const layers = get(layersAtom);
     const pixiState = get(pixiStateAtom);
 
     const originalCanvas = canvases.find((c) => c.id === canvasId);
     if (!originalCanvas) return;
 
-    const newCanvasId = `canvas-${String(Date.now()).slice(-3)}`;
+    const newCanvasId = generateUniqueId("canvas");
+    const originalLayers = layers.filter((l) => l.canvasId === canvasId);
+
     const layerIdMap = new Map<string, string>();
+    originalLayers.forEach((layer) => {
+      layerIdMap.set(layer.id, generateUniqueId("layer"));
+    });
 
     const duplicatedCanvas: Canvas = {
       ...originalCanvas,
@@ -141,25 +150,17 @@ export const duplicateCanvasAtom = atom(
       updatedAt: new Date(),
     };
 
-    const originalLayers = layers.filter((l) => l.canvasId === canvasId);
-    const duplicatedLayers = originalLayers.map((layer) => {
-      const newLayerId = `layer-${String(Date.now() + Math.random()).slice(
-        -6
-      )}`;
-      layerIdMap.set(layer.id, newLayerId);
-
-      return {
-        ...layer,
-        id: newLayerId,
-        canvasId: newCanvasId,
-        data: {
-          pixiSprite: null!,
-          renderTexture: null!,
-        },
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-    });
+    const duplicatedLayers = originalLayers.map((layer) => ({
+      ...layer,
+      id: layerIdMap.get(layer.id)!,
+      canvasId: newCanvasId,
+      data: {
+        pixiSprite: null!,
+        renderTexture: null!,
+      },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
 
     const updatedCanvases = [...canvases, duplicatedCanvas];
     const updatedLayers = [...layers, ...duplicatedLayers];
@@ -183,39 +184,19 @@ export const duplicateCanvasAtom = atom(
     }
 
     if (pixiState.app) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      for (const layer of duplicatedLayers) {
-        const originalLayerId = [...layerIdMap.entries()].find(
-          ([, newId]) => newId === layer.id
-        )?.[0];
-
-        if (originalLayerId) {
-          const originalLayerGraphic =
-            pixiState.layerGraphics[canvasId]?.[originalLayerId];
-          const newLayerGraphic =
-            pixiState.layerGraphics[newCanvasId]?.[layer.id];
-
-          if (
-            originalLayerGraphic?.renderTexture &&
-            newLayerGraphic?.renderTexture
-          ) {
-            const tempContainer = new (await import("pixi.js")).Container();
-            const tempSprite = new (await import("pixi.js")).Sprite(
-              originalLayerGraphic.renderTexture
-            );
-            tempContainer.addChild(tempSprite);
-
-            pixiState.app.renderer.render({
-              container: tempContainer,
-              target: newLayerGraphic.renderTexture,
-              clear: true,
-            });
-
-            tempContainer.destroy({ children: true });
-          }
-        }
-      }
+      await duplicatePixiCanvasLayers({
+        originalCanvasId: canvasId,
+        newCanvasId,
+        layerIdMap,
+        pixiState,
+        pixiApp: pixiState.app,
+        setPixiState: (updater) => {
+          const currentState = get(pixiStateAtom);
+          set(pixiStateAtom, updater(currentState));
+        },
+        newPageId: duplicatedCanvas.pageId,
+        duplicatedLayers,
+      });
     }
 
     set(currentCanvasIdAtom, newCanvasId);
