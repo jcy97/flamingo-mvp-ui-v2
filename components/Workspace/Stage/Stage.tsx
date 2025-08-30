@@ -99,6 +99,7 @@ function Stage() {
 
   const currentPageId = useAtomValue(currentPageIdAtom);
   const currentCanvasId = useAtomValue(currentCanvasIdAtom);
+  const currentCanvasIdRef = useRef(currentCanvasId);
   const currentCanvas = useAtomValue(currentCanvasAtom);
   const activeLayerId = useAtomValue(activeLayerIdAtom);
   const activeLayer = useAtomValue(currentActiveLayerAtom);
@@ -152,6 +153,10 @@ function Stage() {
       canvasElementRef.current.style.cursor = cursorStyle;
     }
   }, [cursorStyle]);
+
+  useEffect(() => {
+    currentCanvasIdRef.current = currentCanvasId;
+  }, [currentCanvasId]);
 
   useEffect(() => {
     if (canvasElementRef.current && currentCanvas && appRef.current) {
@@ -421,7 +426,6 @@ function Stage() {
     if (currentLayerRef.current) {
       appRef.current.stage.removeChild(currentLayerRef.current);
     }
-
     const drawingLayer =
       pixiState.canvasContainers[currentPageId][currentCanvasId];
     if (!drawingLayer) {
@@ -556,8 +560,8 @@ function Stage() {
         textEngineRef.current = new TextEngine(app, textSettings);
         textEngineRef.current.setOnLayerDelete(deleteLayer);
         textEngineRef.current.setOnThumbnailUpdate(() => {
-          if (currentCanvasId) {
-            refreshCanvasThumbnail(currentCanvasId);
+          if (currentCanvasIdRef.current) {
+            refreshCanvasThumbnail(currentCanvasIdRef.current!);
           }
         });
         speechBubbleEngineRef.current = new SpeechBubbleEngine(
@@ -575,8 +579,8 @@ function Stage() {
           }
         });
         speechBubbleEngineRef.current.setOnThumbnailUpdate(() => {
-          if (currentCanvasId) {
-            refreshCanvasThumbnail(currentCanvasId);
+          if (currentCanvasIdRef.current) {
+            refreshCanvasThumbnail(currentCanvasIdRef.current);
           }
         });
 
@@ -601,9 +605,9 @@ function Stage() {
         }
 
         const scheduleCanvasThumbnailUpdate = () => {
-          if (currentCanvasId) {
+          if (currentCanvasIdRef.current) {
             setTimeout(() => {
-              refreshCanvasThumbnail(currentCanvasId);
+              refreshCanvasThumbnail(currentCanvasIdRef.current!);
             }, 50);
           }
         };
@@ -852,8 +856,11 @@ function Stage() {
               speechBubbleEngineRef.current.endDrawing();
               canvas.releasePointerCapture(event.pointerId);
               isDrawingRef.current = false;
-              if (currentCanvasId) {
-                setTimeout(() => refreshCanvasThumbnail(currentCanvasId), 50);
+              if (currentCanvasIdRef.current) {
+                setTimeout(
+                  () => refreshCanvasThumbnail(currentCanvasIdRef.current!),
+                  50
+                );
               }
             }
             return;
@@ -875,16 +882,22 @@ function Stage() {
             brushEngineRef.current
           ) {
             brushEngineRef.current.endStroke();
-            if (currentCanvasId) {
-              setTimeout(() => refreshCanvasThumbnail(currentCanvasId), 50);
+            if (currentCanvasIdRef.current) {
+              setTimeout(
+                () => refreshCanvasThumbnail(currentCanvasIdRef.current!),
+                50
+              );
             }
           } else if (
             currentTool === ToolbarItemIDs.ERASER &&
             eraserEngineRef.current
           ) {
             eraserEngineRef.current.endStroke();
-            if (currentCanvasId) {
-              setTimeout(() => refreshCanvasThumbnail(currentCanvasId), 50);
+            if (currentCanvasIdRef.current) {
+              setTimeout(
+                () => refreshCanvasThumbnail(currentCanvasIdRef.current!),
+                50
+              );
             }
           }
         };

@@ -72,7 +72,6 @@ export class BrushEngine {
     if (this.dabTextures.has(key)) {
       return this.dabTextures.get(key)!;
     }
-
     const size = Math.max(4, Math.ceil(radius * 2 * 1.5));
     const canvas = document.createElement("canvas");
     canvas.width = size;
@@ -256,7 +255,6 @@ export class BrushEngine {
     if (!this.renderTexture) {
       return;
     }
-
     if (this.settings.snapToPixel > 0) {
       x = Math.round(x);
       y = Math.round(y);

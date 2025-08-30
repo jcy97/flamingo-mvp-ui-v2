@@ -279,7 +279,7 @@ function CanvasItem({
           <img
             src={thumbnailSrc}
             alt={`${data.name} 미리보기`}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
             style={{ imageRendering: "crisp-edges" }}
           />
         ) : (

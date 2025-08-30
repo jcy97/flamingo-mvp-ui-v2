@@ -160,7 +160,7 @@ export const updateCanvasAtom = atom(
 
     sampleData.canvases = updatedCanvases;
     set(canvasesAtom, updatedCanvases);
-
+    console.log("업데이트 캔버스");
     setTimeout(() => {
       set(generateCanvasThumbnailAtom, {
         canvasId,

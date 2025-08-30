@@ -88,10 +88,13 @@ export const generateCanvasThumbnailAtom = atom(
 
     const container = state.canvasContainers[pageId][canvasId];
 
+    const fixedWidth = 400;
+    const fixedHeight = 300;
+
     const renderTexture = PIXI.RenderTexture.create({
       width: canvas.width,
       height: canvas.height,
-      resolution: 0.1,
+      resolution: 1,
     });
 
     state.app.renderer.render({
@@ -100,8 +103,59 @@ export const generateCanvasThumbnailAtom = atom(
       clear: true,
     });
 
-    const canvasElement = state.app.renderer.extract.canvas(renderTexture);
-    const base64 = canvasElement.toDataURL!("image/png", 0.8);
+    const tempCanvas = state.app.renderer.extract.canvas(
+      renderTexture
+    ) as HTMLCanvasElement;
+
+    const thumbnailCanvas = document.createElement("canvas");
+    thumbnailCanvas.width = fixedWidth;
+    thumbnailCanvas.height = fixedHeight;
+    const ctx = thumbnailCanvas.getContext("2d")!;
+
+    const bgColor =
+      canvas.backgroundColor === "TRANSPARENT"
+        ? "#f8f8f8"
+        : canvas.backgroundColor || "#FFFFFF";
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, fixedWidth, fixedHeight);
+
+    if (canvas.backgroundColor === "TRANSPARENT") {
+      const patternCanvas = document.createElement("canvas");
+      patternCanvas.width = 20;
+      patternCanvas.height = 20;
+      const patternCtx = patternCanvas.getContext("2d")!;
+      patternCtx.fillStyle = "#f8f8f8";
+      patternCtx.fillRect(0, 0, 20, 20);
+      patternCtx.fillStyle = "#ccc";
+      patternCtx.fillRect(0, 0, 10, 10);
+      patternCtx.fillRect(10, 10, 10, 10);
+
+      const pattern = ctx.createPattern(patternCanvas, "repeat")!;
+      ctx.fillStyle = pattern;
+      ctx.fillRect(0, 0, fixedWidth, fixedHeight);
+    }
+
+    const canvasAspect = canvas.width / canvas.height;
+    const fixedAspect = fixedWidth / fixedHeight;
+
+    let drawWidth,
+      drawHeight,
+      offsetX = 0,
+      offsetY = 0;
+
+    if (canvasAspect > fixedAspect) {
+      drawWidth = fixedWidth;
+      drawHeight = fixedWidth / canvasAspect;
+      offsetY = (fixedHeight - drawHeight) / 2;
+    } else {
+      drawHeight = fixedHeight;
+      drawWidth = fixedHeight * canvasAspect;
+      offsetX = (fixedWidth - drawWidth) / 2;
+    }
+
+    ctx.drawImage(tempCanvas, offsetX, offsetY, drawWidth, drawHeight);
+
+    const base64 = thumbnailCanvas.toDataURL("image/png", 0.8);
 
     renderTexture.destroy();
 
@@ -144,7 +198,6 @@ export const initPixiAppAtom = atom(null, async (get, set) => {
     const canvases = get(canvasesAtom);
     const currentCanvasId = get(currentCanvasIdAtom);
     const currentCanvas = canvases.find((c) => c.id === currentCanvasId);
-
     const app = new PIXI.Application();
     await app.init({
       width: currentCanvas?.width || 1920,
@@ -489,14 +542,20 @@ export const switchPageAtom = atom(null, (get, set, pageId: string) => {
   });
 });
 
-export const switchCanvasAtom = atom(null, (get, set, canvasId: string) => {
-  const state = get(pixiStateAtom);
+export const switchCanvasAtom = atom(
+  null,
+  async (get, set, canvasId: string) => {
+    const state = get(pixiStateAtom);
 
-  set(pixiStateAtom, {
-    ...state,
-    activeCanvasId: canvasId,
-  });
-});
+    set(pixiStateAtom, {
+      ...state,
+      activeCanvasId: canvasId,
+    });
+
+    const { currentCanvasIdAtom } = await import("./canvasStore");
+    set(currentCanvasIdAtom, canvasId);
+  }
+);
 
 export const switchLayerAtom = atom(null, (get, set, layerId: string) => {
   const state = get(pixiStateAtom);
