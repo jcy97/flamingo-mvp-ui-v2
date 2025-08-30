@@ -15,6 +15,7 @@ import {
   GripVertical,
   Blend,
   ChevronDown,
+  Copy,
 } from "lucide-react";
 import { Layer as LayerType } from "@/types/layer";
 import {
@@ -29,6 +30,7 @@ import {
   toggleLayerVisibilityAtom,
   toggleLayerLockAtom,
   setLayerOpacityAtom,
+  duplicateLayerAtom,
 } from "@/stores/layerStore";
 
 interface LayerItemProps {
@@ -74,6 +76,7 @@ function LayerItem({
   const toggleVisibility = useSetAtom(toggleLayerVisibilityAtom);
   const toggleLock = useSetAtom(toggleLayerLockAtom);
   const setLayerOpacity = useSetAtom(setLayerOpacityAtom);
+  const duplicateLayer = useSetAtom(duplicateLayerAtom);
 
   useEffect(() => {
     const newValue = Math.round(layer.opacity * 100);
@@ -202,6 +205,11 @@ function LayerItem({
 
   const handleLockToggle = () => {
     toggleLock(layer.id);
+    setShowDropdown(false);
+  };
+
+  const handleDuplicateClick = () => {
+    duplicateLayer(layer.id);
     setShowDropdown(false);
   };
 
@@ -364,6 +372,13 @@ function LayerItem({
                       잠금
                     </>
                   )}
+                </button>
+                <button
+                  onClick={handleDuplicateClick}
+                  className="w-full px-3 py-2 text-left text-sm text-neutral-300 hover:bg-neutral-700 flex items-center gap-2"
+                >
+                  <Copy size={12} />
+                  복제
                 </button>
               </div>
             )}

@@ -183,6 +183,72 @@ export const addLayerAtom = atom(null, (get, set) => {
   }
 });
 
+export const duplicateLayerAtom = atom(
+  null,
+  async (get, set, layerId: string) => {
+    const layers = get(layersAtom);
+    const pixiState = get(pixiStateAtom);
+    const currentCanvasId = get(currentCanvasIdAtom);
+
+    const originalLayer = layers.find((l) => l.id === layerId);
+    if (!originalLayer || !currentCanvasId) return;
+
+    const newLayerId = `layer-${String(Date.now()).slice(-3)}`;
+    const layersForCurrentCanvas = get(layersForCurrentCanvasAtom);
+
+    const duplicatedLayer: Layer = {
+      ...originalLayer,
+      id: newLayerId,
+      name: `${originalLayer.name}-복사본`,
+      order: Math.max(...layersForCurrentCanvas.map((l) => l.order)) + 1,
+      data: {
+        pixiSprite: null!,
+        renderTexture: null!,
+      },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const updatedLayers = [...layers, duplicatedLayer];
+    sampleData.layers = updatedLayers;
+    set(layersAtom, updatedLayers);
+
+    await set(createLayerGraphicAtom, {
+      canvasId: currentCanvasId,
+      layerId: newLayerId,
+    });
+
+    if (pixiState.app) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const originalLayerGraphic =
+        pixiState.layerGraphics[currentCanvasId]?.[layerId];
+      const newLayerGraphic =
+        pixiState.layerGraphics[currentCanvasId]?.[newLayerId];
+
+      if (
+        originalLayerGraphic?.renderTexture &&
+        newLayerGraphic?.renderTexture
+      ) {
+        const tempContainer = new PIXI.Container();
+        const tempSprite = new PIXI.Sprite(originalLayerGraphic.renderTexture);
+        tempContainer.addChild(tempSprite);
+
+        pixiState.app.renderer.render({
+          container: tempContainer,
+          target: newLayerGraphic.renderTexture,
+          clear: true,
+        });
+
+        tempContainer.destroy({ children: true });
+      }
+    }
+
+    updateCanvasLayerOrder(get, currentCanvasId);
+    set(setActiveLayerAtom, newLayerId);
+  }
+);
+
 export const addTextLayerAtom = atom(null, (get, set) => {
   const currentCanvasId = get(currentCanvasIdAtom);
   const pixiState = get(pixiStateAtom);

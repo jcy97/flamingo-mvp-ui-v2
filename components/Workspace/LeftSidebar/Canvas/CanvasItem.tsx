@@ -1,8 +1,12 @@
 import { Canvas } from "@/types/canvas";
-import { Settings, GripVertical, Trash2, Edit3 } from "lucide-react";
+import { Settings, GripVertical, Trash2, Edit3, Copy } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { useSetAtom } from "jotai";
-import { updateCanvasAtom, deleteCanvasAtom } from "@/stores/canvasStore";
+import {
+  updateCanvasAtom,
+  deleteCanvasAtom,
+  duplicateCanvasAtom,
+} from "@/stores/canvasStore";
 import CanvasConfigModal from "@/components/Common/Modal/CanvasConfigModal";
 
 interface CanvasItemProps {
@@ -36,6 +40,7 @@ function CanvasItem({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const updateCanvas = useSetAtom(updateCanvasAtom);
   const deleteCanvas = useSetAtom(deleteCanvasAtom);
+  const duplicateCanvas = useSetAtom(duplicateCanvasAtom);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -104,22 +109,36 @@ function CanvasItem({
 
   const handleSettingsClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
     setShowDropdown(!showDropdown);
   };
 
-  const handleDeleteClick = () => {
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
     deleteCanvas(data.id);
     setShowDropdown(false);
   };
 
-  const handleEditClick = () => {
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
     setIsEditing(true);
     setEditingName(data.name);
     setShowDropdown(false);
   };
 
-  const handleConfigClick = () => {
+  const handleConfigClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
     setIsConfigModalOpen(true);
+    setShowDropdown(false);
+  };
+
+  const handleDuplicateClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    duplicateCanvas(data.id);
     setShowDropdown(false);
   };
 
@@ -214,6 +233,13 @@ function CanvasItem({
               >
                 <Settings size={12} />
                 캔버스 설정
+              </button>
+              <button
+                onClick={handleDuplicateClick}
+                className="w-full px-3 py-2 text-left text-sm text-neutral-300 hover:bg-neutral-700 flex items-center gap-2"
+              >
+                <Copy size={12} />
+                복제
               </button>
               <button
                 onClick={handleDeleteClick}

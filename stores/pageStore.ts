@@ -80,6 +80,148 @@ export const deletePageAtom = atom(null, (get, set, pageId: string) => {
   }
 });
 
+export const duplicatePageAtom = atom(
+  null,
+  async (get, set, pageId: string) => {
+    const pages = get(pagesAtom);
+    const canvases = get(canvasesAtom);
+
+    const { layersAtom } = await import("./layerStore");
+    const { pixiStateAtom, createCanvasContainerAtom, createLayerGraphicAtom } =
+      await import("./pixiStore");
+
+    const layers = get(layersAtom);
+    const pixiState = get(pixiStateAtom);
+
+    const originalPage = pages.find((p) => p.id === pageId);
+    if (!originalPage) return;
+
+    const newPageId = `page-${String(Date.now()).slice(-3)}`;
+    const canvasIdMap = new Map<string, string>();
+    const layerIdMap = new Map<string, string>();
+
+    const duplicatedPage: Page = {
+      id: newPageId,
+      projectId: originalPage.projectId,
+      name: `${originalPage.name}-복사본`,
+      order: pages.length + 1,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const originalCanvases = canvases.filter((c) => c.pageId === pageId);
+    const duplicatedCanvases: Canvas[] = [];
+
+    originalCanvases.forEach((canvas) => {
+      const newCanvasId = `canvas-${String(Date.now() + Math.random()).slice(
+        -6
+      )}`;
+      canvasIdMap.set(canvas.id, newCanvasId);
+
+      duplicatedCanvases.push({
+        ...canvas,
+        id: newCanvasId,
+        pageId: newPageId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    });
+
+    const originalLayers = layers.filter((l) =>
+      originalCanvases.some((c) => c.id === l.canvasId)
+    );
+
+    const duplicatedLayers = originalLayers.map((layer) => {
+      const newLayerId = `layer-${String(Date.now() + Math.random()).slice(
+        -6
+      )}`;
+      const newCanvasId = canvasIdMap.get(layer.canvasId);
+      layerIdMap.set(layer.id, newLayerId);
+
+      return {
+        ...layer,
+        id: newLayerId,
+        canvasId: newCanvasId!,
+        data: {
+          pixiSprite: null!,
+          renderTexture: null!,
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    });
+
+    const updatedPages = [...pages, duplicatedPage];
+    const updatedCanvases = [...canvases, ...duplicatedCanvases];
+    const updatedLayers = [...layers, ...duplicatedLayers];
+
+    sampleData.pages = updatedPages;
+    sampleData.canvases = updatedCanvases;
+    sampleData.layers = updatedLayers;
+
+    set(pagesAtom, updatedPages);
+    set(canvasesAtom, updatedCanvases);
+    set(layersAtom, updatedLayers);
+
+    for (const canvas of duplicatedCanvases) {
+      await set(createCanvasContainerAtom, {
+        pageId: newPageId,
+        canvasId: canvas.id,
+      });
+    }
+
+    for (const layer of duplicatedLayers) {
+      await set(createLayerGraphicAtom, {
+        canvasId: layer.canvasId,
+        layerId: layer.id,
+      });
+    }
+
+    if (pixiState.app) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      for (const layer of duplicatedLayers) {
+        const originalLayerId = [...layerIdMap.entries()].find(
+          ([, newId]) => newId === layer.id
+        )?.[0];
+
+        if (originalLayerId) {
+          const originalCanvasId = originalLayers.find(
+            (l) => l.id === originalLayerId
+          )?.canvasId;
+          if (originalCanvasId) {
+            const originalLayerGraphic =
+              pixiState.layerGraphics[originalCanvasId]?.[originalLayerId];
+            const newLayerGraphic =
+              pixiState.layerGraphics[layer.canvasId]?.[layer.id];
+
+            if (
+              originalLayerGraphic?.renderTexture &&
+              newLayerGraphic?.renderTexture
+            ) {
+              const tempContainer = new (await import("pixi.js")).Container();
+              const tempSprite = new (await import("pixi.js")).Sprite(
+                originalLayerGraphic.renderTexture
+              );
+              tempContainer.addChild(tempSprite);
+
+              pixiState.app.renderer.render({
+                container: tempContainer,
+                target: newLayerGraphic.renderTexture,
+                clear: true,
+              });
+
+              tempContainer.destroy({ children: true });
+            }
+          }
+        }
+      }
+    }
+
+    set(currentPageIdAtom, newPageId);
+  }
+);
+
 export const reorderPagesAtom = atom(
   null,
   (
