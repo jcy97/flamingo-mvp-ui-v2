@@ -1,6 +1,5 @@
 import {
   MousePointer,
-  PenTool,
   Brush,
   Eraser,
   Type,
@@ -22,7 +21,6 @@ import { ToolsbarItem } from "@/types/toolsbar";
 
 export enum ToolbarItemIDs {
   SELECT = "select",
-  PEN = "pen",
   BRUSH = "brush",
   ERASER = "eraser",
   TEXT = "text",

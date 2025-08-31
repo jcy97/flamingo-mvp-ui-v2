@@ -22,7 +22,7 @@ export const currentPageAtom = atom((get) => {
   return pages.find((page) => page.id === currentPageId) || null;
 });
 
-export const addPageAtom = atom(null, (get, set) => {
+export const addPageAtom = atom(null, async (get, set) => {
   const pages = get(pagesAtom);
   const newPageId = `page-${String(Date.now()).slice(-3)}`;
 
@@ -41,7 +41,14 @@ export const addPageAtom = atom(null, (get, set) => {
 
   set(currentPageIdAtom, newPageId);
 
-  set(addCanvasAtom);
+  const { addCanvasAtom } = await import("./canvasStore");
+  await set(addCanvasAtom, {
+    pageId: newPageId,
+    name: "캔버스 1",
+    width: 1920,
+    height: 1080,
+    backgroundColor: "#FFFFFF",
+  });
 
   set(switchPageAtom, newPageId);
 });
@@ -79,6 +86,158 @@ export const deletePageAtom = atom(null, (get, set, pageId: string) => {
     set(currentPageIdAtom, updatedPages[0]?.id || null);
   }
 });
+
+export const duplicatePageAtom = atom(
+  null,
+  async (get, set, pageId: string) => {
+    const pages = get(pagesAtom);
+    const canvases = get(canvasesAtom);
+
+    const { layersAtom } = await import("./layerStore");
+    const {
+      pixiStateAtom,
+      createCanvasContainerAtom,
+      createLayerGraphicAtom,
+      generateCanvasThumbnailAtom,
+    } = await import("./pixiStore");
+    const { createIdMaps, duplicatePixiCanvasLayers, generateUniqueId } =
+      await import("@/utils/pixiDuplication");
+
+    const layers = get(layersAtom);
+    const pixiState = get(pixiStateAtom);
+
+    const originalPage = pages.find((p) => p.id === pageId);
+    if (!originalPage) return;
+
+    const newPageId = generateUniqueId("page");
+    const originalCanvases = canvases.filter((c) => c.pageId === pageId);
+    const originalLayers = layers.filter((l) =>
+      originalCanvases.some((c) => c.id === l.canvasId)
+    );
+
+    const { canvasIdMap, layerIdMap } = createIdMaps(
+      originalCanvases,
+      originalLayers
+    );
+
+    const duplicatedPage: Page = {
+      id: newPageId,
+      projectId: originalPage.projectId,
+      name: `${originalPage.name}-복사본`,
+      order: pages.length + 1,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const duplicatedCanvases: Canvas[] = originalCanvases.map((canvas) => ({
+      ...canvas,
+      id: canvasIdMap.get(canvas.id)!,
+      pageId: newPageId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
+
+    const duplicatedLayers = originalLayers.map((layer) => ({
+      ...layer,
+      id: layerIdMap.get(layer.id)!,
+      canvasId: canvasIdMap.get(layer.canvasId)!,
+      data: {
+        pixiSprite: null!,
+        renderTexture: null!,
+      },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
+
+    const updatedPages = [...pages, duplicatedPage];
+    const updatedCanvases = [...canvases, ...duplicatedCanvases];
+    const updatedLayers = [...layers, ...duplicatedLayers];
+
+    sampleData.pages = updatedPages;
+    sampleData.canvases = updatedCanvases;
+    sampleData.layers = updatedLayers;
+
+    set(pagesAtom, updatedPages);
+    set(canvasesAtom, updatedCanvases);
+    set(layersAtom, updatedLayers);
+
+    for (const canvas of duplicatedCanvases) {
+      await set(createCanvasContainerAtom, {
+        pageId: newPageId,
+        canvasId: canvas.id,
+      });
+    }
+
+    for (const layer of duplicatedLayers) {
+      await set(createLayerGraphicAtom, {
+        canvasId: layer.canvasId,
+        layerId: layer.id,
+      });
+    }
+
+    await new Promise((resolve) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setTimeout(resolve, 150);
+        });
+      });
+    });
+
+    if (pixiState.app) {
+      for (const originalCanvas of originalCanvases) {
+        const newCanvasId = canvasIdMap.get(originalCanvas.id)!;
+        const canvasLayerIdMap = new Map(
+          [...layerIdMap.entries()].filter(([originalLayerId]) =>
+            originalLayers.some(
+              (l) =>
+                l.id === originalLayerId && l.canvasId === originalCanvas.id
+            )
+          )
+        );
+
+        const updatePixiApp = get(pixiStateAtom);
+        await duplicatePixiCanvasLayers({
+          originalCanvasId: originalCanvas.id,
+          newCanvasId,
+          layerIdMap: canvasLayerIdMap,
+          pixiState: updatePixiApp,
+          pixiApp: updatePixiApp.app!,
+          setPixiState: (updater) => {
+            const { pixiStateAtom } = require("./pixiStore");
+            const currentState = get(pixiStateAtom);
+            set(pixiStateAtom, updater(currentState));
+          },
+          newPageId,
+          duplicatedLayers,
+        });
+
+        await new Promise((resolve) => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              setTimeout(resolve, 50);
+            });
+          });
+        });
+      }
+    }
+
+    set(currentPageIdAtom, newPageId);
+
+    const { refreshCanvasThumbnailAtom } = await import("./pixiStore");
+    for (const canvas of duplicatedCanvases) {
+      await set(refreshCanvasThumbnailAtom, canvas.id);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+
+    setTimeout(() => {
+      const { setCurrentCanvasAtom } = require("./canvasStore");
+      const firstCanvas = duplicatedCanvases[0];
+      if (firstCanvas) {
+        set(setCurrentCanvasAtom, firstCanvas.id);
+      }
+    }, 100);
+  }
+);
 
 export const reorderPagesAtom = atom(
   null,

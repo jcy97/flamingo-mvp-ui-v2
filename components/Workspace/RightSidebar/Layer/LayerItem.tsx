@@ -15,6 +15,7 @@ import {
   GripVertical,
   Blend,
   ChevronDown,
+  Copy,
 } from "lucide-react";
 import { Layer as LayerType } from "@/types/layer";
 import {
@@ -28,6 +29,8 @@ import {
   deleteLayerAtom,
   toggleLayerVisibilityAtom,
   toggleLayerLockAtom,
+  setLayerOpacityAtom,
+  duplicateLayerAtom,
 } from "@/stores/layerStore";
 
 interface LayerItemProps {
@@ -61,6 +64,9 @@ function LayerItem({
     top: 0,
     left: 0,
   });
+  const [opacityInput, setOpacityInput] = useState<string | number>(
+    Math.round(layer.opacity * 100)
+  );
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const blendDropdownRef = useRef<HTMLDivElement>(null);
@@ -69,6 +75,13 @@ function LayerItem({
   const deleteLayer = useSetAtom(deleteLayerAtom);
   const toggleVisibility = useSetAtom(toggleLayerVisibilityAtom);
   const toggleLock = useSetAtom(toggleLayerLockAtom);
+  const setLayerOpacity = useSetAtom(setLayerOpacityAtom);
+  const duplicateLayer = useSetAtom(duplicateLayerAtom);
+
+  useEffect(() => {
+    const newValue = Math.round(layer.opacity * 100);
+    setOpacityInput(newValue);
+  }, [layer.opacity]);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -195,9 +208,47 @@ function LayerItem({
     setShowDropdown(false);
   };
 
+  const handleDuplicateClick = () => {
+    duplicateLayer(layer.id);
+    setShowDropdown(false);
+  };
+
   const handleBlendModeChange = (blendMode: BlendMode) => {
     updateLayer({ layerId: layer.id, updates: { blendMode } });
     setShowBlendDropdown(false);
+  };
+
+  const handleOpacityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/[^0-9]/g, "");
+    if (value === "") {
+      setOpacityInput("");
+      return;
+    }
+    const numValue = parseInt(value);
+    const clampedValue = Math.max(0, Math.min(100, numValue));
+    setOpacityInput(clampedValue);
+  };
+
+  const handleOpacitySubmit = () => {
+    let finalValue = opacityInput;
+    if (finalValue === "" || finalValue === 0) {
+      finalValue = 0;
+      setOpacityInput(0);
+    }
+    const opacityValue =
+      (typeof finalValue === "number"
+        ? finalValue
+        : parseInt(finalValue.toString())) / 100;
+    setLayerOpacity({ layerId: layer.id, opacity: opacityValue });
+  };
+
+  const handleOpacityKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleOpacitySubmit();
+    } else if (e.key === "Escape") {
+      const resetValue = Math.round(layer.opacity * 100);
+      setOpacityInput(resetValue);
+    }
   };
 
   const handleDragStart = (e: React.DragEvent) => {
@@ -322,6 +373,13 @@ function LayerItem({
                     </>
                   )}
                 </button>
+                <button
+                  onClick={handleDuplicateClick}
+                  className="w-full px-3 py-2 text-left text-sm text-neutral-300 hover:bg-neutral-700 flex items-center gap-2"
+                >
+                  <Copy size={12} />
+                  복제
+                </button>
               </div>
             )}
           </div>
@@ -348,8 +406,22 @@ function LayerItem({
             </div>
           </div>
 
-          <div className="text-xs text-neutral-500">
-            {Math.round(layer.opacity)}%
+          <div className="flex items-center gap-1">
+            <div className="relative">
+              <input
+                type="text"
+                value={opacityInput}
+                onChange={handleOpacityChange}
+                onBlur={handleOpacitySubmit}
+                onKeyDown={handleOpacityKeyDown}
+                className="w-16 h-6 bg-neutral-700 border border-neutral-600 rounded-md pl-2 pr-5 text-xs text-neutral-200 text-center focus:border-primary-500 focus:outline-none hover:bg-neutral-600 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                onClick={(e) => e.stopPropagation()}
+                maxLength={3}
+              />
+              <span className="absolute right-1.5 top-0.5 text-xs text-neutral-500 pointer-events-none">
+                %
+              </span>
+            </div>
           </div>
         </div>
       </div>

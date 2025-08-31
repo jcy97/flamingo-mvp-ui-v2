@@ -9,6 +9,7 @@ import {
   getCanvasContainerAtom,
   switchLayerAtom,
   createLayerGraphicAtom,
+  refreshCanvasThumbnailAtom,
 } from "./pixiStore";
 import { selectedToolIdAtom } from "./toolsbarStore";
 
@@ -76,7 +77,13 @@ const updateCanvasLayerOrder = (get: any, currentCanvasId: string) => {
   });
 };
 
-export const addLayerAtom = atom(null, (get, set) => {
+const updateThumbnail = (set: any, canvasId: string) => {
+  setTimeout(() => {
+    set(refreshCanvasThumbnailAtom, canvasId);
+  }, 50);
+};
+
+export const addLayerAtom = atom(null, async (get, set) => {
   const currentCanvasId = get(currentCanvasIdAtom);
   const pixiState = get(pixiStateAtom);
   const canvasContainer = get(getCanvasContainerAtom);
@@ -146,7 +153,7 @@ export const addLayerAtom = atom(null, (get, set) => {
     sampleData.layers = updatedLayers;
     set(layersAtom, updatedLayers);
 
-    set(createLayerGraphicAtom, {
+    await set(createLayerGraphicAtom, {
       canvasId: currentCanvasId,
       layerId: newLayerId,
     });
@@ -174,16 +181,90 @@ export const addLayerAtom = atom(null, (get, set) => {
     }
 
     updateCanvasLayerOrder(get, currentCanvasId);
-
     set(setActiveLayerAtom, newLayerId);
-
-    console.log(`레이어 생성 완료: ${newLayerId}`);
+    updateThumbnail(set, currentCanvasId);
   } catch (error) {
     console.error("레이어 생성 실패:", error);
   }
 });
 
-export const addTextLayerAtom = atom(null, (get, set) => {
+export const duplicateLayerAtom = atom(
+  null,
+  async (get, set, layerId: string) => {
+    const layers = get(layersAtom);
+    const pixiState = get(pixiStateAtom);
+    const currentCanvasId = get(currentCanvasIdAtom);
+    const { duplicatePixiLayer, generateUniqueId } = await import(
+      "@/utils/pixiDuplication"
+    );
+
+    const originalLayer = layers.find((l) => l.id === layerId);
+    if (!originalLayer || !currentCanvasId) return;
+
+    const newLayerId = generateUniqueId("layer");
+    const layersForCurrentCanvas = get(layersForCurrentCanvasAtom);
+
+    const duplicatedLayer: Layer = {
+      ...originalLayer,
+      id: newLayerId,
+      name: `${originalLayer.name}-복사본`,
+      order: Math.max(...layersForCurrentCanvas.map((l) => l.order)) + 1,
+      data: {
+        pixiSprite: null!,
+        renderTexture: null!,
+      },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const updatedLayers = [...layers, duplicatedLayer];
+    sampleData.layers = updatedLayers;
+    set(layersAtom, updatedLayers);
+
+    await set(createLayerGraphicAtom, {
+      canvasId: currentCanvasId,
+      layerId: newLayerId,
+    });
+
+    if (pixiState.app) {
+      const originalLayerGraphic =
+        pixiState.layerGraphics[currentCanvasId]?.[layerId];
+
+      if (originalLayerGraphic) {
+        const duplicatedLayerData = await duplicatePixiLayer({
+          originalLayerData: originalLayerGraphic,
+          pixiApp: pixiState.app,
+          targetCanvasId: currentCanvasId,
+          targetLayerId: newLayerId,
+        });
+
+        if (duplicatedLayerData) {
+          const { pixiStateAtom } = await import("./pixiStore");
+          const currentState = get(pixiStateAtom);
+          set(pixiStateAtom, {
+            ...currentState,
+            layerGraphics: {
+              ...currentState.layerGraphics,
+              [currentCanvasId]: {
+                ...currentState.layerGraphics[currentCanvasId],
+                [newLayerId]: duplicatedLayerData,
+              },
+            },
+          });
+        }
+      }
+    }
+
+    updateCanvasLayerOrder(get, currentCanvasId);
+    set(setActiveLayerAtom, newLayerId);
+
+    setTimeout(() => {
+      set(refreshCanvasThumbnailAtom, currentCanvasId);
+    }, 50);
+  }
+);
+
+export const addTextLayerAtom = atom(null, async (get, set) => {
   const currentCanvasId = get(currentCanvasIdAtom);
   const pixiState = get(pixiStateAtom);
   const canvasContainer = get(getCanvasContainerAtom);
@@ -237,7 +318,7 @@ export const addTextLayerAtom = atom(null, (get, set) => {
     sampleData.layers = updatedLayers;
     set(layersAtom, updatedLayers);
 
-    set(createLayerGraphicAtom, {
+    await set(createLayerGraphicAtom, {
       canvasId: currentCanvasId,
       layerId: newLayerId,
     });
@@ -265,10 +346,8 @@ export const addTextLayerAtom = atom(null, (get, set) => {
     }
 
     updateCanvasLayerOrder(get, currentCanvasId);
-
     set(setActiveLayerAtom, newLayerId);
 
-    console.log(`텍스트 레이어 생성 완료: ${newLayerId}`);
     return newLayerId;
   } catch (error) {
     console.error("텍스트 레이어 생성 실패:", error);
@@ -276,7 +355,7 @@ export const addTextLayerAtom = atom(null, (get, set) => {
   }
 });
 
-export const autoCreateTextLayerAtom = atom(null, (get, set) => {
+export const autoCreateTextLayerAtom = atom(null, async (get, set) => {
   const currentActiveLayer = get(currentActiveLayerAtom);
   const currentCanvasId = get(currentCanvasIdAtom);
   const pixiState = get(pixiStateAtom);
@@ -318,7 +397,7 @@ export const autoCreateTextLayerAtom = atom(null, (get, set) => {
     sampleData.layers = updatedLayers;
     set(layersAtom, updatedLayers);
 
-    set(createLayerGraphicAtom, {
+    await set(createLayerGraphicAtom, {
       canvasId: currentCanvasId,
       layerId: newLayerId,
     });
@@ -346,7 +425,6 @@ export const autoCreateTextLayerAtom = atom(null, (get, set) => {
     }
 
     updateCanvasLayerOrder(get, currentCanvasId);
-
     set(setActiveLayerAtom, newLayerId);
 
     return newLayerId;
@@ -403,6 +481,16 @@ export const updateLayerAtom = atom(
     ) {
       updateCanvasLayerOrder(get, currentCanvasId);
     }
+
+    const updatedLayer = layers.find((l) => l.id === layerId);
+    if (
+      updatedLayer &&
+      (updates.opacity !== undefined ||
+        updates.isVisible !== undefined ||
+        updates.blendMode !== undefined)
+    ) {
+      updateThumbnail(set, updatedLayer.canvasId);
+    }
   }
 );
 
@@ -430,8 +518,6 @@ export const deleteLayerAtom = atom(null, (get, set, layerId: string) => {
     }
 
     targetLayer.data.pixiSprite.destroy();
-
-    console.log(`레이어 PIXI 리소스 정리 완료: ${layerId}`);
   }
 
   const updatedLayers = layers.filter((layer) => layer.id !== layerId);
@@ -443,6 +529,10 @@ export const deleteLayerAtom = atom(null, (get, set, layerId: string) => {
       (layer) => layer.canvasId === targetLayer?.canvasId
     );
     set(setActiveLayerAtom, remainingLayers[0]?.id || null);
+  }
+
+  if (targetLayer) {
+    updateThumbnail(set, targetLayer.canvasId);
   }
 });
 
@@ -475,8 +565,10 @@ export const toggleLayerVisibilityAtom = atom(
     sampleData.layers = updatedLayers;
     set(layersAtom, updatedLayers);
 
-    if (currentCanvasId) {
-      updateCanvasLayerOrder(get, currentCanvasId);
+    const targetLayer = layers.find((l) => l.id === layerId);
+    if (targetLayer) {
+      updateCanvasLayerOrder(get, targetLayer.canvasId);
+      updateThumbnail(set, targetLayer.canvasId);
     }
   }
 );
@@ -528,6 +620,7 @@ export const reorderLayersAtom = atom(
     sampleData.layers = allUpdatedLayers;
 
     updateCanvasLayerOrder(get, currentCanvasId);
+    updateThumbnail(set, currentCanvasId);
   }
 );
 
@@ -548,8 +641,6 @@ export const setActiveLayerAtom = atom(
         updateCanvasLayerOrder(get, currentCanvasId);
       }
     }
-
-    console.log(`활성 레이어 변경: ${layerId}`);
   }
 );
 
@@ -617,10 +708,6 @@ export const cleanupCanvasLayersAtom = atom(
     const updatedLayers = layers.filter((layer) => layer.canvasId !== canvasId);
     sampleData.layers = updatedLayers;
     set(layersAtom, updatedLayers);
-
-    console.log(
-      `캔버스 레이어 정리 완료: ${canvasId}, 정리된 레이어 수: ${canvasLayers.length}`
-    );
   }
 );
 

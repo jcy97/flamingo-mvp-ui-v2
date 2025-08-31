@@ -72,7 +72,6 @@ export class BrushEngine {
     if (this.dabTextures.has(key)) {
       return this.dabTextures.get(key)!;
     }
-
     const size = Math.max(4, Math.ceil(radius * 2 * 1.5));
     const canvas = document.createElement("canvas");
     canvas.width = size;
@@ -253,8 +252,9 @@ export class BrushEngine {
     },
     color: { r: number; g: number; b: number; a: number }
   ): void {
-    if (!this.renderTexture) return;
-
+    if (!this.renderTexture) {
+      return;
+    }
     if (this.settings.snapToPixel > 0) {
       x = Math.round(x);
       y = Math.round(y);
@@ -310,7 +310,9 @@ export class BrushEngine {
   }
 
   public startStroke(point: DrawingPoint): void {
-    if (!this.renderTexture) return;
+    if (!this.renderTexture) {
+      return;
+    }
 
     this.isDrawing = true;
     this.states.x = point.x;
@@ -339,7 +341,9 @@ export class BrushEngine {
   }
 
   public continueStroke(point: DrawingPoint): void {
-    if (!this.isDrawing || !this.renderTexture) return;
+    if (!this.isDrawing || !this.renderTexture) {
+      return;
+    }
 
     const now = performance.now();
     const dt = Math.min(0.1, (now - this.lastTime) / 1000);

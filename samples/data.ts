@@ -40,7 +40,7 @@ const sampleData = {
       order: 1,
       type: "brush" as LayerType,
       blendMode: "normal" as BlendMode,
-      opacity: 100,
+      opacity: 1,
       isVisible: true,
       isLocked: false,
       data: {

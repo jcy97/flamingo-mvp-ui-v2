@@ -17,6 +17,7 @@ export class TextEngine {
   private renderTexture: PIXI.RenderTexture | null = null;
   private onTextLayerCreated?: (textLayer: PIXI.Text) => void;
   private onLayerDelete?: (layerId: string) => void;
+  private onThumbnailUpdate?: () => void;
   private textObjects: PIXI.Text[] = [];
   private isProcessing: boolean = false;
   private layerTexts: Record<string, PIXI.Text[]> = {};
@@ -61,18 +62,30 @@ export class TextEngine {
     this.onLayerDelete = callback;
   }
 
+  public setOnThumbnailUpdate(callback: () => void): void {
+    this.onThumbnailUpdate = callback;
+  }
+
   public getTextAtPosition(x: number, y: number): PIXI.Text | null {
     for (const textObj of this.textObjects) {
-      if (!textObj.visible) continue;
+      if (!textObj.visible || !textObj.text) continue;
 
-      const bounds = textObj.getBounds();
-      if (
-        x >= bounds.x &&
-        x <= bounds.x + bounds.width &&
-        y >= bounds.y &&
-        y <= bounds.y + bounds.height
-      ) {
-        return textObj;
+      try {
+        const bounds = textObj.getBounds();
+        if (!bounds || bounds.width === 0 || bounds.height === 0) {
+          continue;
+        }
+
+        if (
+          x >= bounds.x &&
+          x <= bounds.x + bounds.width &&
+          y >= bounds.y &&
+          y <= bounds.y + bounds.height
+        ) {
+          return textObj;
+        }
+      } catch (error) {
+        continue;
       }
     }
     return null;
@@ -297,6 +310,7 @@ export class TextEngine {
           this.layerTexts[this.currentLayerId] = [...this.textObjects];
         }
         this.renderAllTextsToTexture();
+        this.scheduleThumbnailUpdate();
       }
       this.currentTextLayer = textLayer;
       this.onTextLayerCreated?.(textLayer);
@@ -327,6 +341,7 @@ export class TextEngine {
         this.layerTexts[this.currentLayerId] = [...this.textObjects];
       }
       this.renderAllTextsToTexture();
+      this.scheduleThumbnailUpdate();
     } else {
       if (this.editingTextLayer.parent) {
         this.editingTextLayer.parent.removeChild(this.editingTextLayer);
@@ -339,6 +354,7 @@ export class TextEngine {
       }
       this.editingTextLayer.destroy();
       this.renderAllTextsToTexture();
+      this.scheduleThumbnailUpdate();
     }
 
     this.removeTextInput();
@@ -459,9 +475,7 @@ export class TextEngine {
         });
 
         textSprite.destroy();
-      } catch (error) {
-        console.error("텍스트 렌더링 실패:", error);
-      }
+      } catch (error) {}
     }
   }
 
@@ -488,6 +502,14 @@ export class TextEngine {
       textSprite.destroy();
     } catch (error) {
       console.error("텍스트 렌더링 실패:", error);
+    }
+  }
+
+  private scheduleThumbnailUpdate(): void {
+    if (this.onThumbnailUpdate) {
+      setTimeout(() => {
+        this.onThumbnailUpdate!();
+      }, 100);
     }
   }
 

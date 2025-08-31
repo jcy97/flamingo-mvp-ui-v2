@@ -1,8 +1,13 @@
 import { Canvas } from "@/types/canvas";
-import { Settings, GripVertical, Trash2, Edit3 } from "lucide-react";
+import { Settings, GripVertical, Trash2, Edit3, Copy } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
-import { useSetAtom } from "jotai";
-import { updateCanvasAtom, deleteCanvasAtom } from "@/stores/canvasStore";
+import { useSetAtom, useAtomValue } from "jotai";
+import {
+  updateCanvasAtom,
+  deleteCanvasAtom,
+  duplicateCanvasAtom,
+} from "@/stores/canvasStore";
+import { pixiStateAtom } from "@/stores/pixiStore";
 import CanvasConfigModal from "@/components/Common/Modal/CanvasConfigModal";
 
 interface CanvasItemProps {
@@ -36,6 +41,10 @@ function CanvasItem({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const updateCanvas = useSetAtom(updateCanvasAtom);
   const deleteCanvas = useSetAtom(deleteCanvasAtom);
+  const duplicateCanvas = useSetAtom(duplicateCanvasAtom);
+  const pixiState = useAtomValue(pixiStateAtom);
+
+  const thumbnailSrc = pixiState.canvasThumbnails[data.id];
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -104,22 +113,36 @@ function CanvasItem({
 
   const handleSettingsClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
     setShowDropdown(!showDropdown);
   };
 
-  const handleDeleteClick = () => {
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
     deleteCanvas(data.id);
     setShowDropdown(false);
   };
 
-  const handleEditClick = () => {
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
     setIsEditing(true);
     setEditingName(data.name);
     setShowDropdown(false);
   };
 
-  const handleConfigClick = () => {
+  const handleConfigClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
     setIsConfigModalOpen(true);
+    setShowDropdown(false);
+  };
+
+  const handleDuplicateClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    duplicateCanvas(data.id);
     setShowDropdown(false);
   };
 
@@ -128,17 +151,37 @@ function CanvasItem({
     height: number,
     backgroundColor: string
   ) => {
-    updateCanvas({
+    const sizeWarning = updateCanvas({
       canvasId: data.id,
       width,
       height,
       backgroundColor,
     });
+
+    if (sizeWarning) {
+      console.warn("캔버스 크기가 시스템 제한으로 인해 조정되었습니다.");
+    }
+
     setIsConfigModalOpen(false);
   };
 
   const handleConfigClose = () => {
     setIsConfigModalOpen(false);
+  };
+
+  const getBackgroundStyle = () => {
+    if (data.backgroundColor === "TRANSPARENT") {
+      return {
+        backgroundColor: "#f8f8f8",
+        backgroundImage:
+          "linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc), linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc)",
+        backgroundSize: "8px 8px",
+        backgroundPosition: "0 0, 4px 4px",
+      };
+    }
+    return {
+      backgroundColor: data.backgroundColor || "#FFFFFF",
+    };
   };
 
   return (
@@ -211,6 +254,13 @@ function CanvasItem({
                 캔버스 설정
               </button>
               <button
+                onClick={handleDuplicateClick}
+                className="w-full px-3 py-2 text-left text-sm text-neutral-300 hover:bg-neutral-700 flex items-center gap-2"
+              >
+                <Copy size={12} />
+                복제
+              </button>
+              <button
                 onClick={handleDeleteClick}
                 className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-neutral-700 flex items-center gap-2"
               >
@@ -221,8 +271,22 @@ function CanvasItem({
           )}
         </div>
       </div>
-      <div className="flex-1 bg-neutral-100 rounded-bl-xl rounded-br-xl">
-        {/* Canvas preview content goes here */}
+      <div
+        className="flex-1 rounded-bl-xl rounded-br-xl overflow-hidden relative"
+        style={getBackgroundStyle()}
+      >
+        {thumbnailSrc ? (
+          <img
+            src={thumbnailSrc}
+            alt={`${data.name} 미리보기`}
+            className="w-full h-full object-contain"
+            style={{ imageRendering: "crisp-edges" }}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <div className="w-8 h-8 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        )}
       </div>
       <CanvasConfigModal
         isOpen={isConfigModalOpen}

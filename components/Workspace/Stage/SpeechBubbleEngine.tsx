@@ -26,6 +26,7 @@ export class SpeechBubbleEngine {
   private onSelectionChange:
     | ((settings: SpeechBubbleSettings | null) => void)
     | null = null;
+  private onThumbnailUpdate?: () => void;
 
   private drawer: BubbleDrawer;
   private handleManager: BubbleHandleManager;
@@ -44,6 +45,10 @@ export class SpeechBubbleEngine {
     this.onSelectionChange = callback;
   }
 
+  public setOnThumbnailUpdate(callback: () => void): void {
+    this.onThumbnailUpdate = callback;
+  }
+
   public updateSettings(newSettings: SpeechBubbleSettings): void {
     this.settings = { ...newSettings };
 
@@ -54,6 +59,7 @@ export class SpeechBubbleEngine {
         bubbleData.width = newSettings.width;
         bubbleData.height = newSettings.height;
         this.redrawAll();
+        this.scheduleThumbnailUpdate();
         if (this.isEditMode) {
           this.createHandles(bubbleData);
         }
@@ -150,6 +156,7 @@ export class SpeechBubbleEngine {
       this.isEditMode = true;
       this.redrawAll();
       this.createHandles(bubbleData);
+      this.scheduleThumbnailUpdate();
 
       if (this.onSelectionChange) {
         this.onSelectionChange(bubbleData.settings);
@@ -200,13 +207,42 @@ export class SpeechBubbleEngine {
     }
   }
 
+  public moveSelectedBubble(deltaX: number, deltaY: number): void {
+    if (this.selectedBubbleId) {
+      const bubbleData = this.activeBubbles.get(this.selectedBubbleId);
+      if (bubbleData) {
+        bubbleData.x += deltaX;
+        bubbleData.y += deltaY;
+        this.redrawAll();
+        this.createHandles(bubbleData);
+      }
+    }
+  }
+
+  public isPointInSelectedBubbleBounds(x: number, y: number): boolean {
+    if (!this.selectedBubbleId) return false;
+
+    const bubbleData = this.activeBubbles.get(this.selectedBubbleId);
+    if (!bubbleData) return false;
+
+    return (
+      x >= bubbleData.x &&
+      x <= bubbleData.x + bubbleData.width &&
+      y >= bubbleData.y &&
+      y <= bubbleData.y + bubbleData.height
+    );
+  }
+
   public handlePointerUp(): void {
     const wasResizing = this.handleManager.endDrag();
 
-    if (wasResizing && this.selectedBubbleId && this.onSelectionChange) {
-      const bubbleData = this.activeBubbles.get(this.selectedBubbleId);
-      if (bubbleData) {
-        this.onSelectionChange(bubbleData.settings);
+    if (wasResizing && this.selectedBubbleId) {
+      this.scheduleThumbnailUpdate();
+      if (this.onSelectionChange) {
+        const bubbleData = this.activeBubbles.get(this.selectedBubbleId);
+        if (bubbleData) {
+          this.onSelectionChange(bubbleData.settings);
+        }
       }
     }
   }
@@ -246,6 +282,7 @@ export class SpeechBubbleEngine {
     this.activeBubbles.delete(this.selectedBubbleId);
     this.clearSelection();
     this.redrawAll();
+    this.scheduleThumbnailUpdate();
   }
 
   public getSelectedBubbleSettings(): SpeechBubbleSettings | null {
@@ -371,5 +408,17 @@ export class SpeechBubbleEngine {
     if (this.onSelectionChange) {
       this.onSelectionChange(null);
     }
+  }
+
+  private scheduleThumbnailUpdate(): void {
+    if (this.onThumbnailUpdate) {
+      setTimeout(() => {
+        this.onThumbnailUpdate!();
+      }, 100);
+    }
+  }
+
+  private getCanvasIdFromLayerId(layerId: string): string | null {
+    return layerId.split("-")[0] || null;
   }
 }

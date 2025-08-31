@@ -4,11 +4,15 @@ import {
   selectedToolIdAtom,
   activateTemporaryHandToolAtom,
   deactivateTemporaryHandToolAtom,
+  activateTemporaryZoomInToolAtom,
+  deactivateTemporaryZoomInToolAtom,
+  activateTemporaryZoomOutToolAtom,
+  deactivateTemporaryZoomOutToolAtom,
 } from "@/stores/toolsbarStore";
 import { ToolbarItemIDs } from "@/constants/toolsbarItems";
 import { brushRadiusAtom } from "@/stores/brushStore";
-import { penSizeAtom } from "@/stores/penStore";
 import { eraserSizeAtom } from "@/stores/eraserStore";
+import { zoomInAtom, zoomOutAtom } from "@/stores/viewportStore";
 
 interface ShortcutAction {
   key: string | string[];
@@ -20,14 +24,29 @@ interface ShortcutAction {
 export const useKeyboardShortcuts = () => {
   const [selectedToolId, setSelectedToolId] = useAtom(selectedToolIdAtom);
   const [brushSize, setBrushSize] = useAtom(brushRadiusAtom);
-  const [penSize, setPenSize] = useAtom(penSizeAtom);
   const [eraserSize, setEraserSize] = useAtom(eraserSizeAtom);
   const activateTemporaryHandTool = useSetAtom(activateTemporaryHandToolAtom);
   const deactivateTemporaryHandTool = useSetAtom(
     deactivateTemporaryHandToolAtom
   );
+  const activateTemporaryZoomInTool = useSetAtom(
+    activateTemporaryZoomInToolAtom
+  );
+  const deactivateTemporaryZoomInTool = useSetAtom(
+    deactivateTemporaryZoomInToolAtom
+  );
+  const activateTemporaryZoomOutTool = useSetAtom(
+    activateTemporaryZoomOutToolAtom
+  );
+  const deactivateTemporaryZoomOutTool = useSetAtom(
+    deactivateTemporaryZoomOutToolAtom
+  );
+  const zoomIn = useSetAtom(zoomInAtom);
+  const zoomOut = useSetAtom(zoomOutAtom);
   const isTextEditingRef = useRef(false);
   const spaceKeyPressedRef = useRef(false);
+  const zKeyPressedRef = useRef(false);
+  const xKeyPressedRef = useRef(false);
 
   const setIsTextEditing = useCallback((value: boolean) => {
     isTextEditingRef.current = value;
@@ -48,13 +67,7 @@ export const useKeyboardShortcuts = () => {
             : Math.max(brushSize - calculateSizeStep(brushSize), 1);
           setBrushSize(newBrushSize);
           break;
-        case ToolbarItemIDs.PEN:
-          const step = penSize <= 10 ? 1 : penSize <= 20 ? 2 : 4;
-          const newPenSize = increase
-            ? Math.min(penSize + step, 50)
-            : Math.max(penSize - step, 0.5);
-          setPenSize(newPenSize);
-          break;
+
         case ToolbarItemIDs.ERASER:
           const newEraserSize = increase
             ? Math.min(eraserSize + calculateSizeStep(eraserSize), 200)
@@ -66,10 +79,8 @@ export const useKeyboardShortcuts = () => {
     [
       selectedToolId,
       brushSize,
-      penSize,
       eraserSize,
       setBrushSize,
-      setPenSize,
       setEraserSize,
       calculateSizeStep,
     ]
@@ -77,10 +88,11 @@ export const useKeyboardShortcuts = () => {
 
   const shortcuts: ShortcutAction[] = [
     {
-      key: "p",
-      action: () => setSelectedToolId(ToolbarItemIDs.PEN),
+      key: "v",
+      action: () => setSelectedToolId(ToolbarItemIDs.SELECT),
       preventDefault: true,
     },
+
     {
       key: "b",
       action: () => setSelectedToolId(ToolbarItemIDs.BRUSH),
@@ -100,22 +112,18 @@ export const useKeyboardShortcuts = () => {
       key: "[",
       action: () => adjustToolSize(false),
       condition: () =>
-        [
-          ToolbarItemIDs.BRUSH,
-          ToolbarItemIDs.PEN,
-          ToolbarItemIDs.ERASER,
-        ].includes(selectedToolId as ToolbarItemIDs),
+        [ToolbarItemIDs.BRUSH, ToolbarItemIDs.ERASER].includes(
+          selectedToolId as ToolbarItemIDs
+        ),
       preventDefault: true,
     },
     {
       key: "]",
       action: () => adjustToolSize(true),
       condition: () =>
-        [
-          ToolbarItemIDs.BRUSH,
-          ToolbarItemIDs.PEN,
-          ToolbarItemIDs.ERASER,
-        ].includes(selectedToolId as ToolbarItemIDs),
+        [ToolbarItemIDs.BRUSH, ToolbarItemIDs.ERASER].includes(
+          selectedToolId as ToolbarItemIDs
+        ),
       preventDefault: true,
     },
   ];
@@ -135,6 +143,20 @@ export const useKeyboardShortcuts = () => {
         event.preventDefault();
         spaceKeyPressedRef.current = true;
         activateTemporaryHandTool();
+        return;
+      }
+
+      if (key === "z" && !zKeyPressedRef.current) {
+        event.preventDefault();
+        zKeyPressedRef.current = true;
+        activateTemporaryZoomInTool();
+        return;
+      }
+
+      if (key === "x" && !xKeyPressedRef.current) {
+        event.preventDefault();
+        xKeyPressedRef.current = true;
+        activateTemporaryZoomOutTool();
         return;
       }
 
@@ -170,6 +192,20 @@ export const useKeyboardShortcuts = () => {
         deactivateTemporaryHandTool();
         return;
       }
+
+      if (key === "z" && zKeyPressedRef.current) {
+        event.preventDefault();
+        zKeyPressedRef.current = false;
+        deactivateTemporaryZoomInTool();
+        return;
+      }
+
+      if (key === "x" && xKeyPressedRef.current) {
+        event.preventDefault();
+        xKeyPressedRef.current = false;
+        deactivateTemporaryZoomOutTool();
+        return;
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -178,7 +214,21 @@ export const useKeyboardShortcuts = () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [shortcuts, activateTemporaryHandTool, deactivateTemporaryHandTool]);
+  }, [
+    shortcuts,
+    activateTemporaryHandTool,
+    deactivateTemporaryHandTool,
+    activateTemporaryZoomInTool,
+    deactivateTemporaryZoomInTool,
+    activateTemporaryZoomOutTool,
+    deactivateTemporaryZoomOutTool,
+    zoomIn,
+    zoomOut,
+  ]);
 
-  return { setIsTextEditing };
+  return {
+    setIsTextEditing,
+    isZoomInModeActive: () => zKeyPressedRef.current,
+    isZoomOutModeActive: () => xKeyPressedRef.current,
+  };
 };
