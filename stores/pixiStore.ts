@@ -80,14 +80,12 @@ export const generateCanvasThumbnailAtom = atom(
     if (!state.app || !state.canvasContainers[pageId]?.[canvasId]) {
       return;
     }
-
     const { canvasesAtom } = await import("./canvasStore");
     const canvases = get(canvasesAtom);
     const canvas = canvases.find((c) => c.id === canvasId);
     if (!canvas) return;
 
     const container = state.canvasContainers[pageId][canvasId];
-
     const fixedWidth = 400;
     const fixedHeight = 300;
 
@@ -160,6 +158,7 @@ export const generateCanvasThumbnailAtom = atom(
     renderTexture.destroy();
 
     const currentState = get(pixiStateAtom);
+
     set(pixiStateAtom, {
       ...currentState,
       canvasThumbnails: {
@@ -273,6 +272,7 @@ export const createCanvasContainerAtom = atom(
     const container = new PIXI.Container();
     container.name = `canvas-${canvasId}`;
     const currentState = get(pixiStateAtom);
+
     set(pixiStateAtom, {
       ...currentState,
       canvasContainers: {
@@ -581,7 +581,6 @@ export const refreshCanvasThumbnailAtom = atom(
     const canvases = get(canvasesAtom);
     const canvas = canvases.find((c) => c.id === canvasId);
     if (!canvas) return;
-
     await set(generateCanvasThumbnailAtom, {
       canvasId,
       pageId: canvas.pageId,

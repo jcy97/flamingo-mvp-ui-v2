@@ -94,8 +94,12 @@ export const duplicatePageAtom = atom(
     const canvases = get(canvasesAtom);
 
     const { layersAtom } = await import("./layerStore");
-    const { pixiStateAtom, createCanvasContainerAtom, createLayerGraphicAtom } =
-      await import("./pixiStore");
+    const {
+      pixiStateAtom,
+      createCanvasContainerAtom,
+      createLayerGraphicAtom,
+      generateCanvasThumbnailAtom,
+    } = await import("./pixiStore");
     const { createIdMaps, duplicatePixiCanvasLayers, generateUniqueId } =
       await import("@/utils/pixiDuplication");
 
@@ -171,6 +175,14 @@ export const duplicatePageAtom = atom(
       });
     }
 
+    await new Promise((resolve) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setTimeout(resolve, 150);
+        });
+      });
+    });
+
     if (pixiState.app) {
       for (const originalCanvas of originalCanvases) {
         const newCanvasId = canvasIdMap.get(originalCanvas.id)!;
@@ -183,12 +195,13 @@ export const duplicatePageAtom = atom(
           )
         );
 
+        const updatePixiApp = get(pixiStateAtom);
         await duplicatePixiCanvasLayers({
           originalCanvasId: originalCanvas.id,
           newCanvasId,
           layerIdMap: canvasLayerIdMap,
-          pixiState,
-          pixiApp: pixiState.app,
+          pixiState: updatePixiApp,
+          pixiApp: updatePixiApp.app!,
           setPixiState: (updater) => {
             const { pixiStateAtom } = require("./pixiStore");
             const currentState = get(pixiStateAtom);
@@ -197,10 +210,24 @@ export const duplicatePageAtom = atom(
           newPageId,
           duplicatedLayers,
         });
+
+        await new Promise((resolve) => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              setTimeout(resolve, 50);
+            });
+          });
+        });
       }
     }
 
     set(currentPageIdAtom, newPageId);
+
+    const { refreshCanvasThumbnailAtom } = await import("./pixiStore");
+    for (const canvas of duplicatedCanvases) {
+      await set(refreshCanvasThumbnailAtom, canvas.id);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
 
     setTimeout(() => {
       const { setCurrentCanvasAtom } = require("./canvasStore");

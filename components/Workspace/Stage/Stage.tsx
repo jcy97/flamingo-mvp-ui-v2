@@ -4,7 +4,6 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import * as PIXI from "pixi.js";
 import "pixi.js/advanced-blend-modes";
 import { BrushEngine, DrawingPoint as BrushDrawingPoint } from "./BrushEngine";
-import { PenEngine, DrawingPoint as PenDrawingPoint } from "./PenEngine";
 import {
   EraserEngine,
   DrawingPoint as EraserDrawingPoint,
@@ -15,7 +14,6 @@ import {
   DrawingPoint as SpeechBubbleDrawingPoint,
 } from "./SpeechBubbleEngine";
 import { brushSettingsAtom } from "@/stores/brushStore";
-import { penSettingsAtom } from "@/stores/penStore";
 import { eraserSettingsAtom } from "@/stores/eraserStore";
 import { textSettingsAtom } from "@/stores/textStore";
 import { speechBubbleSettingsAtom } from "@/stores/speechBubbleStore";
@@ -48,11 +46,20 @@ import {
   addLayerAtom,
   autoSelectFirstLayerAtom,
 } from "@/stores/layerStore";
+import {
+  selectionStateAtom,
+  activateSelectionModeAtom,
+  deactivateSelectionModeAtom,
+  selectElementAtom,
+  clearSelectionAtom,
+  startDragAtom,
+  updateDragAtom,
+  endDragAtom,
+} from "@/stores/selectionStore";
 import ZoomIndicator from "@/components/Common/ZoomIndicator";
 
 type DrawingPoint =
   | BrushDrawingPoint
-  | PenDrawingPoint
   | EraserDrawingPoint
   | SpeechBubbleDrawingPoint;
 
@@ -60,7 +67,6 @@ function Stage() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application | null>(null);
   const brushEngineRef = useRef<BrushEngine | null>(null);
-  const penEngineRef = useRef<PenEngine | null>(null);
   const eraserEngineRef = useRef<EraserEngine | null>(null);
   const textEngineRef = useRef<TextEngine | null>(null);
   const speechBubbleEngineRef = useRef<SpeechBubbleEngine | null>(null);
@@ -85,7 +91,6 @@ function Stage() {
   const panViewport = useSetAtom(panViewportAtom);
 
   const [brushSettings] = useAtom(brushSettingsAtom);
-  const [penSettings] = useAtom(penSettingsAtom);
   const [eraserSettings] = useAtom(eraserSettingsAtom);
   const [textSettings] = useAtom(textSettingsAtom);
   const [speechBubbleSettings, setSpeechBubbleSettings] = useAtom(
@@ -111,6 +116,15 @@ function Stage() {
   const addLayer = useSetAtom(addLayerAtom);
   const autoSelectFirstLayer = useSetAtom(autoSelectFirstLayerAtom);
   const refreshCanvasThumbnail = useSetAtom(refreshCanvasThumbnailAtom);
+
+  const [selectionState, setSelectionState] = useAtom(selectionStateAtom);
+  const activateSelectionMode = useSetAtom(activateSelectionModeAtom);
+  const deactivateSelectionMode = useSetAtom(deactivateSelectionModeAtom);
+  const selectElement = useSetAtom(selectElementAtom);
+  const clearSelection = useSetAtom(clearSelectionAtom);
+  const startDrag = useSetAtom(startDragAtom);
+  const updateDrag = useSetAtom(updateDragAtom);
+  const endDrag = useSetAtom(endDragAtom);
 
   const getDisplaySize = useCallback(() => {
     if (!currentCanvas) return { width: 800, height: 450 };
@@ -236,7 +250,6 @@ function Stage() {
   }, []);
 
   const brushSettingsRef = useRef(brushSettings);
-  const penSettingsRef = useRef(penSettings);
   const eraserSettingsRef = useRef(eraserSettings);
   const textSettingsRef = useRef(textSettings);
   const speechBubbleSettingsRef = useRef(speechBubbleSettings);
@@ -248,10 +261,6 @@ function Stage() {
   useEffect(() => {
     brushSettingsRef.current = brushSettings;
   }, [brushSettings]);
-
-  useEffect(() => {
-    penSettingsRef.current = penSettings;
-  }, [penSettings]);
 
   useEffect(() => {
     eraserSettingsRef.current = eraserSettings;
@@ -294,6 +303,27 @@ function Stage() {
   }, [activeLayer]);
 
   useEffect(() => {
+    const isSelectTool = selectedToolId === ToolbarItemIDs.SELECT;
+
+    if (isSelectTool) {
+      activateSelectionMode();
+      if (activeLayer) {
+        if (activeLayer.type === "speechBubble") {
+          selectElement({ type: "speechBubble", id: activeLayer.id });
+        }
+      }
+    } else {
+      deactivateSelectionMode();
+    }
+  }, [
+    selectedToolId,
+    activeLayer,
+    activateSelectionMode,
+    deactivateSelectionMode,
+    selectElement,
+  ]);
+
+  useEffect(() => {
     if (canvasRef.current) {
       attachToElement(canvasRef.current);
     }
@@ -309,17 +339,6 @@ function Stage() {
       return () => clearTimeout(timeoutId);
     }
   }, [brushSettings]);
-
-  useEffect(() => {
-    if (penEngineRef.current && !isDrawingRef.current) {
-      const timeoutId = setTimeout(() => {
-        if (penEngineRef.current) {
-          penEngineRef.current.updateSettings(penSettingsRef.current);
-        }
-      }, 16);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [penSettings]);
 
   useEffect(() => {
     if (eraserEngineRef.current && !isDrawingRef.current) {
@@ -466,13 +485,6 @@ function Stage() {
         brushEngineRef.current.setActiveLayer(drawingLayer);
       }
 
-      if (penEngineRef.current) {
-        penEngineRef.current.setActiveLayer(drawingLayer);
-        penEngineRef.current.setSharedRenderTexture(
-          activeRenderTextureRef.current
-        );
-      }
-
       if (eraserEngineRef.current) {
         eraserEngineRef.current.setSharedRenderTexture(
           activeRenderTextureRef.current
@@ -555,7 +567,6 @@ function Stage() {
         canvasRef.current.appendChild(app.canvas);
 
         brushEngineRef.current = new BrushEngine(app, brushSettings);
-        penEngineRef.current = new PenEngine(app, penSettings);
         eraserEngineRef.current = new EraserEngine(app, eraserSettings);
         textEngineRef.current = new TextEngine(app, textSettings);
         textEngineRef.current.setOnLayerDelete(deleteLayer);
@@ -670,9 +681,28 @@ function Stage() {
             return;
           }
 
+          if (currentTool === ToolbarItemIDs.SELECT) {
+            const activeLayer = activeLayerRef.current;
+
+            if (
+              activeLayer?.type === "speechBubble" &&
+              speechBubbleEngineRef.current
+            ) {
+              const foundBubble =
+                speechBubbleEngineRef.current.selectBubbleAt(coords);
+              if (foundBubble) {
+                selectElement({ type: "speechBubble", id: activeLayer.id });
+                startDrag({ x: event.clientX, y: event.clientY });
+                return;
+              }
+            }
+
+            clearSelection();
+            return;
+          }
+
           if (
             (currentTool == ToolbarItemIDs.BRUSH ||
-              currentTool == ToolbarItemIDs.PEN ||
               currentTool == ToolbarItemIDs.ERASER) &&
             activeLayerRef.current?.type === "text"
           ) {
@@ -742,12 +772,7 @@ function Stage() {
             timestamp: Date.now(),
           };
 
-          if (currentTool === ToolbarItemIDs.PEN && penEngineRef.current) {
-            penEngineRef.current.startStroke(point);
-          } else if (
-            currentTool === ToolbarItemIDs.BRUSH &&
-            brushEngineRef.current
-          ) {
+          if (currentTool === ToolbarItemIDs.BRUSH && brushEngineRef.current) {
             brushEngineRef.current.startStroke(point);
           } else if (
             currentTool === ToolbarItemIDs.ERASER &&
@@ -801,6 +826,35 @@ function Stage() {
             return;
           }
 
+          if (
+            currentTool === ToolbarItemIDs.SELECT &&
+            selectionState.isDragging
+          ) {
+            updateDrag({ x: event.clientX, y: event.clientY });
+
+            if (selectionState.dragOffset) {
+              const scaledDeltaX = selectionState.dragOffset.x / viewport.zoom;
+              const scaledDeltaY = selectionState.dragOffset.y / viewport.zoom;
+
+              if (
+                selectionState.selectedElementType === "speechBubble" &&
+                speechBubbleEngineRef.current
+              ) {
+                if (
+                  speechBubbleEngineRef.current.isPointInSelectedBubbleBounds(
+                    coords.x,
+                    coords.y
+                  )
+                ) {
+                  speechBubbleEngineRef.current.handlePointerMove(coords);
+                }
+              }
+            }
+
+            event.preventDefault();
+            return;
+          }
+
           if (!isDrawingRef.current) {
             return;
           }
@@ -814,12 +868,7 @@ function Stage() {
             timestamp: Date.now(),
           };
 
-          if (currentTool === ToolbarItemIDs.PEN && penEngineRef.current) {
-            penEngineRef.current.continueStroke(point);
-          } else if (
-            currentTool === ToolbarItemIDs.BRUSH &&
-            brushEngineRef.current
-          ) {
+          if (currentTool === ToolbarItemIDs.BRUSH && brushEngineRef.current) {
             brushEngineRef.current.continueStroke(point);
           } else if (
             currentTool === ToolbarItemIDs.ERASER &&
@@ -831,7 +880,6 @@ function Stage() {
 
         const handlePointerUp = (event: PointerEvent) => {
           let currentTool = selectedToolIdRef.current;
-
           if (isTemporaryZoomInToolRef.current) {
             currentTool = ToolbarItemIDs.ZOOM_IN;
           } else if (isTemporaryZoomOutToolRef.current) {
@@ -866,21 +914,36 @@ function Stage() {
             return;
           }
 
+          if (
+            currentTool === ToolbarItemIDs.SELECT &&
+            selectionState.isDragging
+          ) {
+            if (
+              selectionState.selectedElementType === "speechBubble" &&
+              speechBubbleEngineRef.current
+            ) {
+              speechBubbleEngineRef.current.handlePointerUp();
+            }
+
+            endDrag();
+
+            if (currentCanvasIdRef.current) {
+              setTimeout(
+                () => refreshCanvasThumbnail(currentCanvasIdRef.current!),
+                50
+              );
+            }
+
+            return;
+          }
+
           if (!isDrawingRef.current) return;
           event.preventDefault();
           canvas.releasePointerCapture(event.pointerId);
           isDrawingRef.current = false;
           lastPressureRef.current = 0.5;
 
-          if (currentTool === ToolbarItemIDs.PEN && penEngineRef.current) {
-            penEngineRef.current.endStroke();
-            if (currentCanvasId) {
-              setTimeout(() => refreshCanvasThumbnail(currentCanvasId), 50);
-            }
-          } else if (
-            currentTool === ToolbarItemIDs.BRUSH &&
-            brushEngineRef.current
-          ) {
+          if (currentTool === ToolbarItemIDs.BRUSH && brushEngineRef.current) {
             brushEngineRef.current.endStroke();
             if (currentCanvasIdRef.current) {
               setTimeout(
@@ -919,9 +982,7 @@ function Stage() {
           }
 
           if (isDrawingRef.current) {
-            if (currentTool === ToolbarItemIDs.PEN && penEngineRef.current) {
-              penEngineRef.current.endStroke();
-            } else if (
+            if (
               currentTool === ToolbarItemIDs.BRUSH &&
               brushEngineRef.current
             ) {
@@ -976,10 +1037,7 @@ function Stage() {
           brushEngineRef.current.cleanup();
           brushEngineRef.current = null;
         }
-        if (penEngineRef.current) {
-          penEngineRef.current.cleanup();
-          penEngineRef.current = null;
-        }
+
         if (eraserEngineRef.current) {
           eraserEngineRef.current.cleanup();
           eraserEngineRef.current = null;

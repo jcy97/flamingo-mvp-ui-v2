@@ -11,7 +11,6 @@ import {
 } from "@/stores/toolsbarStore";
 import { ToolbarItemIDs } from "@/constants/toolsbarItems";
 import { brushRadiusAtom } from "@/stores/brushStore";
-import { penSizeAtom } from "@/stores/penStore";
 import { eraserSizeAtom } from "@/stores/eraserStore";
 import { zoomInAtom, zoomOutAtom } from "@/stores/viewportStore";
 
@@ -25,7 +24,6 @@ interface ShortcutAction {
 export const useKeyboardShortcuts = () => {
   const [selectedToolId, setSelectedToolId] = useAtom(selectedToolIdAtom);
   const [brushSize, setBrushSize] = useAtom(brushRadiusAtom);
-  const [penSize, setPenSize] = useAtom(penSizeAtom);
   const [eraserSize, setEraserSize] = useAtom(eraserSizeAtom);
   const activateTemporaryHandTool = useSetAtom(activateTemporaryHandToolAtom);
   const deactivateTemporaryHandTool = useSetAtom(
@@ -69,13 +67,7 @@ export const useKeyboardShortcuts = () => {
             : Math.max(brushSize - calculateSizeStep(brushSize), 1);
           setBrushSize(newBrushSize);
           break;
-        case ToolbarItemIDs.PEN:
-          const step = penSize <= 10 ? 1 : penSize <= 20 ? 2 : 4;
-          const newPenSize = increase
-            ? Math.min(penSize + step, 50)
-            : Math.max(penSize - step, 0.5);
-          setPenSize(newPenSize);
-          break;
+
         case ToolbarItemIDs.ERASER:
           const newEraserSize = increase
             ? Math.min(eraserSize + calculateSizeStep(eraserSize), 200)
@@ -87,10 +79,8 @@ export const useKeyboardShortcuts = () => {
     [
       selectedToolId,
       brushSize,
-      penSize,
       eraserSize,
       setBrushSize,
-      setPenSize,
       setEraserSize,
       calculateSizeStep,
     ]
@@ -98,10 +88,11 @@ export const useKeyboardShortcuts = () => {
 
   const shortcuts: ShortcutAction[] = [
     {
-      key: "p",
-      action: () => setSelectedToolId(ToolbarItemIDs.PEN),
+      key: "v",
+      action: () => setSelectedToolId(ToolbarItemIDs.SELECT),
       preventDefault: true,
     },
+
     {
       key: "b",
       action: () => setSelectedToolId(ToolbarItemIDs.BRUSH),
@@ -121,22 +112,18 @@ export const useKeyboardShortcuts = () => {
       key: "[",
       action: () => adjustToolSize(false),
       condition: () =>
-        [
-          ToolbarItemIDs.BRUSH,
-          ToolbarItemIDs.PEN,
-          ToolbarItemIDs.ERASER,
-        ].includes(selectedToolId as ToolbarItemIDs),
+        [ToolbarItemIDs.BRUSH, ToolbarItemIDs.ERASER].includes(
+          selectedToolId as ToolbarItemIDs
+        ),
       preventDefault: true,
     },
     {
       key: "]",
       action: () => adjustToolSize(true),
       condition: () =>
-        [
-          ToolbarItemIDs.BRUSH,
-          ToolbarItemIDs.PEN,
-          ToolbarItemIDs.ERASER,
-        ].includes(selectedToolId as ToolbarItemIDs),
+        [ToolbarItemIDs.BRUSH, ToolbarItemIDs.ERASER].includes(
+          selectedToolId as ToolbarItemIDs
+        ),
       preventDefault: true,
     },
   ];

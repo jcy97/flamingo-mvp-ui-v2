@@ -3,7 +3,6 @@ import { useAtom } from "jotai";
 import { selectedToolIdAtom } from "@/stores/toolsbarStore";
 import { ToolbarItemIDs } from "@/constants/toolsbarItems";
 import BrushProperties from "./BrushProperties/BrushProperties";
-import PenProperties from "./PenProperties/PenProperties";
 import EraserProperties from "./EraserProperties/EraserProperties";
 import TextProperties from "./TextProperties/TextProperties";
 import SpeechBubbleProperties from "./SpeechBubbleProperties/SpeechBubbleProperties";
@@ -14,9 +13,6 @@ function Properties() {
 
   const renderProperties = () => {
     switch (selectedToolId) {
-      case ToolbarItemIDs.PEN:
-        return <PenProperties />;
-
       case ToolbarItemIDs.BRUSH:
         return <BrushProperties />;
 

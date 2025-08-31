@@ -207,6 +207,32 @@ export class SpeechBubbleEngine {
     }
   }
 
+  public moveSelectedBubble(deltaX: number, deltaY: number): void {
+    if (this.selectedBubbleId) {
+      const bubbleData = this.activeBubbles.get(this.selectedBubbleId);
+      if (bubbleData) {
+        bubbleData.x += deltaX;
+        bubbleData.y += deltaY;
+        this.redrawAll();
+        this.createHandles(bubbleData);
+      }
+    }
+  }
+
+  public isPointInSelectedBubbleBounds(x: number, y: number): boolean {
+    if (!this.selectedBubbleId) return false;
+
+    const bubbleData = this.activeBubbles.get(this.selectedBubbleId);
+    if (!bubbleData) return false;
+
+    return (
+      x >= bubbleData.x &&
+      x <= bubbleData.x + bubbleData.width &&
+      y >= bubbleData.y &&
+      y <= bubbleData.y + bubbleData.height
+    );
+  }
+
   public handlePointerUp(): void {
     const wasResizing = this.handleManager.endDrag();
 

@@ -68,16 +68,24 @@ export class TextEngine {
 
   public getTextAtPosition(x: number, y: number): PIXI.Text | null {
     for (const textObj of this.textObjects) {
-      if (!textObj.visible) continue;
+      if (!textObj.visible || !textObj.text) continue;
 
-      const bounds = textObj.getBounds();
-      if (
-        x >= bounds.x &&
-        x <= bounds.x + bounds.width &&
-        y >= bounds.y &&
-        y <= bounds.y + bounds.height
-      ) {
-        return textObj;
+      try {
+        const bounds = textObj.getBounds();
+        if (!bounds || bounds.width === 0 || bounds.height === 0) {
+          continue;
+        }
+
+        if (
+          x >= bounds.x &&
+          x <= bounds.x + bounds.width &&
+          y >= bounds.y &&
+          y <= bounds.y + bounds.height
+        ) {
+          return textObj;
+        }
+      } catch (error) {
+        continue;
       }
     }
     return null;
@@ -467,9 +475,7 @@ export class TextEngine {
         });
 
         textSprite.destroy();
-      } catch (error) {
-        console.error("텍스트 렌더링 실패:", error);
-      }
+      } catch (error) {}
     }
   }
 

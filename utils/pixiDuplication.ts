@@ -32,7 +32,6 @@ export const duplicatePixiLayer = async (
       target: newRenderTexture,
       clear: true,
     });
-
     const newPixiSprite = new PIXI.Sprite(newRenderTexture);
     newPixiSprite.name = `layer-${targetLayerId}`;
     newPixiSprite.texture.source.scaleMode = "linear";
@@ -46,6 +45,7 @@ export const duplicatePixiLayer = async (
       pixiSprite: newPixiSprite,
       renderTexture: newRenderTexture,
     };
+    return null;
   } catch (error) {
     console.error(`레이어 그래픽 복사 실패 ${targetLayerId}:`, error);
     return null;
@@ -76,7 +76,6 @@ export const duplicatePixiCanvasLayers = async (
     newPageId,
     duplicatedLayers,
   } = params;
-
   const originalLayerGraphics = pixiState.layerGraphics[originalCanvasId];
   if (!originalLayerGraphics) return;
 
@@ -132,6 +131,8 @@ export const duplicatePixiCanvasLayers = async (
           }
         }
       });
+
+      pixiApp.renderer.render(canvasContainer);
     }
   }
 };

@@ -257,6 +257,10 @@ export const duplicateLayerAtom = atom(
 
     updateCanvasLayerOrder(get, currentCanvasId);
     set(setActiveLayerAtom, newLayerId);
+
+    setTimeout(() => {
+      set(refreshCanvasThumbnailAtom, currentCanvasId);
+    }, 50);
   }
 );
 

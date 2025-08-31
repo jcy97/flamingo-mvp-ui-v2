@@ -6,7 +6,6 @@ import {
   isTemporaryZoomOutToolAtom,
 } from "@/stores/toolsbarStore";
 import { brushSettingsAtom } from "@/stores/brushStore";
-import { penSettingsAtom } from "@/stores/penStore";
 import { eraserSettingsAtom } from "@/stores/eraserStore";
 import { ToolbarItemIDs } from "@/constants/toolsbarItems";
 import { createToolCursor } from "@/utils/cursor";
@@ -17,7 +16,6 @@ export function useCursor(): string {
   const isTemporaryZoomInTool = useAtomValue(isTemporaryZoomInToolAtom);
   const isTemporaryZoomOutTool = useAtomValue(isTemporaryZoomOutToolAtom);
   const brushSettings = useAtomValue(brushSettingsAtom);
-  const penSettings = useAtomValue(penSettingsAtom);
   const eraserSettings = useAtomValue(eraserSettingsAtom);
 
   let currentTool = selectedToolId;
@@ -36,9 +34,6 @@ export function useCursor(): string {
 
     case ToolbarItemIDs.HAND:
       return "grab";
-
-    case ToolbarItemIDs.PEN:
-      return createToolCursor(penSettings.size, penSettings.color);
 
     case ToolbarItemIDs.BRUSH:
       return createToolCursor(brushSettings.radius, brushSettings.color);
