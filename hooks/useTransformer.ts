@@ -24,7 +24,7 @@ import {
 } from "@/stores/layerStore";
 import { selectedToolIdAtom } from "@/stores/toolsbarStore";
 import { ToolbarItemIDs } from "@/constants/toolsbarItems";
-import { pixiStateAtom } from "@/stores/pixiStore";
+import { pixiStateAtom, transformLayerContentAtom } from "@/stores/pixiStore";
 import { currentCanvasIdAtom } from "@/stores/canvasStore";
 import { viewportAtom } from "@/stores/viewportStore";
 
@@ -56,6 +56,7 @@ export const useTransformer = () => {
   const updatePosition = useSetAtom(updateTransformerPositionAtom);
   const updateScale = useSetAtom(updateTransformerScaleAtom);
   const updateRotation = useSetAtom(updateTransformerRotationAtom);
+  const transformLayerContent = useSetAtom(transformLayerContentAtom);
 
   const activeLayer = useAtomValue(currentActiveLayerAtom);
   const layers = useAtomValue(layersForCurrentCanvasAtom);
@@ -112,29 +113,58 @@ export const useTransformer = () => {
     if (
       transformerState.isActive &&
       transformerState.selectedLayerId &&
-      activeLayer
+      activeLayer &&
+      transformerState.bounds
     ) {
-      const newBounds = {
-        minX: transformerState.position.x,
-        minY: transformerState.position.y,
-        maxX:
-          transformerState.position.x +
-          (transformerState.bounds?.width || 0) * transformerState.scale.x,
-        maxY:
-          transformerState.position.y +
-          (transformerState.bounds?.height || 0) * transformerState.scale.y,
+      const { position, scale, rotation, bounds, selectedLayerId } =
+        transformerState;
+
+      const originalBounds = activeLayer.data.contentBounds;
+      if (!originalBounds) return;
+
+      const originalWidth = originalBounds.maxX - originalBounds.minX;
+      const originalHeight = originalBounds.maxY - originalBounds.minY;
+      const originalCenterX = originalBounds.minX + originalWidth / 2;
+      const originalCenterY = originalBounds.minY + originalHeight / 2;
+
+      const pivot = {
+        x: originalCenterX,
+        y: originalCenterY,
       };
 
+      const transformedWidth = originalWidth * scale.x;
+      const transformedHeight = originalHeight * scale.y;
+
+      const newBounds = {
+        minX: position.x,
+        minY: position.y,
+        maxX: position.x + transformedWidth,
+        maxY: position.y + transformedHeight,
+      };
+
+      transformLayerContent({
+        layerId: selectedLayerId,
+        scale,
+        rotation,
+        pivot,
+        newBounds,
+      });
+
       updateLayer({
-        layerId: transformerState.selectedLayerId,
+        layerId: selectedLayerId,
         updates: {
           data: { ...activeLayer.data, contentBounds: newBounds },
         },
       });
     }
     deactivateTransformer();
-  }, [deactivateTransformer, transformerState, activeLayer, updateLayer]);
-
+  }, [
+    deactivateTransformer,
+    transformerState,
+    activeLayer,
+    updateLayer,
+    transformLayerContent,
+  ]);
   const handlePointerDown = useCallback(
     (event: PointerEvent, point: Point) => {
       if (!transformerState.isActive || !transformerState.bounds) return false;
@@ -200,9 +230,13 @@ export const useTransformer = () => {
 
         sprite.pivot.set(centerX, centerY);
 
-        const dragDeltaX = position.x - originalBounds.minX;
-        const dragDeltaY = position.y - originalBounds.minY;
-        sprite.position.set(centerX + dragDeltaX, centerY + dragDeltaY);
+        const newCenterX =
+          position.x +
+          ((originalBounds.maxX - originalBounds.minX) * scale.x) / 2;
+        const newCenterY =
+          position.y +
+          ((originalBounds.maxY - originalBounds.minY) * scale.y) / 2;
+        sprite.position.set(newCenterX, newCenterY);
 
         sprite.rotation = (rotation * Math.PI) / 180;
         sprite.scale.set(scale.x, scale.y);

@@ -4,6 +4,7 @@ import "pixi.js/advanced-blend-modes";
 import { layersAtom } from "./layerStore";
 import { LayerData } from "@/types/layer";
 import { currentPageIdAtom } from "./pageStore";
+import { Bounds } from "@/types/common";
 
 export interface PixiState {
   app: PIXI.Application | null;
@@ -716,17 +717,16 @@ export const transformLayerContentAtom = atom(
     set,
     {
       layerId,
-      // 변형에 필요한 정보: 이동, 스케일, 회전, 그리고 변형의 중심점
-      translation,
       scale,
       rotation,
       pivot,
+      newBounds,
     }: {
       layerId: string;
-      translation: { x: number; y: number };
       scale: { x: number; y: number };
       rotation: number;
       pivot: { x: number; y: number };
+      newBounds: Bounds;
     }
   ) => {
     const state = get(pixiStateAtom);
@@ -736,40 +736,57 @@ export const transformLayerContentAtom = atom(
     if (!state.app || !canvasId || !layer) return;
 
     const layerGraphic = state.layerGraphics[canvasId]?.[layerId];
-    if (!layerGraphic?.renderTexture) return;
+    if (!layerGraphic?.renderTexture || !layerGraphic.pixiSprite) return;
 
     const originalTexture = layerGraphic.renderTexture;
-
-    // 1. 임시 컨테이너와 스프라이트 생성
-    const tempContainer = new PIXI.Container();
+    const { width, height } = originalTexture;
+    const newRenderTexture = PIXI.RenderTexture.create({
+      width,
+      height,
+      resolution: 1,
+    });
     const tempSprite = new PIXI.Sprite(originalTexture);
-    tempContainer.addChild(tempSprite);
 
-    // 2. 스프라이트에 변형 적용
-    tempSprite.pivot.copyFrom(pivot); // 중심점 설정
-    tempSprite.position.set(pivot.x + translation.x, pivot.y + translation.y); // 이동
-    tempSprite.scale.copyFrom(scale); // 스케일
-    tempSprite.rotation = (rotation * Math.PI) / 180; // 회전
+    tempSprite.pivot.set(pivot.x, pivot.y);
+    tempSprite.position.set(width / 2, height / 2);
+    tempSprite.scale.copyFrom(scale);
+    tempSprite.rotation = (rotation * Math.PI) / 180;
 
-    // 3. 원본 텍스처를 비웁니다 (중요).
-    // 투명으로 렌더링하여 클리어합니다.
     state.app.renderer.render({
-      container: new PIXI.Container(),
-      target: originalTexture,
+      container: tempSprite,
+      target: newRenderTexture,
       clear: true,
     });
 
-    // 4. 변형이 적용된 임시 컨테이너를 원본 텍스처에 다시 렌더링합니다.
-    state.app.renderer.render({
-      container: tempContainer,
-      target: originalTexture,
-      clear: false, // 기존 내용을 지우지 않고 덮어씁니다.
+    const mainSprite = layerGraphic.pixiSprite;
+    mainSprite.texture = newRenderTexture;
+
+    const finalCenterX = newBounds.minX + (newBounds.maxX - newBounds.minX) / 2;
+    const finalCenterY = newBounds.minY + (newBounds.maxY - newBounds.minY) / 2;
+
+    mainSprite.pivot.set(width / 2, height / 2);
+    mainSprite.position.set(finalCenterX, finalCenterY);
+    mainSprite.scale.set(1, 1);
+    mainSprite.rotation = 0;
+
+    tempSprite.destroy();
+    originalTexture.destroy(true);
+
+    const currentState = get(pixiStateAtom);
+    set(pixiStateAtom, {
+      ...currentState,
+      layerGraphics: {
+        ...currentState.layerGraphics,
+        [canvasId]: {
+          ...currentState.layerGraphics[canvasId],
+          [layerId]: {
+            ...layerGraphic,
+            renderTexture: newRenderTexture,
+          },
+        },
+      },
     });
 
-    // 5. 임시 객체들 정리
-    tempContainer.destroy({ children: true });
-
-    // 6. 썸네일 업데이트
     set(refreshCanvasThumbnailAtom, canvasId);
   }
 );
