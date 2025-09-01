@@ -21,6 +21,12 @@ export type LayerType = "brush" | "text" | "shape" | "image" | "speechBubble";
 export interface LayerData {
   pixiSprite: PIXI.Sprite | null;
   renderTexture: PIXI.RenderTexture | null;
+  contentBounds?: {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+  } | null;
 }
 
 export interface Stroke {

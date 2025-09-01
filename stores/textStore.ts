@@ -1,6 +1,11 @@
 import { atom } from "jotai";
 import { TextSettings } from "@/types/text";
 
+export interface TextTransformState {
+  position: { x: number; y: number };
+  scale: { x: number; y: number };
+}
+
 export const DEFAULT_TEXT_SETTINGS: TextSettings = {
   fontSize: 16,
   fontFamily: "Arial",
@@ -12,6 +17,11 @@ export const DEFAULT_TEXT_SETTINGS: TextSettings = {
   align: "left",
   wordWrap: false,
   wordWrapWidth: 400,
+};
+
+export const DEFAULT_TEXT_TRANSFORM: TextTransformState = {
+  position: { x: 0, y: 0 },
+  scale: { x: 1, y: 1 },
 };
 
 export const textSettingsAtom = atom<TextSettings>(DEFAULT_TEXT_SETTINGS);
@@ -105,5 +115,63 @@ export const textWordWrapWidthAtom = atom(
       ...currentSettings,
       wordWrapWidth: Math.max(50, Math.min(1000, newWordWrapWidth)),
     });
+  }
+);
+
+export const textTransformStateAtom = atom<Record<string, TextTransformState>>(
+  {}
+);
+
+export const getTextTransformAtom = atom((get) => (layerId: string) => {
+  const transforms = get(textTransformStateAtom);
+  return transforms[layerId] || DEFAULT_TEXT_TRANSFORM;
+});
+
+export const setTextTransformAtom = atom(
+  null,
+  (
+    get,
+    set,
+    {
+      layerId,
+      transform,
+    }: { layerId: string; transform: Partial<TextTransformState> }
+  ) => {
+    const currentTransforms = get(textTransformStateAtom);
+    const currentTransform =
+      currentTransforms[layerId] || DEFAULT_TEXT_TRANSFORM;
+
+    set(textTransformStateAtom, {
+      ...currentTransforms,
+      [layerId]: {
+        ...currentTransform,
+        ...transform,
+      },
+    });
+  }
+);
+
+export const updateTextPositionAtom = atom(
+  null,
+  (
+    get,
+    set,
+    {
+      layerId,
+      position,
+    }: { layerId: string; position: { x: number; y: number } }
+  ) => {
+    set(setTextTransformAtom, { layerId, transform: { position } });
+  }
+);
+
+export const updateTextScaleAtom = atom(
+  null,
+  (
+    get,
+    set,
+    { layerId, scale }: { layerId: string; scale: { x: number; y: number } }
+  ) => {
+    set(setTextTransformAtom, { layerId, transform: { scale } });
   }
 );

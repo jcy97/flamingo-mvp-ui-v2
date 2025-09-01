@@ -15,7 +15,12 @@ import {
 } from "./SpeechBubbleEngine";
 import { brushSettingsAtom } from "@/stores/brushStore";
 import { eraserSettingsAtom } from "@/stores/eraserStore";
-import { textSettingsAtom } from "@/stores/textStore";
+import {
+  textSettingsAtom,
+  getTextTransformAtom,
+  updateTextPositionAtom,
+  updateTextScaleAtom,
+} from "@/stores/textStore";
 import { speechBubbleSettingsAtom } from "@/stores/speechBubbleStore";
 import { DEFAULT_SPEECH_BUBBLE_SETTINGS } from "@/types/speechBubble";
 import {
@@ -45,6 +50,7 @@ import {
   deleteLayerAtom,
   addLayerAtom,
   autoSelectFirstLayerAtom,
+  updateLayerAtom,
 } from "@/stores/layerStore";
 import {
   selectionStateAtom,
@@ -57,6 +63,10 @@ import {
   endDragAtom,
 } from "@/stores/selectionStore";
 import ZoomIndicator from "@/components/Common/ZoomIndicator";
+import Transformer from "./Transformer";
+import { useTransformer } from "@/hooks/useTransformer";
+import { Bounds } from "@/types/common";
+import { mergeBounds } from "@/utils/transformer";
 
 type DrawingPoint =
   | BrushDrawingPoint
@@ -116,6 +126,26 @@ function Stage() {
   const addLayer = useSetAtom(addLayerAtom);
   const autoSelectFirstLayer = useSetAtom(autoSelectFirstLayerAtom);
   const refreshCanvasThumbnail = useSetAtom(refreshCanvasThumbnailAtom);
+
+  const getTextTransform = useAtomValue(getTextTransformAtom);
+  const updateTextPosition = useSetAtom(updateTextPositionAtom);
+  const updateTextScale = useSetAtom(updateTextScaleAtom);
+
+  const updateLayer = useSetAtom(updateLayerAtom);
+
+  const {
+    transformerState,
+    handlePointerDown: handleTransformerPointerDown,
+    handlePointerMove: handleTransformerPointerMove,
+    handlePointerUp: handleTransformerPointerUp,
+    handleResizeStart,
+    handleResizeMove,
+    handleResizeEnd,
+    handleRotateStart,
+    handleRotateMove,
+    handleRotateEnd,
+    applyTransformToPixiObject,
+  } = useTransformer();
 
   const [selectionState, setSelectionState] = useAtom(selectionStateAtom);
   const activateSelectionMode = useSetAtom(activateSelectionModeAtom);
@@ -257,6 +287,33 @@ function Stage() {
   const isTemporaryHandToolRef = useRef(isTemporaryHandTool);
   const isTemporaryZoomInToolRef = useRef(isTemporaryZoomInTool);
   const isTemporaryZoomOutToolRef = useRef(isTemporaryZoomOutTool);
+
+  const handleStrokeComplete = useCallback(
+    (bounds: Bounds) => {
+      const currentLayer = activeLayerRef.current;
+
+      // 1. 현재 활성화된 레이어가 있는지 확인합니다.
+      if (!currentLayer) {
+        console.warn("활성 레이어가 없어 bounds를 업데이트할 수 없습니다.");
+        return;
+      }
+
+      // 2. 기존 bounds와 새로운 stroke의 bounds를 병합합니다.
+      const newContentBounds = mergeBounds(
+        currentLayer.data.contentBounds,
+        bounds
+      );
+
+      // 3. `updateLayerAtom`을 호출하여 contentBounds를 업데이트합니다.
+      updateLayer({
+        layerId: currentLayer.id,
+        updates: {
+          data: { ...currentLayer.data, contentBounds: newContentBounds },
+        },
+      });
+    },
+    [updateLayer]
+  );
 
   useEffect(() => {
     brushSettingsRef.current = brushSettings;
@@ -566,7 +623,11 @@ function Stage() {
         appRef.current = app;
         canvasRef.current.appendChild(app.canvas);
 
-        brushEngineRef.current = new BrushEngine(app, brushSettings);
+        brushEngineRef.current = new BrushEngine(
+          app,
+          brushSettings,
+          handleStrokeComplete
+        );
         eraserEngineRef.current = new EraserEngine(app, eraserSettings);
         textEngineRef.current = new TextEngine(app, textSettings);
         textEngineRef.current.setOnLayerDelete(deleteLayer);
@@ -631,6 +692,14 @@ function Stage() {
           event.preventDefault();
 
           const coords = getCanvasCoordinates(event.clientX, event.clientY);
+
+          if (transformerState.isActive) {
+            const handled = handleTransformerPointerDown(event, coords);
+            if (handled) {
+              canvas.setPointerCapture(event.pointerId);
+              return;
+            }
+          }
 
           let currentTool = selectedToolIdRef.current;
 
@@ -785,6 +854,14 @@ function Stage() {
         const handlePointerMove = (event: PointerEvent) => {
           const coords = getCanvasCoordinates(event.clientX, event.clientY);
 
+          if (transformerState.isActive) {
+            const handled = handleTransformerPointerMove(event, coords);
+            if (handled) {
+              event.preventDefault();
+              return;
+            }
+          }
+
           let currentTool = selectedToolIdRef.current;
 
           if (isTemporaryZoomInToolRef.current) {
@@ -879,6 +956,14 @@ function Stage() {
         };
 
         const handlePointerUp = (event: PointerEvent) => {
+          if (transformerState.isActive) {
+            const handled = handleTransformerPointerUp();
+            if (handled) {
+              canvas.releasePointerCapture(event.pointerId);
+              return;
+            }
+          }
+
           let currentTool = selectedToolIdRef.current;
           if (isTemporaryZoomInToolRef.current) {
             currentTool = ToolbarItemIDs.ZOOM_IN;
@@ -1050,6 +1135,7 @@ function Stage() {
           speechBubbleEngineRef.current.cleanup();
           speechBubbleEngineRef.current = null;
         }
+
         if (activeRenderTextureRef.current) {
           activeRenderTextureRef.current.destroy();
           activeRenderTextureRef.current = null;
@@ -1092,6 +1178,15 @@ function Stage() {
           transform: getStageTransform(),
           transformOrigin: "center center",
         }}
+      />
+      <Transformer
+        onResizeStart={handleResizeStart}
+        onResizeMove={handleResizeMove}
+        onResizeEnd={handleResizeEnd}
+        onRotateStart={handleRotateStart}
+        onRotateMove={handleRotateMove}
+        onRotateEnd={handleRotateEnd}
+        applyTransformToPixiObject={applyTransformToPixiObject}
       />
     </div>
   );

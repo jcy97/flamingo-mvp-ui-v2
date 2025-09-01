@@ -13,6 +13,7 @@ import { ToolbarItemIDs } from "@/constants/toolsbarItems";
 import { brushRadiusAtom } from "@/stores/brushStore";
 import { eraserSizeAtom } from "@/stores/eraserStore";
 import { zoomInAtom, zoomOutAtom } from "@/stores/viewportStore";
+import { useTransformer } from "@/hooks/useTransformer";
 
 interface ShortcutAction {
   key: string | string[];
@@ -43,6 +44,12 @@ export const useKeyboardShortcuts = () => {
   );
   const zoomIn = useSetAtom(zoomInAtom);
   const zoomOut = useSetAtom(zoomOutAtom);
+  const {
+    canActivateTransformer,
+    activateTransformerForActiveLayer,
+    deactivateTransformerAndApply,
+    transformerState,
+  } = useTransformer();
   const isTextEditingRef = useRef(false);
   const spaceKeyPressedRef = useRef(false);
   const zKeyPressedRef = useRef(false);
@@ -139,6 +146,20 @@ export const useKeyboardShortcuts = () => {
 
       const key = event.key.toLowerCase();
 
+      if (event.ctrlKey && key === "t") {
+        event.preventDefault();
+        if (canActivateTransformer() && !transformerState.isActive) {
+          activateTransformerForActiveLayer();
+        }
+        return;
+      }
+
+      if (key === "enter" && transformerState.isActive) {
+        event.preventDefault();
+        deactivateTransformerAndApply();
+        return;
+      }
+
       if (key === " " && !spaceKeyPressedRef.current) {
         event.preventDefault();
         spaceKeyPressedRef.current = true;
@@ -224,6 +245,10 @@ export const useKeyboardShortcuts = () => {
     deactivateTemporaryZoomOutTool,
     zoomIn,
     zoomOut,
+    canActivateTransformer,
+    activateTransformerForActiveLayer,
+    deactivateTransformerAndApply,
+    transformerState.isActive,
   ]);
 
   return {

@@ -1,5 +1,6 @@
 import * as PIXI from "pixi.js";
 import { BrushSettings, BrushState } from "@/types/brush";
+import { Bounds } from "@/types/common";
 
 export interface DrawingPoint {
   x: number;
@@ -17,6 +18,10 @@ export class BrushEngine {
   private lastTime = performance.now();
   private strokeStartTime = 0;
   private strokeDistance = 0;
+
+  //트랜스포머용 Bounds와 콜백 함수
+  private currentStrokeBounds: Bounds | null = null;
+  private onStrokeComplete: (bounds: Bounds) => void;
 
   private states: BrushState = {
     x: 0,
@@ -41,15 +46,42 @@ export class BrushEngine {
     actualOpacity: 0,
   };
 
+  private updateBounds(x: number, y: number, radius: number): void {
+    if (!this.currentStrokeBounds) return;
+
+    this.currentStrokeBounds.minX = Math.min(
+      this.currentStrokeBounds.minX,
+      x - radius
+    );
+    this.currentStrokeBounds.minY = Math.min(
+      this.currentStrokeBounds.minY,
+      y - radius
+    );
+    this.currentStrokeBounds.maxX = Math.max(
+      this.currentStrokeBounds.maxX,
+      x + radius
+    );
+    this.currentStrokeBounds.maxY = Math.max(
+      this.currentStrokeBounds.maxY,
+      y + radius
+    );
+  }
+
   private speed1 = 0;
   private speed2 = 0;
   private lastActualX = 0;
   private lastActualY = 0;
   private strokeLength = 0;
 
-  constructor(app: PIXI.Application, initialSettings: BrushSettings) {
+  constructor(
+    app: PIXI.Application,
+    initialSettings: BrushSettings,
+    onStrokeComplete: (bounds: Bounds) => void
+  ) {
     this.app = app;
     this.settings = { ...initialSettings };
+
+    this.onStrokeComplete = onStrokeComplete;
   }
 
   public updateSettings(newSettings: BrushSettings): void {
@@ -279,6 +311,8 @@ export class BrushEngine {
       dab.y += (Math.random() - 0.5) * jitterAmount * 2;
     }
 
+    this.updateBounds(dab.x, dab.y, dynamics.radius);
+
     const r = Math.floor(color.r * 255);
     const g = Math.floor(color.g * 255);
     const b = Math.floor(color.b * 255);
@@ -313,6 +347,13 @@ export class BrushEngine {
     if (!this.renderTexture) {
       return;
     }
+
+    this.currentStrokeBounds = {
+      minX: Infinity,
+      minY: Infinity,
+      maxX: -Infinity,
+      maxY: -Infinity,
+    };
 
     this.isDrawing = true;
     this.states.x = point.x;
@@ -482,6 +523,14 @@ export class BrushEngine {
 
   public endStroke(): void {
     this.isDrawing = false;
+
+    if (
+      this.currentStrokeBounds &&
+      this.currentStrokeBounds.minX !== Infinity
+    ) {
+      this.onStrokeComplete(this.currentStrokeBounds);
+    }
+    this.currentStrokeBounds = null;
   }
 
   public isCurrentlyDrawing(): boolean {
