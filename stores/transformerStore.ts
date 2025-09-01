@@ -147,7 +147,13 @@ export const updateResizeTransformerAtom = atom(
     set,
     {
       bounds,
-    }: { bounds: { x: number; y: number; width: number; height: number } }
+      position,
+      scale,
+    }: {
+      bounds: { x: number; y: number; width: number; height: number };
+      position?: { x: number; y: number };
+      scale?: { x: number; y: number };
+    }
   ) => {
     const state = get(transformerStateAtom);
     if (!state.isResizing) return;
@@ -155,7 +161,8 @@ export const updateResizeTransformerAtom = atom(
     set(transformerStateAtom, {
       ...state,
       bounds,
-      position: { x: bounds.x, y: bounds.y },
+      position: position || { x: bounds.x, y: bounds.y },
+      scale: scale || state.scale,
     });
   }
 );

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef } from "react";
 import { useTransformer } from "@/hooks/useTransformer";
 import { viewportAtom } from "@/stores/viewportStore";
 import { useAtomValue } from "jotai";
+import { pixiStateAtom } from "@/stores/pixiStore";
 
 const HANDLE_SIZE = 8;
 const ROTATE_HANDLE_DISTANCE = 24;
@@ -38,6 +39,7 @@ function Transformer({
 }: TransformerProps) {
   const { transformerState } = useTransformer();
   const viewport = useAtomValue(viewportAtom);
+  const pixiState = useAtomValue(pixiStateAtom);
   const svgRef = useRef<SVGSVGElement>(null);
   const isResizingRef = useRef(false);
   const isRotatingRef = useRef(false);
@@ -58,27 +60,31 @@ function Transformer({
 
   const getCanvasPoint = useCallback(
     (clientX: number, clientY: number) => {
-      const stageElement = document.querySelector(".origin-center");
-      if (!stageElement) return { x: clientX, y: clientY };
+      if (!pixiState.app?.canvas) {
+        return { x: 0, y: 0 };
+      }
 
-      const stageRect = stageElement.getBoundingClientRect();
-      const stageCenterX = stageRect.left + stageRect.width / 2;
-      const stageCenterY = stageRect.top + stageRect.height / 2;
+      const canvas = pixiState.app.canvas as HTMLCanvasElement;
+      const rect = canvas.getBoundingClientRect();
 
-      const transformedMouseX =
-        (clientX - stageCenterX - viewport.x) / viewport.zoom;
-      const transformedMouseY =
-        (clientY - stageCenterY - viewport.y) / viewport.zoom;
+      // 1. CSS 스케일 비율 계산
+      const scaleX = rect.width / pixiState.app.screen.width;
+      const scaleY = rect.height / pixiState.app.screen.height;
 
-      const canvasCenterX = stageRect.width / 2;
-      const canvasCenterY = stageRect.height / 2;
+      // 2. 캔버스 좌상단 기준의 마우스 위치 계산
+      const mouseX = clientX - rect.left;
+      const mouseY = clientY - rect.top;
 
-      return {
-        x: transformedMouseX + canvasCenterX,
-        y: transformedMouseY + canvasCenterY,
-      };
+      // 3. CSS 스케일을 역으로 적용하여 PIXI 렌더러 좌표계의 위치로 변환
+      const rendererX = mouseX / scaleX;
+      const rendererY = mouseY / scaleY;
+
+      const stageX = (rendererX - viewport.x) / viewport.zoom;
+      const stageY = (rendererY - viewport.y) / viewport.zoom;
+
+      return { x: stageX, y: stageY };
     },
-    [viewport]
+    [pixiState.app, viewport]
   );
 
   const getStageTransform = useCallback(() => {
@@ -115,8 +121,7 @@ function Transformer({
 
       const handlePointerMove = (moveEvent: PointerEvent) => {
         if (!isResizingRef.current || !initialBoundsRef.current) return;
-
-        const point = getCanvasPoint(moveEvent.clientX, moveEvent.clientY);
+        const point = { x: moveEvent.clientX, y: moveEvent.clientY };
         onResizeMove(initialBoundsRef.current, currentSideRef.current, point);
       };
 
@@ -158,8 +163,7 @@ function Transformer({
 
       const handlePointerMove = (moveEvent: PointerEvent) => {
         if (!isRotatingRef.current) return;
-
-        const point = getCanvasPoint(moveEvent.clientX, moveEvent.clientY);
+        const point = { x: moveEvent.clientX, y: moveEvent.clientY };
         onRotateMove(center, point);
       };
 

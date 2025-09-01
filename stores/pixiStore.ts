@@ -708,3 +708,68 @@ export const debugPixiStateAtom = atom((get) => {
     maxTextureSize: state.maxTextureSize,
   };
 });
+
+export const transformLayerContentAtom = atom(
+  null,
+  async (
+    get,
+    set,
+    {
+      layerId,
+      // 변형에 필요한 정보: 이동, 스케일, 회전, 그리고 변형의 중심점
+      translation,
+      scale,
+      rotation,
+      pivot,
+    }: {
+      layerId: string;
+      translation: { x: number; y: number };
+      scale: { x: number; y: number };
+      rotation: number;
+      pivot: { x: number; y: number };
+    }
+  ) => {
+    const state = get(pixiStateAtom);
+    const layer = get(layersAtom).find((l) => l.id === layerId);
+    const canvasId = layer?.canvasId;
+
+    if (!state.app || !canvasId || !layer) return;
+
+    const layerGraphic = state.layerGraphics[canvasId]?.[layerId];
+    if (!layerGraphic?.renderTexture) return;
+
+    const originalTexture = layerGraphic.renderTexture;
+
+    // 1. 임시 컨테이너와 스프라이트 생성
+    const tempContainer = new PIXI.Container();
+    const tempSprite = new PIXI.Sprite(originalTexture);
+    tempContainer.addChild(tempSprite);
+
+    // 2. 스프라이트에 변형 적용
+    tempSprite.pivot.copyFrom(pivot); // 중심점 설정
+    tempSprite.position.set(pivot.x + translation.x, pivot.y + translation.y); // 이동
+    tempSprite.scale.copyFrom(scale); // 스케일
+    tempSprite.rotation = (rotation * Math.PI) / 180; // 회전
+
+    // 3. 원본 텍스처를 비웁니다 (중요).
+    // 투명으로 렌더링하여 클리어합니다.
+    state.app.renderer.render({
+      container: new PIXI.Container(),
+      target: originalTexture,
+      clear: true,
+    });
+
+    // 4. 변형이 적용된 임시 컨테이너를 원본 텍스처에 다시 렌더링합니다.
+    state.app.renderer.render({
+      container: tempContainer,
+      target: originalTexture,
+      clear: false, // 기존 내용을 지우지 않고 덮어씁니다.
+    });
+
+    // 5. 임시 객체들 정리
+    tempContainer.destroy({ children: true });
+
+    // 6. 썸네일 업데이트
+    set(refreshCanvasThumbnailAtom, canvasId);
+  }
+);

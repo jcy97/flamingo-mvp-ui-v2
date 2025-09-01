@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   transformerStateAtom,
@@ -26,7 +26,7 @@ import { selectedToolIdAtom } from "@/stores/toolsbarStore";
 import { ToolbarItemIDs } from "@/constants/toolsbarItems";
 import { pixiStateAtom } from "@/stores/pixiStore";
 import { currentCanvasIdAtom } from "@/stores/canvasStore";
-import { Bounds } from "@/types/common";
+import { viewportAtom } from "@/stores/viewportStore";
 
 export interface TransformerBounds {
   x: number;
@@ -67,47 +67,28 @@ export const useTransformer = () => {
   const getLayerBounds = useCallback(
     (layerId: string): TransformerBounds | null => {
       const layer = layers.find((l) => l.id === layerId);
-      if (!layer) return null;
+      if (!layer?.data.contentBounds) return null;
+      const { minX, minY, maxX, maxY } = layer.data.contentBounds;
+      const width = Math.abs(maxX - minX);
+      const height = Math.abs(maxY - minY);
 
-      if (layer.data.contentBounds) {
-        const { minX, minY, maxX, maxY } = layer.data.contentBounds;
-        const width = Math.abs(maxX - minX);
-        const height = Math.abs(maxY - minY);
-
-        if (width > 0 && height > 0) {
-          return {
-            x: minX,
-            y: minY,
-            width: width,
-            height: height,
-          };
-        }
-      }
-
-      const layerGraphic = currentCanvasId
-        ? pixiState.layerGraphics[currentCanvasId]?.[layerId]
-        : null;
-
-      if (layerGraphic?.pixiSprite) {
+      if (width > 0 && height > 0) {
         return {
-          x: layerGraphic.pixiSprite.x,
-          y: layerGraphic.pixiSprite.y,
-          width: 100, // 기본 너비
-          height: 50, // 기본 높이
+          x: minX,
+          y: minY,
+          width: width,
+          height: height,
         };
       }
-
       return null;
     },
-    [layers, pixiState.layerGraphics, currentCanvasId]
+    [layers]
   );
 
   const activateForLayer = useCallback(
     (layerId: string) => {
       const bounds = getLayerBounds(layerId);
-      console.log(bounds);
       if (!bounds) return false;
-
       setSelectedToolId(ToolbarItemIDs.SELECT);
       activateTransformer({ layerId, bounds });
       return true;
@@ -128,8 +109,31 @@ export const useTransformer = () => {
   }, [activeLayer, activateForLayer, canActivateTransformer]);
 
   const deactivateTransformerAndApply = useCallback(() => {
+    if (
+      transformerState.isActive &&
+      transformerState.selectedLayerId &&
+      activeLayer
+    ) {
+      const newBounds = {
+        minX: transformerState.position.x,
+        minY: transformerState.position.y,
+        maxX:
+          transformerState.position.x +
+          (transformerState.bounds?.width || 0) * transformerState.scale.x,
+        maxY:
+          transformerState.position.y +
+          (transformerState.bounds?.height || 0) * transformerState.scale.y,
+      };
+
+      updateLayer({
+        layerId: transformerState.selectedLayerId,
+        updates: {
+          data: { ...activeLayer.data, contentBounds: newBounds },
+        },
+      });
+    }
     deactivateTransformer();
-  }, [deactivateTransformer]);
+  }, [deactivateTransformer, transformerState, activeLayer, updateLayer]);
 
   const handlePointerDown = useCallback(
     (event: PointerEvent, point: Point) => {
@@ -162,6 +166,14 @@ export const useTransformer = () => {
     },
     [transformerState.isDragging, updateDrag]
   );
+
+  const handlePointerUp = useCallback(() => {
+    if (transformerState.isDragging) {
+      endDrag();
+      return true;
+    }
+    return false;
+  }, [transformerState.isDragging, endDrag]);
 
   const applyTransformToPixiObject = useCallback(
     (
@@ -205,14 +217,6 @@ export const useTransformer = () => {
     ]
   );
 
-  const handlePointerUp = useCallback(() => {
-    if (transformerState.isDragging) {
-      endDrag();
-      return true;
-    }
-    return false;
-  }, [transformerState.isDragging, endDrag]);
-
   const handleResizeStart = useCallback(
     (side: string, initialBounds: TransformerBounds) => {
       startResize(side);
@@ -253,7 +257,18 @@ export const useTransformer = () => {
   const handleResizeMove = useCallback(
     (initialBounds: TransformerBounds, side: string, point: Point) => {
       const newBounds = calculateResizedBounds(initialBounds, side, point);
-      updateResize({ bounds: newBounds });
+
+      const originalWidth = initialBounds.width || 1;
+      const originalHeight = initialBounds.height || 1;
+
+      const scaleX = newBounds.width / originalWidth;
+      const scaleY = newBounds.height / originalHeight;
+
+      updateResize({
+        bounds: newBounds,
+        position: { x: newBounds.x, y: newBounds.y },
+        scale: { x: scaleX, y: scaleY },
+      });
     },
     [calculateResizedBounds, updateResize]
   );
@@ -270,7 +285,8 @@ export const useTransformer = () => {
     (center: Point, point: Point): number => {
       const dx = point.x - center.x;
       const dy = point.y - center.y;
-      return (Math.atan2(dy, dx) * 180) / Math.PI;
+      const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+      return angle + 90;
     },
     []
   );
