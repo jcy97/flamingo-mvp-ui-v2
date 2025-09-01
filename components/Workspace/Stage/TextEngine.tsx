@@ -1,6 +1,7 @@
 import { Layer } from "@/types/layer";
 import { TextSettings } from "@/types/text";
 import * as PIXI from "pixi.js";
+import { worldToScreen, worldToScreenPoint } from "@/utils/coordinate";
 
 export interface TextPoint {
   x: number;
@@ -102,13 +103,7 @@ export class TextEngine {
 
     this.newlyCreatedLayerId = newLayerId || null;
 
-    const canvas = this.app.canvas as HTMLCanvasElement;
-    const rect = canvas.getBoundingClientRect();
-
-    const scaleX = rect.width / this.app.screen.width;
-    const scaleY = rect.height / this.app.screen.height;
-    const screenX = point.x * scaleX + rect.left;
-    const screenY = point.y * scaleY + rect.top;
+    const { x: screenX, y: screenY } = worldToScreenPoint(this.app, point);
 
     const textarea = document.createElement("textarea");
     textarea.style.position = "absolute";
@@ -175,13 +170,11 @@ export class TextEngine {
     textLayer.visible = false;
     this.renderAllTextsToTexture();
 
-    const canvas = this.app.canvas as HTMLCanvasElement;
-    const rect = canvas.getBoundingClientRect();
-
-    const scaleX = rect.width / this.app.screen.width;
-    const scaleY = rect.height / this.app.screen.height;
-    const screenX = textLayer.x * scaleX + rect.left;
-    const screenY = textLayer.y * scaleY + rect.top;
+    const { x: screenX, y: screenY } = worldToScreen(
+      this.app,
+      textLayer.x,
+      textLayer.y
+    );
 
     const fillColor = this.getFillColorAsString(textLayer.style.fill);
 

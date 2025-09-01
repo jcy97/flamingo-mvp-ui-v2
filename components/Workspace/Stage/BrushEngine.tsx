@@ -1,6 +1,7 @@
 import * as PIXI from "pixi.js";
 import { BrushSettings, BrushState } from "@/types/brush";
 import { Bounds } from "@/types/common";
+import { worldToScreen } from "@/utils/coordinate";
 
 export interface DrawingPoint {
   x: number;
@@ -49,13 +50,7 @@ export class BrushEngine {
   private updateBounds(x: number, y: number, radius: number): void {
     if (!this.currentStrokeBounds) return;
 
-    const canvas = this.app.canvas as HTMLCanvasElement;
-    const rect = canvas.getBoundingClientRect();
-
-    const scaleX = rect.width / this.app.screen.width;
-    const scaleY = rect.height / this.app.screen.height;
-    const screenX = x * scaleX + rect.left;
-    const screenY = y * scaleY + rect.top;
+    const { x: screenX, y: screenY } = worldToScreen(this.app, x, y);
 
     this.currentStrokeBounds.minX = Math.min(
       this.currentStrokeBounds.minX,

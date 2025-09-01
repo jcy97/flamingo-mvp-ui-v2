@@ -686,13 +686,14 @@ function Stage() {
           event.preventDefault();
 
           const coords = getCanvasCoordinates(event.clientX, event.clientY);
-          if (transformerState.isActive) {
-            const handled = handleTransformerPointerDown(event, coords);
-            if (handled) {
-              canvas.setPointerCapture(event.pointerId);
-              return;
-            }
-          }
+
+          // if (transformerState.isActive) {
+          //   const handled = handleTransformerPointerDown(event, coords);
+          //   if (handled) {
+          //     canvas.setPointerCapture(event.pointerId);
+          //     return;
+          //   }
+          // }
 
           let currentTool = selectedToolIdRef.current;
 
@@ -957,8 +958,6 @@ function Stage() {
             }
           }
 
-          const coords = getCanvasCoordinates(event.clientX, event.clientY);
-
           let currentTool = selectedToolIdRef.current;
           if (isTemporaryZoomInToolRef.current) {
             currentTool = ToolbarItemIDs.ZOOM_IN;
@@ -1182,6 +1181,7 @@ function Stage() {
         onRotateMove={handleRotateMove}
         onRotateEnd={handleRotateEnd}
         applyTransformToPixiObject={applyTransformToPixiObject}
+        getCanvasCoordinates={getCanvasCoordinates}
       />
     </div>
   );

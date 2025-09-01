@@ -3,6 +3,7 @@ import { useTransformer } from "@/hooks/useTransformer";
 import { viewportAtom } from "@/stores/viewportStore";
 import { useAtomValue } from "jotai";
 import { pixiStateAtom } from "@/stores/pixiStore";
+import { worldToScreenPoint } from "@/utils/coordinate";
 
 const HANDLE_SIZE = 8;
 const ROTATE_HANDLE_DISTANCE = 24;
@@ -26,6 +27,10 @@ interface TransformerProps {
     rotation: number,
     scale: { x: number; y: number }
   ) => void;
+  getCanvasCoordinates: (
+    clientX: number,
+    clientY: number
+  ) => { x: number; y: number };
 }
 
 function Transformer({
@@ -36,6 +41,7 @@ function Transformer({
   onRotateMove,
   onRotateEnd,
   applyTransformToPixiObject,
+  getCanvasCoordinates,
 }: TransformerProps) {
   const { transformerState } = useTransformer();
   const viewport = useAtomValue(viewportAtom);
@@ -91,8 +97,19 @@ function Transformer({
 
       const handlePointerMove = (moveEvent: PointerEvent) => {
         if (!isResizingRef.current || !initialBoundsRef.current) return;
-        const point = { x: moveEvent.clientX, y: moveEvent.clientY };
-        onResizeMove(initialBoundsRef.current, currentSideRef.current, point);
+        const point = getCanvasCoordinates(
+          moveEvent.clientX,
+          moveEvent.clientY
+        );
+        const { x: screenX, y: screenY } = worldToScreenPoint(
+          pixiState.app!,
+          point
+        );
+
+        onResizeMove(initialBoundsRef.current, currentSideRef.current, {
+          x: screenX,
+          y: screenY,
+        });
       };
 
       const handlePointerUp = () => {
@@ -108,7 +125,13 @@ function Transformer({
       document.addEventListener("pointermove", handlePointerMove);
       document.addEventListener("pointerup", handlePointerUp);
     },
-    [transformerState.bounds, onResizeStart, onResizeMove, onResizeEnd]
+    [
+      transformerState.bounds,
+      onResizeStart,
+      onResizeMove,
+      onResizeEnd,
+      getCanvasCoordinates,
+    ]
   );
 
   const handleRotatePointerDown = useCallback(

@@ -190,7 +190,6 @@ export const useTransformer = () => {
         ];
 
       const originalBounds = activeLayer.data.contentBounds;
-
       if (layerGraphic?.pixiSprite && originalBounds) {
         const sprite = layerGraphic.pixiSprite;
 
