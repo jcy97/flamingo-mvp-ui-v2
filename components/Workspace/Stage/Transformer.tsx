@@ -48,7 +48,6 @@ function Transformer({
 
   const getTransformedBounds = useCallback(() => {
     if (!transformerState.bounds) return null;
-
     const { bounds, position, scale } = transformerState;
     return {
       x: position.x,
@@ -57,35 +56,6 @@ function Transformer({
       height: bounds.height * scale.y,
     };
   }, [transformerState]);
-
-  const getCanvasPoint = useCallback(
-    (clientX: number, clientY: number) => {
-      if (!pixiState.app?.canvas) {
-        return { x: 0, y: 0 };
-      }
-
-      const canvas = pixiState.app.canvas as HTMLCanvasElement;
-      const rect = canvas.getBoundingClientRect();
-
-      // 1. CSS 스케일 비율 계산
-      const scaleX = rect.width / pixiState.app.screen.width;
-      const scaleY = rect.height / pixiState.app.screen.height;
-
-      // 2. 캔버스 좌상단 기준의 마우스 위치 계산
-      const mouseX = clientX - rect.left;
-      const mouseY = clientY - rect.top;
-
-      // 3. CSS 스케일을 역으로 적용하여 PIXI 렌더러 좌표계의 위치로 변환
-      const rendererX = mouseX / scaleX;
-      const rendererY = mouseY / scaleY;
-
-      const stageX = (rendererX - viewport.x) / viewport.zoom;
-      const stageY = (rendererY - viewport.y) / viewport.zoom;
-
-      return { x: stageX, y: stageY };
-    },
-    [pixiState.app, viewport]
-  );
 
   const getStageTransform = useCallback(() => {
     return `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`;
@@ -138,13 +108,7 @@ function Transformer({
       document.addEventListener("pointermove", handlePointerMove);
       document.addEventListener("pointerup", handlePointerUp);
     },
-    [
-      transformerState.bounds,
-      onResizeStart,
-      onResizeMove,
-      onResizeEnd,
-      getCanvasPoint,
-    ]
+    [transformerState.bounds, onResizeStart, onResizeMove, onResizeEnd]
   );
 
   const handleRotatePointerDown = useCallback(

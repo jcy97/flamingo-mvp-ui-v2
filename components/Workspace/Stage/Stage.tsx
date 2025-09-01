@@ -127,10 +127,6 @@ function Stage() {
   const autoSelectFirstLayer = useSetAtom(autoSelectFirstLayerAtom);
   const refreshCanvasThumbnail = useSetAtom(refreshCanvasThumbnailAtom);
 
-  const getTextTransform = useAtomValue(getTextTransformAtom);
-  const updateTextPosition = useSetAtom(updateTextPositionAtom);
-  const updateTextScale = useSetAtom(updateTextScaleAtom);
-
   const updateLayer = useSetAtom(updateLayerAtom);
 
   const {
