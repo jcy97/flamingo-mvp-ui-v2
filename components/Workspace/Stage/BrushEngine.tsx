@@ -49,21 +49,29 @@ export class BrushEngine {
   private updateBounds(x: number, y: number, radius: number): void {
     if (!this.currentStrokeBounds) return;
 
+    const canvas = this.app.canvas as HTMLCanvasElement;
+    const rect = canvas.getBoundingClientRect();
+
+    const scaleX = rect.width / this.app.screen.width;
+    const scaleY = rect.height / this.app.screen.height;
+    const screenX = x * scaleX + rect.left;
+    const screenY = y * scaleY + rect.top;
+
     this.currentStrokeBounds.minX = Math.min(
       this.currentStrokeBounds.minX,
-      x - radius
+      screenX - radius
     );
     this.currentStrokeBounds.minY = Math.min(
       this.currentStrokeBounds.minY,
-      y - radius
+      screenY - radius
     );
     this.currentStrokeBounds.maxX = Math.max(
       this.currentStrokeBounds.maxX,
-      x + radius
+      screenX + radius
     );
     this.currentStrokeBounds.maxY = Math.max(
       this.currentStrokeBounds.maxY,
-      y + radius
+      screenY + radius
     );
   }
 
@@ -523,7 +531,6 @@ export class BrushEngine {
 
   public endStroke(): void {
     this.isDrawing = false;
-
     if (
       this.currentStrokeBounds &&
       this.currentStrokeBounds.minX !== Infinity

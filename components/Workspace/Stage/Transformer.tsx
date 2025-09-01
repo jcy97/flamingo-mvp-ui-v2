@@ -48,7 +48,6 @@ function Transformer({
     if (!transformerState.bounds) return null;
 
     const { bounds, position, scale } = transformerState;
-
     return {
       x: position.x,
       y: position.y,
@@ -147,8 +146,8 @@ function Transformer({
     (e: React.PointerEvent) => {
       e.stopPropagation();
       const bounds = getTransformedBounds();
-      if (!bounds) return;
 
+      if (!bounds) return;
       isRotatingRef.current = true;
       onRotateStart();
 

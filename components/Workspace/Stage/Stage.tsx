@@ -297,13 +297,11 @@ function Stage() {
         console.warn("활성 레이어가 없어 bounds를 업데이트할 수 없습니다.");
         return;
       }
-
       // 2. 기존 bounds와 새로운 stroke의 bounds를 병합합니다.
       const newContentBounds = mergeBounds(
         currentLayer.data.contentBounds,
         bounds
       );
-
       // 3. `updateLayerAtom`을 호출하여 contentBounds를 업데이트합니다.
       updateLayer({
         layerId: currentLayer.id,
@@ -692,7 +690,6 @@ function Stage() {
           event.preventDefault();
 
           const coords = getCanvasCoordinates(event.clientX, event.clientY);
-
           if (transformerState.isActive) {
             const handled = handleTransformerPointerDown(event, coords);
             if (handled) {
@@ -963,6 +960,8 @@ function Stage() {
               return;
             }
           }
+
+          const coords = getCanvasCoordinates(event.clientX, event.clientY);
 
           let currentTool = selectedToolIdRef.current;
           if (isTemporaryZoomInToolRef.current) {

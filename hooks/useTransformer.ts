@@ -71,8 +71,8 @@ export const useTransformer = () => {
 
       if (layer.data.contentBounds) {
         const { minX, minY, maxX, maxY } = layer.data.contentBounds;
-        const width = maxX - minX;
-        const height = maxY - minY;
+        const width = Math.abs(maxX - minX);
+        const height = Math.abs(maxY - minY);
 
         if (width > 0 && height > 0) {
           return {
@@ -105,6 +105,7 @@ export const useTransformer = () => {
   const activateForLayer = useCallback(
     (layerId: string) => {
       const bounds = getLayerBounds(layerId);
+      console.log(bounds);
       if (!bounds) return false;
 
       setSelectedToolId(ToolbarItemIDs.SELECT);
@@ -162,8 +163,6 @@ export const useTransformer = () => {
     [transformerState.isDragging, updateDrag]
   );
 
-  // useTransformer.ts 내부
-
   const applyTransformToPixiObject = useCallback(
     (
       position: { x: number; y: number },
@@ -202,7 +201,7 @@ export const useTransformer = () => {
       transformerState.selectedLayerId,
       currentCanvasId,
       pixiState.layerGraphics,
-      activeLayer, // activeLayer를 의존성 배열에 추가
+      activeLayer,
     ]
   );
 
