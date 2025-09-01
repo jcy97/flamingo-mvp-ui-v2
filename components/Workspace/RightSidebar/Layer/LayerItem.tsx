@@ -16,6 +16,7 @@ import {
   Blend,
   ChevronDown,
   Copy,
+  Trash2,
 } from "lucide-react";
 import { Layer as LayerType } from "@/types/layer";
 import {
@@ -23,7 +24,7 @@ import {
   BLEND_MODES,
   formatBlendModeName,
 } from "@/constants/blendModes";
-import { useSetAtom } from "jotai";
+import { useSetAtom, useAtomValue } from "jotai";
 import {
   updateLayerAtom,
   deleteLayerAtom,
@@ -31,6 +32,7 @@ import {
   toggleLayerLockAtom,
   setLayerOpacityAtom,
   duplicateLayerAtom,
+  layersForCurrentCanvasAtom,
 } from "@/stores/layerStore";
 
 interface LayerItemProps {
@@ -70,6 +72,9 @@ function LayerItem({
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const blendDropdownRef = useRef<HTMLDivElement>(null);
+
+  const layersForCurrentCanvas = useAtomValue(layersForCurrentCanvasAtom);
+  const canDeleteLayer = layersForCurrentCanvas.length > 1;
 
   const updateLayer = useSetAtom(updateLayerAtom);
   const deleteLayer = useSetAtom(deleteLayerAtom);
@@ -211,6 +216,13 @@ function LayerItem({
   const handleDuplicateClick = () => {
     duplicateLayer(layer.id);
     setShowDropdown(false);
+  };
+
+  const handleDeleteClick = () => {
+    if (canDeleteLayer) {
+      deleteLayer(layer.id);
+      setShowDropdown(false);
+    }
   };
 
   const handleBlendModeChange = (blendMode: BlendMode) => {
@@ -379,6 +391,18 @@ function LayerItem({
                 >
                   <Copy size={12} />
                   복제
+                </button>
+                <button
+                  onClick={handleDeleteClick}
+                  disabled={!canDeleteLayer}
+                  className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 ${
+                    canDeleteLayer
+                      ? "text-red-400 hover:bg-neutral-700"
+                      : "text-neutral-500 cursor-not-allowed"
+                  }`}
+                >
+                  <Trash2 size={12} />
+                  삭제
                 </button>
               </div>
             )}
