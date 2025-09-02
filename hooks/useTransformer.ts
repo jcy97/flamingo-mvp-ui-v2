@@ -27,17 +27,19 @@ import { ToolbarItemIDs } from "@/constants/toolsbarItems";
 import { pixiStateAtom, transformLayerContentAtom } from "@/stores/pixiStore";
 import { currentCanvasIdAtom } from "@/stores/canvasStore";
 import { viewportAtom } from "@/stores/viewportStore";
+import {
+  calculateDimensions,
+  calculateTransformedBounds,
+  calculateTransformedCenter,
+  calculateRotation,
+  Point,
+} from "@/utils/coordinate";
 
 export interface TransformerBounds {
   x: number;
   y: number;
   width: number;
   height: number;
-}
-
-export interface Point {
-  x: number;
-  y: number;
 }
 
 export const useTransformer = () => {
@@ -69,16 +71,14 @@ export const useTransformer = () => {
     (layerId: string): TransformerBounds | null => {
       const layer = layers.find((l) => l.id === layerId);
       if (!layer?.data.contentBounds) return null;
-      const { minX, minY, maxX, maxY } = layer.data.contentBounds;
-      const width = Math.abs(maxX - minX);
-      const height = Math.abs(maxY - minY);
 
-      if (width > 0 && height > 0) {
+      const dimensions = calculateDimensions(layer.data.contentBounds);
+      if (dimensions.width > 0 && dimensions.height > 0) {
         return {
-          x: minX,
-          y: minY,
-          width: width,
-          height: height,
+          x: layer.data.contentBounds.minX,
+          y: layer.data.contentBounds.minY,
+          width: dimensions.width,
+          height: dimensions.height,
         };
       }
       return null;
@@ -116,30 +116,19 @@ export const useTransformer = () => {
       activeLayer &&
       transformerState.bounds
     ) {
-      const { position, scale, rotation, bounds, selectedLayerId } =
-        transformerState;
-
+      const { position, scale, rotation, selectedLayerId } = transformerState;
       const originalBounds = activeLayer.data.contentBounds;
       if (!originalBounds) return;
 
-      const originalWidth = originalBounds.maxX - originalBounds.minX;
-      const originalHeight = originalBounds.maxY - originalBounds.minY;
-      const originalCenterX = originalBounds.minX + originalWidth / 2;
-      const originalCenterY = originalBounds.minY + originalHeight / 2;
-
+      const originalDimensions = calculateDimensions(originalBounds);
+      const newBounds = calculateTransformedBounds(
+        position,
+        scale,
+        originalDimensions
+      );
       const pivot = {
-        x: originalCenterX,
-        y: originalCenterY,
-      };
-
-      const transformedWidth = originalWidth * scale.x;
-      const transformedHeight = originalHeight * scale.y;
-
-      const newBounds = {
-        minX: position.x,
-        minY: position.y,
-        maxX: position.x + transformedWidth,
-        maxY: position.y + transformedHeight,
+        x: originalDimensions.centerX,
+        y: originalDimensions.centerY,
       };
 
       transformLayerContent({
@@ -165,6 +154,7 @@ export const useTransformer = () => {
     updateLayer,
     transformLayerContent,
   ]);
+
   const handlePointerDown = useCallback(
     (event: PointerEvent, point: Point) => {
       if (!transformerState.isActive || !transformerState.bounds) return false;
@@ -209,44 +199,61 @@ export const useTransformer = () => {
     (
       position: { x: number; y: number },
       rotation: number,
-      scale: { x: number; y: number }
+      scale: { x: number; y: number },
+      updateBounds: boolean = false
     ) => {
-      if (!transformerState.selectedLayerId || !currentCanvasId || !activeLayer)
-        return;
+      if (!transformerState.selectedLayerId || !currentCanvasId) return;
+
+      const currentActiveLayer = layers.find(
+        (l) => l.id === transformerState.selectedLayerId
+      );
+      if (!currentActiveLayer) return;
 
       const layerGraphic =
         pixiState.layerGraphics[currentCanvasId]?.[
           transformerState.selectedLayerId
         ];
 
-      const originalBounds = activeLayer.data.contentBounds;
+      const originalBounds = currentActiveLayer.data.contentBounds;
       if (layerGraphic?.pixiSprite && originalBounds) {
         const sprite = layerGraphic.pixiSprite;
-
-        const originalWidth = originalBounds.maxX - originalBounds.minX;
-        const originalHeight = originalBounds.maxY - originalBounds.minY;
-        const centerX = originalBounds.minX + originalWidth / 2;
-        const centerY = originalBounds.minY + originalHeight / 2;
-
-        sprite.pivot.set(centerX, centerY);
-
-        const newCenterX =
-          position.x +
-          ((originalBounds.maxX - originalBounds.minX) * scale.x) / 2;
-        const newCenterY =
-          position.y +
-          ((originalBounds.maxY - originalBounds.minY) * scale.y) / 2;
-        sprite.position.set(newCenterX, newCenterY);
-
+        const originalDimensions = calculateDimensions(originalBounds);
+        const transformedCenter = calculateTransformedCenter(
+          position,
+          scale,
+          originalDimensions
+        );
+        // TODO 스프라이트를 변경하는것은 의미가 없다.
+        // 렌더텍스처 자체를 바꾸고 스프라이트에 반영해야 된다.
+        sprite.pivot.set(
+          originalDimensions.centerX,
+          originalDimensions.centerY
+        );
+        sprite.position.set(transformedCenter.x, transformedCenter.y);
         sprite.rotation = (rotation * Math.PI) / 180;
         sprite.scale.set(scale.x, scale.y);
+
+        if (updateBounds) {
+          const newBounds = calculateTransformedBounds(
+            position,
+            scale,
+            originalDimensions
+          );
+          updateLayer({
+            layerId: transformerState.selectedLayerId,
+            updates: {
+              data: { ...currentActiveLayer.data, contentBounds: newBounds },
+            },
+          });
+        }
       }
     },
     [
       transformerState.selectedLayerId,
       currentCanvasId,
       pixiState.layerGraphics,
-      activeLayer,
+      layers,
+      updateLayer,
     ]
   );
 
@@ -290,10 +297,8 @@ export const useTransformer = () => {
   const handleResizeMove = useCallback(
     (initialBounds: TransformerBounds, side: string, point: Point) => {
       const newBounds = calculateResizedBounds(initialBounds, side, point);
-
       const originalWidth = initialBounds.width || 1;
       const originalHeight = initialBounds.height || 1;
-
       const scaleX = newBounds.width / originalWidth;
       const scaleY = newBounds.height / originalHeight;
 
@@ -314,22 +319,12 @@ export const useTransformer = () => {
     startRotate();
   }, [startRotate]);
 
-  const calculateRotation = useCallback(
-    (center: Point, point: Point): number => {
-      const dx = point.x - center.x;
-      const dy = point.y - center.y;
-      const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-      return angle + 90;
-    },
-    []
-  );
-
   const handleRotateMove = useCallback(
     (center: Point, point: Point) => {
       const rotation = calculateRotation(center, point);
       updateRotate(rotation);
     },
-    [calculateRotation, updateRotate]
+    [updateRotate]
   );
 
   const handleRotateEnd = useCallback(() => {

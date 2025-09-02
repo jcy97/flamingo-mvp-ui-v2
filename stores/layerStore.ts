@@ -443,7 +443,6 @@ export const updateLayerAtom = atom(
     const layers = get(layersAtom);
     const currentCanvasId = get(currentCanvasIdAtom);
     const pixiState = get(pixiStateAtom);
-
     const updatedLayers = layers.map((layer) => {
       if (layer.id === layerId) {
         const updatedLayer = { ...layer, ...updates, updatedAt: new Date() };
