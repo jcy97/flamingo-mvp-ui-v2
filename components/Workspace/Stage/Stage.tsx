@@ -67,6 +67,10 @@ import Transformer from "./Transformer";
 import { useTransformer } from "@/hooks/useTransformer";
 import { Bounds } from "@/types/common";
 import { mergeBounds } from "@/utils/transformer";
+import {
+  getCanvasCoordinates,
+  CanvasCoordinatesParams,
+} from "@/utils/coordinate";
 
 type DrawingPoint =
   | BrushDrawingPoint
@@ -220,30 +224,13 @@ function Stage() {
     return `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`;
   }, [viewport]);
 
-  const getCanvasCoordinates = useCallback(
+  const getCanvasCoordinatesHelper = useCallback(
     (clientX: number, clientY: number) => {
-      if (!appRef.current || !canvasRef.current) return { x: 0, y: 0 };
-
-      const stageRect = canvasRef.current.getBoundingClientRect();
-
-      const stageCenterX = stageRect.left + stageRect.width / 2;
-      const stageCenterY = stageRect.top + stageRect.height / 2;
-
-      const transformedMouseX =
-        (clientX - stageCenterX - viewport.x) / viewport.zoom;
-      const transformedMouseY =
-        (clientY - stageCenterY - viewport.y) / viewport.zoom;
-
-      const canvasCenterX = stageRect.width / 2;
-      const canvasCenterY = stageRect.height / 2;
-
-      const scaleX = appRef.current.screen.width / stageRect.width;
-      const scaleY = appRef.current.screen.height / stageRect.height;
-
-      return {
-        x: (transformedMouseX + canvasCenterX) * scaleX,
-        y: (transformedMouseY + canvasCenterY) * scaleY,
-      };
+      return getCanvasCoordinates(clientX, clientY, {
+        canvasRef,
+        appRef,
+        viewport,
+      });
     },
     [viewport]
   );
@@ -685,8 +672,10 @@ function Stage() {
           }
           event.preventDefault();
 
-          const coords = getCanvasCoordinates(event.clientX, event.clientY);
-
+          const coords = getCanvasCoordinatesHelper(
+            event.clientX,
+            event.clientY
+          );
           // if (transformerState.isActive) {
           //   const handled = handleTransformerPointerDown(event, coords);
           //   if (handled) {
@@ -846,7 +835,10 @@ function Stage() {
         };
 
         const handlePointerMove = (event: PointerEvent) => {
-          const coords = getCanvasCoordinates(event.clientX, event.clientY);
+          const coords = getCanvasCoordinatesHelper(
+            event.clientX,
+            event.clientY
+          );
 
           if (transformerState.isActive) {
             const handled = handleTransformerPointerMove(event, coords);
@@ -1181,7 +1173,11 @@ function Stage() {
         onRotateMove={handleRotateMove}
         onRotateEnd={handleRotateEnd}
         applyTransformToPixiObject={applyTransformToPixiObject}
-        getCanvasCoordinates={getCanvasCoordinates}
+        canvasCoordinatesParams={{
+          canvasRef,
+          appRef,
+          viewport,
+        }}
       />
     </div>
   );

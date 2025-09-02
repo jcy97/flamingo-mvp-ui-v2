@@ -1,4 +1,5 @@
 import * as PIXI from "pixi.js";
+import React from "react";
 
 export interface ScreenCoordinate {
   x: number;
@@ -102,4 +103,40 @@ export function calculateRotation(center: Point, point: Point): number {
   const dy = point.y - center.y;
   const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
   return angle + 90;
+}
+
+export interface CanvasCoordinatesParams {
+  canvasRef: React.RefObject<HTMLDivElement | null>;
+  appRef: React.RefObject<PIXI.Application | null>;
+  viewport: { x: number; y: number; zoom: number };
+}
+
+export function getCanvasCoordinates(
+  clientX: number,
+  clientY: number,
+  params: CanvasCoordinatesParams
+): { x: number; y: number } {
+  if (!params.appRef.current || !params.canvasRef.current)
+    return { x: 0, y: 0 };
+
+  const stageRect = params.canvasRef.current.getBoundingClientRect();
+
+  const stageCenterX = stageRect.left + stageRect.width / 2;
+  const stageCenterY = stageRect.top + stageRect.height / 2;
+
+  const transformedMouseX =
+    (clientX - stageCenterX - params.viewport.x) / params.viewport.zoom;
+  const transformedMouseY =
+    (clientY - stageCenterY - params.viewport.y) / params.viewport.zoom;
+
+  const canvasCenterX = stageRect.width / 2;
+  const canvasCenterY = stageRect.height / 2;
+
+  const scaleX = params.appRef.current.screen.width / stageRect.width;
+  const scaleY = params.appRef.current.screen.height / stageRect.height;
+
+  return {
+    x: (transformedMouseX + canvasCenterX) * scaleX,
+    y: (transformedMouseY + canvasCenterY) * scaleY,
+  };
 }

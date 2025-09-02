@@ -33,6 +33,7 @@ import {
   calculateTransformedCenter,
   calculateRotation,
   Point,
+  getCanvasCoordinates,
 } from "@/utils/coordinate";
 
 export interface TransformerBounds {
@@ -217,19 +218,19 @@ export const useTransformer = () => {
       const originalBounds = currentActiveLayer.data.contentBounds;
       if (layerGraphic?.pixiSprite && originalBounds) {
         const sprite = layerGraphic.pixiSprite;
+        console.log(sprite.pivot);
         const originalDimensions = calculateDimensions(originalBounds);
         const transformedCenter = calculateTransformedCenter(
           position,
           scale,
           originalDimensions
         );
-        // TODO 스프라이트를 변경하는것은 의미가 없다.
-        // 렌더텍스처 자체를 바꾸고 스프라이트에 반영해야 된다.
-        sprite.pivot.set(
-          originalDimensions.centerX,
-          originalDimensions.centerY
-        );
-        sprite.position.set(transformedCenter.x, transformedCenter.y);
+
+        // sprite.pivot.set(
+        //   originalDimensions.centerX,
+        //   originalDimensions.centerY
+        // );
+        //sprite.position.set(transformedCenter.x, transformedCenter.y);
         sprite.rotation = (rotation * Math.PI) / 180;
         sprite.scale.set(scale.x, scale.y);
 

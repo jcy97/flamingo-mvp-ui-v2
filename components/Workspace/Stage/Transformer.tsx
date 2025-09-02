@@ -3,7 +3,11 @@ import { useTransformer } from "@/hooks/useTransformer";
 import { viewportAtom } from "@/stores/viewportStore";
 import { useAtomValue } from "jotai";
 import { pixiStateAtom } from "@/stores/pixiStore";
-import { worldToScreenPoint } from "@/utils/coordinate";
+import {
+  worldToScreenPoint,
+  getCanvasCoordinates,
+  CanvasCoordinatesParams,
+} from "@/utils/coordinate";
 
 const HANDLE_SIZE = 8;
 const ROTATE_HANDLE_DISTANCE = 24;
@@ -27,10 +31,7 @@ interface TransformerProps {
     rotation: number,
     scale: { x: number; y: number }
   ) => void;
-  getCanvasCoordinates: (
-    clientX: number,
-    clientY: number
-  ) => { x: number; y: number };
+  canvasCoordinatesParams: CanvasCoordinatesParams;
 }
 
 function Transformer({
@@ -41,7 +42,7 @@ function Transformer({
   onRotateMove,
   onRotateEnd,
   applyTransformToPixiObject,
-  getCanvasCoordinates,
+  canvasCoordinatesParams,
 }: TransformerProps) {
   const { transformerState } = useTransformer();
   const viewport = useAtomValue(viewportAtom);
@@ -99,7 +100,8 @@ function Transformer({
         if (!isResizingRef.current || !initialBoundsRef.current) return;
         const point = getCanvasCoordinates(
           moveEvent.clientX,
-          moveEvent.clientY
+          moveEvent.clientY,
+          canvasCoordinatesParams
         );
         const { x: screenX, y: screenY } = worldToScreenPoint(
           pixiState.app!,
@@ -130,7 +132,7 @@ function Transformer({
       onResizeStart,
       onResizeMove,
       onResizeEnd,
-      getCanvasCoordinates,
+      canvasCoordinatesParams,
     ]
   );
 
