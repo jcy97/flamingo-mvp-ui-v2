@@ -218,7 +218,6 @@ export const useTransformer = () => {
       const originalBounds = currentActiveLayer.data.contentBounds;
       if (layerGraphic?.pixiSprite && originalBounds) {
         const sprite = layerGraphic.pixiSprite;
-        console.log(sprite.pivot);
         const originalDimensions = calculateDimensions(originalBounds);
         const transformedCenter = calculateTransformedCenter(
           position,
