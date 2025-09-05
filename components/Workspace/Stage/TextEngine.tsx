@@ -607,8 +607,10 @@ export class TextEngine {
           ((pixiText.style.lineHeight as number) ||
             (pixiText.style.fontSize as number)) /
           (pixiText.style.fontSize as number),
-        fontWeight: (pixiText.style.fontWeight as string) || "normal",
-        fontStyle: (pixiText.style.fontStyle as string) || "normal",
+        fontWeight:
+          (pixiText.style.fontWeight as PIXI.TextStyleFontWeight) || "normal",
+        fontStyle:
+          (pixiText.style.fontStyle as PIXI.TextStyleFontStyle) || "normal",
         align:
           (pixiText.style.align as "left" | "center" | "right" | "justify") ||
           "left",

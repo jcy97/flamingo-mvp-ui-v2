@@ -8,10 +8,10 @@ import type {
   BrushStroke,
   LayerPersistentData,
   BrushDabData,
-  BrushSettings,
-  EraserSettings,
   TextObject,
 } from "@/types/layer";
+import { BrushSettings } from "@/types/brush";
+import { EraserSettings } from "@/types/eraser";
 
 const DEFAULT_BRUSH_SETTINGS: BrushSettings = {
   radius: 10,
@@ -47,7 +47,6 @@ const DEFAULT_ERASER_SETTINGS: EraserSettings = {
   opacity: 1.0,
   hardness: 0.9,
   pressure: false,
-  radius: 10,
 };
 
 export const restoreLayerFromBrushData = async (
@@ -61,12 +60,6 @@ export const restoreLayerFromBrushData = async (
   ) {
     return;
   }
-
-  console.log("복원 시작:", {
-    strokeCount: persistentData.brushStrokes.length,
-    firstStroke: persistentData.brushStrokes[0],
-    hasRenderData: persistentData.brushStrokes[0]?.renderData?.length > 0,
-  });
 
   const clearContainer = new PIXI.Container();
   const clearGraphics = new PIXI.Graphics();

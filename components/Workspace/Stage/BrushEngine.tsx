@@ -1,6 +1,6 @@
 import * as PIXI from "pixi.js";
 import { BrushSettings, BrushState } from "@/types/brush";
-import { BrushStroke, BrushPoint } from "@/types/layer";
+import { BrushStroke, BrushPoint, BrushDabData } from "@/types/layer";
 import { Bounds } from "@/types/common";
 import { worldToScreen } from "@/utils/coordinate";
 

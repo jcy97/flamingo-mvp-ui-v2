@@ -62,8 +62,8 @@ export interface TextStyleData {
   fill: string;
   letterSpacing: number;
   lineHeight: number;
-  fontWeight: string;
-  fontStyle: string;
+  fontWeight: PIXI.TextStyleFontWeight;
+  fontStyle: PIXI.TextStyleFontStyle;
   align: "left" | "center" | "right" | "justify";
   wordWrap: boolean;
   wordWrapWidth: number;

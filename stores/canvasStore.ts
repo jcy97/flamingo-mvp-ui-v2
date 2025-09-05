@@ -102,6 +102,7 @@ export const addCanvasAtom = atom(
             brushStrokes: [],
             contentBounds: { x: 0, y: 0, width: 0, height: 0 },
           },
+          type: "brush",
         }
       );
 

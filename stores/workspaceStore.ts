@@ -8,6 +8,7 @@ import {
 } from "./pageStore";
 import { canvasesAtom, currentCanvasIdAtom } from "./canvasStore";
 import { layersAtom, activeLayerIdAtom } from "./layerStore";
+import { LayerType } from "@/types/layer";
 
 const initializePixiLayerGraphics = async (
   get: any,
@@ -77,6 +78,7 @@ interface WorkspaceData {
         opacity: number;
         blend_mode: string;
         order: number;
+        type: LayerType;
         layer_data: Record<string, any>;
       }>;
     }>;
@@ -99,8 +101,8 @@ export const loadWorkspaceDataAtom = atom(
       const response = await workspaceApi.getWorkspaceData(projectId);
 
       if (response.success) {
-        set(workspaceDataAtom, response.data);
-        await set(syncWorkspaceToStoresAtom, response.data);
+        set(workspaceDataAtom, response.data as WorkspaceData);
+        await set(syncWorkspaceToStoresAtom, response.data as WorkspaceData);
       } else {
         throw new Error("Failed to load workspace data");
       }

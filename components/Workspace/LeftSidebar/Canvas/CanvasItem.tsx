@@ -146,12 +146,12 @@ function CanvasItem({
     setShowDropdown(false);
   };
 
-  const handleConfigConfirm = (
+  const handleConfigConfirm = async (
     width: number,
     height: number,
     backgroundColor: string
   ) => {
-    const sizeWarning = updateCanvas({
+    const sizeWarning = await updateCanvas({
       canvasId: data.id,
       width,
       height,

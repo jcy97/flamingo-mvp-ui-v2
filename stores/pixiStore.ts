@@ -103,7 +103,7 @@ export const retryAllStrokeRestorationsAtom = atom(null, async (get, set) => {
     });
 
     if (
-      layer.data.persistentData?.brushStrokes?.length > 0 &&
+      layer.data.persistentData?.brushStrokes?.length! > 0 &&
       !restoredLayers.has(layer.id)
     ) {
       const layerGraphic = state.layerGraphics[layer.canvasId]?.[layer.id];
@@ -117,7 +117,7 @@ export const retryAllStrokeRestorationsAtom = atom(null, async (get, set) => {
           console.log(`레이어 ${layer.id} 복원 시작`);
           await restoreLayerFromBrushData(
             state.app,
-            layer.data.persistentData,
+            layer.data.persistentData!,
             layerGraphic.renderTexture
           );
 
@@ -136,7 +136,7 @@ export const retryAllStrokeRestorationsAtom = atom(null, async (get, set) => {
     }
 
     if (
-      layer.data.persistentData?.textObjects?.length > 0 &&
+      layer.data.persistentData?.textObjects?.length! > 0 &&
       !restoredLayers.has(layer.id)
     ) {
       const layerGraphic = state.layerGraphics[layer.canvasId]?.[layer.id];
@@ -146,7 +146,7 @@ export const retryAllStrokeRestorationsAtom = atom(null, async (get, set) => {
           console.log(`레이어 ${layer.id} 텍스트 복원 시작`);
           await restoreTextFromData(
             state.app,
-            layer.data.persistentData.textObjects,
+            layer.data.persistentData!.textObjects,
             layerGraphic.renderTexture
           );
 
