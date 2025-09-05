@@ -16,6 +16,12 @@ import {
 import { ToolbarItemIDs } from "@/constants/toolsbarItems";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import {
+  loadWorkspaceDataAtom,
+  workspaceDataAtom,
+  workspaceStatusAtom,
+} from "@/stores";
 
 interface WorkspaceLayoutProps {
   children: React.ReactNode;
@@ -49,14 +55,32 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
   const MIN_SIDEBAR_WIDTH = 200;
   const MIN_CONTENT_WIDTH = 300;
 
+  // ProjectId 가져오기
+  const searchParams = useSearchParams();
+  let projectId = searchParams.get("projectId");
+
+  // 워크스페이스 관련 아톰
+  const workspaceData = useAtomValue(workspaceDataAtom);
+  const loadWorkspace = useSetAtom(loadWorkspaceDataAtom);
+
+  useEffect(() => {
+    const initWorkspace = async (projectId: string) => {
+      await loadWorkspace(projectId);
+    };
+    if (projectId) {
+      initWorkspace(projectId);
+    }
+  }, [projectId]);
+
   /**PIXI JS 초기화 */
   useEffect(() => {
     const initializePixi = async () => {
+      if (!workspaceData) return;
       await initPixiApp();
     };
 
     initializePixi();
-  }, []);
+  }, [workspaceData]);
 
   const handleMouseDown = useCallback(
     (side: string) => (e: React.MouseEvent) => {

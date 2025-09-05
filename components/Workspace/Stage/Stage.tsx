@@ -603,7 +603,6 @@ function Stage() {
 
         appRef.current = app;
         canvasRef.current.appendChild(app.canvas);
-
         brushEngineRef.current = new BrushEngine(
           app,
           brushSettings,
@@ -676,13 +675,6 @@ function Stage() {
             event.clientX,
             event.clientY
           );
-          // if (transformerState.isActive) {
-          //   const handled = handleTransformerPointerDown(event, coords);
-          //   if (handled) {
-          //     canvas.setPointerCapture(event.pointerId);
-          //     return;
-          //   }
-          // }
 
           let currentTool = selectedToolIdRef.current;
 

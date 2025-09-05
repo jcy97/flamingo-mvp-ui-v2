@@ -5,3 +5,4 @@ export * from "./layerStore";
 export * from "./projectStore";
 export * from "./brushStore";
 export * from "./transformerStore";
+export * from "./workspaceStore";

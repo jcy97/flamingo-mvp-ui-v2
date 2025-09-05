@@ -65,7 +65,6 @@ function PageList() {
             draggedIndex !== index && (
               <div className="h-0.5 bg-primary mb-1 animate-pulse" />
             )}
-
           <PageItem
             data={page}
             isSelected={currentPageId === page.id}

@@ -1,7 +1,6 @@
 import { atom } from "jotai";
 import { Page } from "@/types/page";
 import { Canvas } from "@/types/canvas";
-import sampleData from "@/samples/data";
 import {
   canvasesAtom,
   canvasesForCurrentPageAtom,
@@ -9,12 +8,13 @@ import {
   addCanvasAtom,
 } from "./canvasStore";
 import { switchPageAtom } from "./pixiStore";
+import page from "@/app/workspace/page";
 
-export const pagesAtom = atom<Page[]>(sampleData.pages);
+export const pagesAtom = atom<Page[]>([]);
 
-export const currentPageIdAtom = atom<string | null>(
-  sampleData.pages[0]?.id || null
-);
+export const currentPageIdAtom = atom<string | null>(null);
+
+export const currentProjectIdAtom = atom<string | null>(null);
 
 export const currentPageAtom = atom((get) => {
   const pages = get(pagesAtom);
@@ -23,46 +23,173 @@ export const currentPageAtom = atom((get) => {
 });
 
 export const addPageAtom = atom(null, async (get, set) => {
+  const currentProjectId = get(currentProjectIdAtom) || "proj-webtoon-001";
   const pages = get(pagesAtom);
-  const newPageId = `page-${String(Date.now()).slice(-3)}`;
 
-  const newPage: Page = {
-    id: newPageId,
-    projectId: "proj-webtoon-001",
-    name: `페이지 ${pages.length + 1}`,
-    order: pages.length + 1,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
+  try {
+    const { pageApi } = await import("@/lib/api/page");
+    const { canvasApi } = await import("@/lib/api/canvas");
+    const { layerApi } = await import("@/lib/api/layer");
 
-  const updatedPages = [...pages, newPage];
-  sampleData.pages = updatedPages;
-  set(pagesAtom, updatedPages);
+    const pageResponse = await pageApi.createPage(currentProjectId, {
+      name: `페이지 ${pages.length + 1}`,
+    });
 
-  set(currentPageIdAtom, newPageId);
+    if (!pageResponse.success) {
+      throw new Error("페이지 생성 실패");
+    }
 
-  const { addCanvasAtom } = await import("./canvasStore");
-  await set(addCanvasAtom, {
-    pageId: newPageId,
-    name: "캔버스 1",
-    width: 1920,
-    height: 1080,
-    backgroundColor: "#FFFFFF",
-  });
+    const newPage: Page = {
+      id: pageResponse.data.id,
+      projectId: pageResponse.data.project_id,
+      name: pageResponse.data.name,
+      order: pageResponse.data.order_index,
+      createdAt: new Date(pageResponse.data.created_at),
+      updatedAt: new Date(pageResponse.data.updated_at),
+    };
 
-  set(switchPageAtom, newPageId);
+    const updatedPages = [...pages, newPage];
+    set(pagesAtom, updatedPages);
+    set(currentPageIdAtom, newPage.id);
+
+    const canvasResponse = await canvasApi.createCanvas(
+      currentProjectId,
+      newPage.id,
+      {
+        name: "캔버스 1",
+        width: 1920,
+        height: 1080,
+      }
+    );
+
+    if (!canvasResponse.success) {
+      throw new Error("캔버스 생성 실패");
+    }
+
+    const { canvasesAtom } = await import("./canvasStore");
+    const canvases = get(canvasesAtom);
+
+    const newCanvas = {
+      id: canvasResponse.data.id,
+      pageId: canvasResponse.data.page_id,
+      name: canvasResponse.data.name,
+      order: canvasResponse.data.order_index,
+      width: canvasResponse.data.width,
+      height: canvasResponse.data.height,
+      x: canvasResponse.data.x,
+      y: canvasResponse.data.y,
+      scale: canvasResponse.data.scale,
+      unit: "px" as const,
+      backgroundColor: "#FFFFFF",
+      createdAt: new Date(canvasResponse.data.created_at),
+      updatedAt: new Date(canvasResponse.data.updated_at),
+    };
+
+    const updatedCanvases = [...canvases, newCanvas];
+    set(canvasesAtom, updatedCanvases);
+
+    const layerResponse = await layerApi.createLayer(
+      currentProjectId,
+      newPage.id,
+      newCanvas.id,
+      {
+        name: "레이어 1",
+        layer_data: {
+          brushStrokes: [],
+          contentBounds: { x: 0, y: 0, width: 0, height: 0 },
+        },
+      }
+    );
+
+    if (!layerResponse.success) {
+      throw new Error("레이어 생성 실패");
+    }
+
+    const { layersAtom } = await import("./layerStore");
+    const layers = get(layersAtom);
+
+    const newLayer = {
+      id: layerResponse.data.id,
+      canvasId: layerResponse.data.canvas_id,
+      name: layerResponse.data.name,
+      order: layerResponse.data.order_index,
+      type: "brush" as const,
+      blendMode: layerResponse.data.blend_mode as any,
+      opacity: layerResponse.data.opacity,
+      isVisible: layerResponse.data.visible,
+      isLocked: layerResponse.data.locked,
+      data: {
+        pixiSprite: null,
+        renderTexture: null,
+        contentBounds: null,
+      },
+      createdAt: new Date(layerResponse.data.created_at),
+      updatedAt: new Date(layerResponse.data.updated_at),
+    };
+
+    const updatedLayers = [...layers, newLayer];
+    set(layersAtom, updatedLayers);
+
+    const { currentCanvasIdAtom, setCurrentCanvasAtom } = await import(
+      "./canvasStore"
+    );
+    set(currentCanvasIdAtom, newCanvas.id);
+
+    const { activeLayerIdAtom } = await import("./layerStore");
+    set(activeLayerIdAtom, newLayer.id);
+
+    const { createCanvasContainerAtom, createLayerGraphicAtom } = await import(
+      "./pixiStore"
+    );
+    await set(createCanvasContainerAtom, {
+      pageId: newPage.id,
+      canvasId: newCanvas.id,
+    });
+
+    await set(createLayerGraphicAtom, {
+      canvasId: newCanvas.id,
+      layerId: newLayer.id,
+    });
+
+    set(switchPageAtom, newPage.id);
+  } catch (error) {
+    console.error("페이지 추가 실패:", error);
+  }
 });
 
 export const updatePageAtom = atom(
   null,
-  (get, set, { pageId, name }: { pageId: string; name: string }) => {
+  async (get, set, { pageId, name }: { pageId: string; name: string }) => {
     const pages = get(pagesAtom);
-    const updatedPages = pages.map((page) =>
-      page.id === pageId ? { ...page, name, updatedAt: new Date() } : page
-    );
+    const currentProjectId = get(currentProjectIdAtom);
 
-    sampleData.pages = updatedPages;
-    set(pagesAtom, updatedPages);
+    if (!currentProjectId) return;
+
+    try {
+      const { pageApi } = await import("@/lib/api/page");
+
+      const response = await pageApi.updatePage(currentProjectId, pageId, {
+        name,
+      });
+
+      if (!response.success) {
+        throw new Error("페이지 수정 실패");
+      }
+
+      const updatedPages = pages.map((page) =>
+        page.id === pageId
+          ? {
+              ...page,
+              name: response.data.name,
+              updatedAt: new Date(response.data.updated_at),
+            }
+          : page
+      );
+
+      set(pagesAtom, updatedPages);
+    } catch (error) {
+      console.error("페이지 수정 실패:", error);
+    }
   }
 );
 
@@ -72,15 +199,12 @@ export const deletePageAtom = atom(null, (get, set, pageId: string) => {
 
   if (pages.length <= 1) return;
 
+  const canvases = get(canvasesAtom);
   const updatedPages = pages.filter((page) => page.id !== pageId);
-  const updatedCanvases = sampleData.canvases.filter(
-    (canvas) => canvas.pageId !== pageId
-  );
-
-  sampleData.pages = updatedPages;
-  sampleData.canvases = updatedCanvases;
+  const updatedCanvases = canvases.filter((canvas) => canvas.pageId !== pageId);
 
   set(pagesAtom, updatedPages);
+  set(canvasesAtom, updatedCanvases);
 
   if (currentPageId === pageId) {
     set(currentPageIdAtom, updatedPages[0]?.id || null);
@@ -152,10 +276,6 @@ export const duplicatePageAtom = atom(
     const updatedPages = [...pages, duplicatedPage];
     const updatedCanvases = [...canvases, ...duplicatedCanvases];
     const updatedLayers = [...layers, ...duplicatedLayers];
-
-    sampleData.pages = updatedPages;
-    sampleData.canvases = updatedCanvases;
-    sampleData.layers = updatedLayers;
 
     set(pagesAtom, updatedPages);
     set(canvasesAtom, updatedCanvases);
@@ -241,12 +361,16 @@ export const duplicatePageAtom = atom(
 
 export const reorderPagesAtom = atom(
   null,
-  (
+  async (
     get,
     set,
     { dragIndex, hoverIndex }: { dragIndex: number; hoverIndex: number }
   ) => {
     const pages = get(pagesAtom);
+    const currentProjectId = get(currentProjectIdAtom);
+
+    if (!currentProjectId) return;
+
     const draggedPage = pages[dragIndex];
     const newPages = [...pages];
 
@@ -258,19 +382,38 @@ export const reorderPagesAtom = atom(
       order: index + 1,
     }));
 
-    sampleData.pages = reorderedPages;
-    set(pagesAtom, reorderedPages);
+    try {
+      const { pageApi } = await import("@/lib/api/page");
+
+      for (let i = 0; i < reorderedPages.length; i++) {
+        const page = reorderedPages[i];
+        if (page.order !== pages.find((p) => p.id === page.id)?.order) {
+          await pageApi.updatePage(currentProjectId, page.id, {
+            order: page.order,
+          });
+        }
+      }
+
+      set(pagesAtom, reorderedPages);
+    } catch (error) {
+      console.error("페이지 순서 변경 실패:", error);
+      set(pagesAtom, pages);
+    }
   }
 );
 
-export const setCurrentPageAtom = atom(null, (get, set, pageId: string) => {
-  console.log("페이지 변경");
-  set(currentPageIdAtom, pageId);
+export const setCurrentPageAtom = atom(
+  null,
+  async (get, set, pageId: string) => {
+    console.log("페이지 변경");
+    set(currentPageIdAtom, pageId);
 
-  const canvasesForCurrentPage = get(canvasesForCurrentPageAtom);
-  if (canvasesForCurrentPage.length > 0) {
-    set(setCurrentCanvasAtom, canvasesForCurrentPage[0].id);
+    const canvasesForCurrentPage = get(canvasesForCurrentPageAtom);
+    if (canvasesForCurrentPage.length > 0) {
+      const { currentCanvasIdAtom } = await import("./canvasStore");
+      set(currentCanvasIdAtom, canvasesForCurrentPage[0].id);
+    }
+
+    set(switchPageAtom, pageId);
   }
-
-  set(switchPageAtom, pageId);
-});
+);

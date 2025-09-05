@@ -202,14 +202,13 @@ export const initPixiAppAtom = atom(null, async (get, set) => {
     await app.init({
       width: currentCanvas?.width || 1920,
       height: currentCanvas?.height || 1080,
-      backgroundColor: 0xffffff,
+      backgroundColor: currentCanvas?.backgroundColor,
       antialias: true,
       resolution: 1,
       autoDensity: false,
       useBackBuffer: true,
       powerPreference: "high-performance",
     });
-
     const maxTextureSize = getMaxTextureSize(app.renderer);
 
     set(pixiStateAtom, {
@@ -438,7 +437,6 @@ export const createLayerGraphicAtom = atom(
       const canvas = canvases.find((c) => c.id === canvasId);
       let textureWidth = width || canvas?.width || 1920;
       let textureHeight = height || canvas?.height || 1080;
-
       const validatedSize = validateTextureSize(
         textureWidth,
         textureHeight,
@@ -479,13 +477,16 @@ export const createLayerGraphicAtom = atom(
       pixiSprite.name = `layer-${layerId}`;
       pixiSprite.texture.source.scaleMode = "linear";
       pixiSprite.blendMode = "normal";
+      const updatedState = get(pixiStateAtom);
+      const updatedLayerGraphics = updatedState.layerGraphics || {};
+      const updatedLayerOfCanvas = updatedLayerGraphics[canvasId] || {};
 
       set(pixiStateAtom, {
-        ...state,
+        ...updatedState,
         layerGraphics: {
-          ...currentLayerGraphics,
+          ...updatedLayerGraphics,
           [canvasId]: {
-            ...layerOfCanvas,
+            ...updatedLayerOfCanvas,
             [layerId]: {
               pixiSprite,
               renderTexture,
@@ -505,12 +506,16 @@ export const createLayerGraphicAtom = atom(
       const fallbackSprite = new PIXI.Sprite(fallbackTexture);
       fallbackSprite.name = `layer-${layerId}`;
 
+      const updatedState = get(pixiStateAtom);
+      const updatedLayerGraphics = updatedState.layerGraphics || {};
+      const updatedLayerOfCanvas = updatedLayerGraphics[canvasId] || {};
+
       set(pixiStateAtom, {
-        ...state,
+        ...updatedState,
         layerGraphics: {
-          ...currentLayerGraphics,
+          ...updatedLayerGraphics,
           [canvasId]: {
-            ...layerOfCanvas,
+            ...updatedLayerOfCanvas,
             [layerId]: {
               pixiSprite: fallbackSprite,
               renderTexture: fallbackTexture,
@@ -522,24 +527,26 @@ export const createLayerGraphicAtom = atom(
   }
 );
 
-export const switchPageAtom = atom(null, (get, set, pageId: string) => {
+export const switchPageAtom = atom(null, async (get, set, pageId: string) => {
   const state = get(pixiStateAtom);
   if (!state.app || state.activePageId === pageId) return;
 
   state.app.stage.removeChildren();
 
-  const canvasContainers = state.canvasContainers[pageId];
-  if (canvasContainers) {
-    Object.values(canvasContainers).forEach((container) => {
-      state.app!.stage.addChild(container);
-    });
-  } else {
-    console.warn(`페이지 컨테이너를 찾을 수 없습니다: ${pageId}`);
+  const { currentCanvasIdAtom } = await import("./canvasStore");
+  const currentCanvasId = get(currentCanvasIdAtom);
+
+  if (currentCanvasId) {
+    const canvasContainer = state.canvasContainers[pageId]?.[currentCanvasId];
+    if (canvasContainer) {
+      state.app.stage.addChild(canvasContainer);
+    }
   }
 
   set(pixiStateAtom, {
     ...state,
     activePageId: pageId,
+    activeCanvasId: currentCanvasId,
   });
 });
 
@@ -547,6 +554,15 @@ export const switchCanvasAtom = atom(
   null,
   async (get, set, canvasId: string) => {
     const state = get(pixiStateAtom);
+    if (!state.app || !state.activePageId) return;
+
+    state.app.stage.removeChildren();
+
+    const canvasContainer =
+      state.canvasContainers[state.activePageId]?.[canvasId];
+    if (canvasContainer) {
+      state.app.stage.addChild(canvasContainer);
+    }
 
     set(pixiStateAtom, {
       ...state,

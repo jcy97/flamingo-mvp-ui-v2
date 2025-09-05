@@ -1,6 +1,5 @@
 import { atom } from "jotai";
 import { Canvas } from "@/types/canvas";
-import sampleData from "@/samples/data";
 import { currentPageIdAtom } from "./pageStore";
 import {
   resizeCanvasAndLayersAtom,
@@ -10,7 +9,7 @@ import {
 } from "./pixiStore";
 import { cleanupCanvasLayersAtom } from "./layerStore";
 
-export const canvasesAtom = atom<Canvas[]>(sampleData.canvases);
+export const canvasesAtom = atom<Canvas[]>([]);
 
 export const canvasesForCurrentPageAtom = atom((get) => {
   const canvases = get(canvasesAtom);
@@ -54,60 +53,124 @@ export const addCanvasAtom = atom(
       backgroundColor?: string;
     }
   ): Promise<string> => {
-    const canvases = get(canvasesAtom);
-    const canvasesForPage = canvases.filter(
-      (c) => c.pageId === canvasData.pageId
-    );
-    const newOrder =
-      canvasesForPage.length > 0
-        ? Math.max(...canvasesForPage.map((c) => c.order)) + 1
-        : 1;
+    try {
+      const { currentProjectIdAtom } = await import("./pageStore");
+      const currentProjectId = get(currentProjectIdAtom) || "proj-webtoon-001";
 
-    const newCanvas: Canvas = {
-      id: `canvas-${Date.now()}`,
-      pageId: canvasData.pageId,
-      name: canvasData.name,
-      order: newOrder,
-      width: canvasData.width,
-      height: canvasData.height,
-      unit: "px",
-      backgroundColor: canvasData.backgroundColor || "#FFFFFF",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+      const { canvasApi } = await import("@/lib/api/canvas");
+      const { layerApi } = await import("@/lib/api/layer");
 
-    const updatedCanvases = [...canvases, newCanvas];
-    sampleData.canvases = updatedCanvases;
-    set(canvasesAtom, updatedCanvases);
+      const canvasResponse = await canvasApi.createCanvas(
+        currentProjectId,
+        canvasData.pageId,
+        {
+          name: canvasData.name,
+          width: canvasData.width,
+          height: canvasData.height,
+        }
+      );
 
-    set(currentCanvasIdAtom, newCanvas.id);
+      if (!canvasResponse.success) {
+        throw new Error("캔버스 생성 실패");
+      }
 
-    const { addLayerAtom } = await import("./layerStore");
-    await set(addLayerAtom);
+      const canvases = get(canvasesAtom);
+      const newCanvas: Canvas = {
+        id: canvasResponse.data.id,
+        pageId: canvasResponse.data.page_id,
+        name: canvasResponse.data.name,
+        order: canvasResponse.data.order_index,
+        width: canvasResponse.data.width,
+        height: canvasResponse.data.height,
+        unit: "px",
+        backgroundColor: canvasData.backgroundColor || "#FFFFFF",
+        createdAt: new Date(canvasResponse.data.created_at),
+        updatedAt: new Date(canvasResponse.data.updated_at),
+      };
 
-    const { createCanvasContainerAtom, generateCanvasThumbnailAtom } =
-      await import("./pixiStore");
-    await set(createCanvasContainerAtom, {
-      pageId: canvasData.pageId,
-      canvasId: newCanvas.id,
-    });
+      const updatedCanvases = [...canvases, newCanvas];
+      set(canvasesAtom, updatedCanvases);
+      set(currentCanvasIdAtom, newCanvas.id);
 
-    await set(switchCanvasAtom, newCanvas.id);
+      const layerResponse = await layerApi.createLayer(
+        currentProjectId,
+        canvasData.pageId,
+        newCanvas.id,
+        {
+          name: "레이어 1",
+          layer_data: {
+            brushStrokes: [],
+            contentBounds: { x: 0, y: 0, width: 0, height: 0 },
+          },
+        }
+      );
 
-    setTimeout(() => {
-      set(generateCanvasThumbnailAtom, {
-        canvasId: newCanvas.id,
+      if (!layerResponse.success) {
+        throw new Error("레이어 생성 실패");
+      }
+
+      const { layersAtom, activeLayerIdAtom } = await import("./layerStore");
+      const layers = get(layersAtom);
+
+      const newLayer = {
+        id: layerResponse.data.id,
+        canvasId: layerResponse.data.canvas_id,
+        name: layerResponse.data.name,
+        order: layerResponse.data.order_index,
+        type: "brush" as const,
+        blendMode: layerResponse.data.blend_mode as any,
+        opacity: layerResponse.data.opacity,
+        isVisible: layerResponse.data.visible,
+        isLocked: layerResponse.data.locked,
+        data: {
+          pixiSprite: null,
+          renderTexture: null,
+          contentBounds: null,
+        },
+        createdAt: new Date(layerResponse.data.created_at),
+        updatedAt: new Date(layerResponse.data.updated_at),
+      };
+
+      const updatedLayers = [...layers, newLayer];
+      set(layersAtom, updatedLayers);
+      set(activeLayerIdAtom, newLayer.id);
+
+      const {
+        createCanvasContainerAtom,
+        generateCanvasThumbnailAtom,
+        createLayerGraphicAtom,
+      } = await import("./pixiStore");
+
+      await set(createCanvasContainerAtom, {
         pageId: canvasData.pageId,
+        canvasId: newCanvas.id,
       });
-    }, 100);
 
-    return newCanvas.id;
+      await set(createLayerGraphicAtom, {
+        canvasId: newCanvas.id,
+        layerId: newLayer.id,
+      });
+
+      await set(switchCanvasAtom, newCanvas.id);
+
+      setTimeout(() => {
+        set(generateCanvasThumbnailAtom, {
+          canvasId: newCanvas.id,
+          pageId: canvasData.pageId,
+        });
+      }, 100);
+
+      return newCanvas.id;
+    } catch (error) {
+      console.error("캔버스 추가 실패:", error);
+      return "";
+    }
   }
 );
 
 export const updateCanvasAtom = atom(
   null,
-  (
+  async (
     get,
     set,
     {
@@ -128,47 +191,74 @@ export const updateCanvasAtom = atom(
     const originalCanvas = canvases.find((c) => c.id === canvasId);
     if (!originalCanvas) return false;
 
-    let sizeWarning = false;
-    const updatedCanvases = canvases.map((canvas) => {
-      if (canvas.id === canvasId) {
-        const updatedCanvas = {
-          ...canvas,
-          ...(name && { name }),
-          ...(width && { width }),
-          ...(height && { height }),
-          ...(backgroundColor && { backgroundColor }),
-          updatedAt: new Date(),
-        };
+    const { currentProjectIdAtom } = await import("./pageStore");
+    const currentProjectId = get(currentProjectIdAtom);
 
-        if (
-          (width && width !== canvas.width) ||
-          (height && height !== canvas.height)
-        ) {
-          setTimeout(() => {
-            set(resizeCanvasAndLayersAtom, {
-              canvasId,
-              width: width || canvas.width,
-              height: height || canvas.height,
-            });
-          }, 100);
-        }
+    if (!currentProjectId) return false;
 
-        return updatedCanvas;
-      }
-      return canvas;
-    });
+    try {
+      const { canvasApi } = await import("@/lib/api/canvas");
 
-    sampleData.canvases = updatedCanvases;
-    set(canvasesAtom, updatedCanvases);
-    console.log("업데이트 캔버스");
-    setTimeout(() => {
-      set(generateCanvasThumbnailAtom, {
+      const updateData: any = {};
+      if (name !== undefined) updateData.name = name;
+      if (width !== undefined) updateData.width = width;
+      if (height !== undefined) updateData.height = height;
+
+      const response = await canvasApi.updateCanvas(
+        currentProjectId,
+        originalCanvas.pageId,
         canvasId,
-        pageId: originalCanvas.pageId,
-      });
-    }, 200);
+        updateData
+      );
 
-    return sizeWarning;
+      if (!response.success) {
+        throw new Error("캔버스 수정 실패");
+      }
+
+      let sizeWarning = false;
+      const updatedCanvases = canvases.map((canvas) => {
+        if (canvas.id === canvasId) {
+          const updatedCanvas = {
+            ...canvas,
+            name: response.data.name,
+            width: response.data.width,
+            height: response.data.height,
+            ...(backgroundColor && { backgroundColor }),
+            updatedAt: new Date(response.data.updated_at),
+          };
+
+          if (
+            (width && width !== canvas.width) ||
+            (height && height !== canvas.height)
+          ) {
+            setTimeout(() => {
+              set(resizeCanvasAndLayersAtom, {
+                canvasId,
+                width: response.data.width,
+                height: response.data.height,
+              });
+            }, 100);
+          }
+
+          return updatedCanvas;
+        }
+        return canvas;
+      });
+
+      set(canvasesAtom, updatedCanvases);
+      console.log("업데이트 캔버스");
+      setTimeout(() => {
+        set(generateCanvasThumbnailAtom, {
+          canvasId,
+          pageId: originalCanvas.pageId,
+        });
+      }, 200);
+
+      return sizeWarning;
+    } catch (error) {
+      console.error("캔버스 수정 실패:", error);
+      return false;
+    }
   }
 );
 
@@ -191,7 +281,6 @@ export const deleteCanvasAtom = atom(null, (get, set, canvasId: string) => {
     set(cleanupCanvasLayersAtom, canvasId);
 
     const updatedCanvases = canvases.filter((canvas) => canvas.id !== canvasId);
-    sampleData.canvases = updatedCanvases;
     set(canvasesAtom, updatedCanvases);
 
     if (currentCanvasId === canvasId) {
@@ -258,8 +347,6 @@ export const duplicateCanvasAtom = atom(
     const updatedCanvases = [...canvases, duplicatedCanvas];
     const updatedLayers = [...layers, ...duplicatedLayers];
 
-    sampleData.canvases = updatedCanvases;
-    sampleData.layers = updatedLayers;
     set(canvasesAtom, updatedCanvases);
     set(layersAtom, updatedLayers);
 
@@ -310,7 +397,7 @@ export const duplicateCanvasAtom = atom(
 
 export const reorderCanvasesAtom = atom(
   null,
-  (
+  async (
     get,
     set,
     { dragIndex, hoverIndex }: { dragIndex: number; hoverIndex: number }
@@ -331,17 +418,45 @@ export const reorderCanvasesAtom = atom(
       updatedAt: new Date(),
     }));
 
-    const otherPageCanvases = canvases.filter(
-      (canvas) => canvas.pageId !== currentPageId
-    );
+    try {
+      const { currentProjectIdAtom } = await import("./pageStore");
+      const currentProjectId = get(currentProjectIdAtom);
 
-    const allUpdatedCanvases = [
-      ...otherPageCanvases,
-      ...canvasesWithUpdatedOrder,
-    ];
+      if (!currentProjectId) return;
 
-    set(canvasesAtom, allUpdatedCanvases);
-    sampleData.canvases = allUpdatedCanvases;
+      const { canvasApi } = await import("@/lib/api/canvas");
+
+      for (let i = 0; i < canvasesWithUpdatedOrder.length; i++) {
+        const canvas = canvasesWithUpdatedOrder[i];
+        const originalCanvas = canvasesForCurrentPage.find(
+          (c) => c.id === canvas.id
+        );
+        if (originalCanvas && canvas.order !== originalCanvas.order) {
+          await canvasApi.updateCanvas(
+            currentProjectId,
+            currentPageId,
+            canvas.id,
+            {
+              order: canvas.order,
+            }
+          );
+        }
+      }
+
+      const otherPageCanvases = canvases.filter(
+        (canvas) => canvas.pageId !== currentPageId
+      );
+
+      const allUpdatedCanvases = [
+        ...otherPageCanvases,
+        ...canvasesWithUpdatedOrder,
+      ];
+
+      set(canvasesAtom, allUpdatedCanvases);
+    } catch (error) {
+      console.error("캔버스 순서 변경 실패:", error);
+      set(canvasesAtom, canvases);
+    }
   }
 );
 
@@ -373,7 +488,6 @@ export const cleanupPageCanvasesAtom = atom(
     const updatedCanvases = canvases.filter(
       (canvas) => canvas.pageId !== pageId
     );
-    sampleData.canvases = updatedCanvases;
     set(canvasesAtom, updatedCanvases);
   }
 );
