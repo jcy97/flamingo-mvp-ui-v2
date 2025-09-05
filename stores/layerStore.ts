@@ -808,17 +808,6 @@ export const addBrushStrokeAtom = atom(
     set,
     { layerId, strokeData }: { layerId: string; strokeData: BrushStroke }
   ) => {
-    console.log("💾 브러쉬 데이터 저장:", {
-      layerId,
-      strokeId: strokeData.id,
-      pointsCount: strokeData.points.length,
-      firstPoint: strokeData.points[0],
-      lastPoint: strokeData.points[strokeData.points.length - 1],
-      brushSettings: strokeData.brushSettings,
-      duration: strokeData.duration,
-      bounds: strokeData.bounds,
-    });
-
     const layers = get(layersAtom);
 
     const updatedLayers = layers.map((layer) => {
@@ -862,12 +851,6 @@ export const addBrushStrokeAtom = atom(
         const layer = updatedLayers.find((l) => l.id === layerId);
 
         if (layer && layer.data.persistentData) {
-          console.log("🌐 백엔드 전송 데이터:", {
-            layerId,
-            totalStrokes: layer.data.persistentData.brushStrokes.length,
-            layerData: layer.data.persistentData,
-          });
-
           await layerApi.updateLayer(
             currentProjectId,
             currentPageId,

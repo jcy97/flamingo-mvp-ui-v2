@@ -31,6 +31,7 @@ export interface BrushStroke {
     maxX: number;
     maxY: number;
   };
+  renderData?: BrushDabData[];
 }
 
 export interface BrushPoint {
@@ -42,6 +43,17 @@ export interface BrushPoint {
   actualOpacity?: number;
   speed?: number;
   direction?: number;
+}
+
+export interface BrushDabData {
+  x: number;
+  y: number;
+  radius: number;
+  opacity: number;
+  color: string;
+  hardness: number;
+  roundness: number;
+  angle: number;
 }
 
 export interface LayerPersistentData {

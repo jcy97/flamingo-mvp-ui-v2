@@ -344,6 +344,8 @@ export class BrushEngine {
 
     dab.alpha = finalOpacity;
 
+    this.saveDabData(dab.x, dab.y, dynamics.radius, finalOpacity, color);
+
     this.app.renderer.render({
       container: dab,
       target: this.renderTexture,
@@ -402,6 +404,7 @@ export class BrushEngine {
         maxX: point.x,
         maxY: point.y,
       },
+      renderData: [],
     };
 
     this.addPointToCurrentStroke(point, dynamics);
@@ -556,17 +559,6 @@ export class BrushEngine {
     if (this.currentStroke) {
       this.currentStroke.duration = Date.now() - this.currentStroke.timestamp;
 
-      console.log("🖌️ BrushEngine 스트로크 완성:", {
-        id: this.currentStroke.id,
-        pointsCount: this.currentStroke.points.length,
-        firstPoint: this.currentStroke.points[0],
-        lastPoint:
-          this.currentStroke.points[this.currentStroke.points.length - 1],
-        duration: this.currentStroke.duration,
-        bounds: this.currentStroke.bounds,
-        brushSettings: this.currentStroke.brushSettings,
-      });
-
       if (this.onStrokeDataComplete) {
         this.onStrokeDataComplete({ ...this.currentStroke });
       }
@@ -644,5 +636,36 @@ export class BrushEngine {
       this.currentStroke.bounds.maxY,
       point.y
     );
+  }
+
+  private saveDabData(
+    x: number,
+    y: number,
+    radius: number,
+    opacity: number,
+    color: { r: number; g: number; b: number; a: number }
+  ): void {
+    if (!this.currentStroke) return;
+
+    const hexColor = `#${Math.round(color.r * 255)
+      .toString(16)
+      .padStart(2, "0")}${Math.round(color.g * 255)
+      .toString(16)
+      .padStart(2, "0")}${Math.round(color.b * 255)
+      .toString(16)
+      .padStart(2, "0")}`;
+
+    const dabData: BrushDabData = {
+      x,
+      y,
+      radius,
+      opacity,
+      color: hexColor,
+      hardness: this.settings.hardness,
+      roundness: this.settings.roundness,
+      angle: this.settings.angle,
+    };
+
+    this.currentStroke.renderData!.push(dabData);
   }
 }

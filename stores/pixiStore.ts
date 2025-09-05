@@ -84,25 +84,48 @@ export const retryAllStrokeRestorationsAtom = atom(null, async (get, set) => {
   }
 
   isRestoringStrokes = true;
+  console.log("전체 복원 시작");
 
   const { layersAtom } = await import("./layerStore");
   const layers = get(layersAtom);
   const { restoreLayerFromBrushData } = await import("@/utils/strokeRestore");
+  const restoredCanvasIds = new Set<string>();
 
   for (const layer of layers) {
+    console.log(`레이어 복원 체크 ${layer.id}:`, {
+      hasPersistentData: !!layer.data.persistentData,
+      strokeCount: layer.data.persistentData?.brushStrokes?.length || 0,
+      isAlreadyRestored: restoredLayers.has(layer.id),
+      canvasId: layer.canvasId,
+    });
+
     if (
       layer.data.persistentData?.brushStrokes?.length > 0 &&
       !restoredLayers.has(layer.id)
     ) {
       const layerGraphic = state.layerGraphics[layer.canvasId]?.[layer.id];
+      console.log(`레이어 ${layer.id} 그래픽 상태:`, {
+        hasGraphic: !!layerGraphic,
+        hasRenderTexture: !!layerGraphic?.renderTexture,
+      });
+
       if (layerGraphic?.renderTexture) {
         try {
+          console.log(`레이어 ${layer.id} 복원 시작`);
           await restoreLayerFromBrushData(
             state.app,
             layer.data.persistentData,
             layerGraphic.renderTexture
           );
+
+          if (layerGraphic.pixiSprite) {
+            layerGraphic.pixiSprite.texture = layerGraphic.renderTexture;
+            console.log(`레이어 ${layer.id} 스프라이트 텍스처 업데이트 완료`);
+          }
+
           restoredLayers.add(layer.id);
+          restoredCanvasIds.add(layer.canvasId);
+          console.log(`레이어 ${layer.id} 복원 성공`);
         } catch (error) {
           console.error(`레이어 ${layer.id} 복원 실패:`, error);
         }
@@ -111,6 +134,39 @@ export const retryAllStrokeRestorationsAtom = atom(null, async (get, set) => {
   }
 
   isRestoringStrokes = false;
+  console.log("전체 복원 완료");
+
+  if (restoredCanvasIds.size > 0) {
+    console.log(
+      "복원된 캔버스들의 썸네일 업데이트 시작:",
+      Array.from(restoredCanvasIds)
+    );
+
+    const { canvasesAtom } = await import("./canvasStore");
+    const canvases = get(canvasesAtom);
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    for (const canvasId of restoredCanvasIds) {
+      const canvas = canvases.find((c) => c.id === canvasId);
+      if (canvas) {
+        try {
+          console.log(`캔버스 ${canvasId} 썸네일 업데이트 시작`);
+          await set(generateCanvasThumbnailAtom, {
+            canvasId: canvasId,
+            pageId: canvas.pageId,
+          });
+          console.log(`캔버스 ${canvasId} 썸네일 업데이트 완료`);
+        } catch (error) {
+          console.error(`캔버스 ${canvasId} 썸네일 업데이트 실패:`, error);
+        }
+      }
+    }
+
+    console.log("모든 복원된 캔버스 썸네일 업데이트 완료");
+  } else {
+    console.log("복원된 캔버스가 없어 썸네일 업데이트 건너뜀");
+  }
 });
 
 export const generateCanvasThumbnailAtom = atom(
@@ -122,14 +178,20 @@ export const generateCanvasThumbnailAtom = atom(
   ) => {
     const state = get(pixiStateAtom);
     if (!state.app || !state.canvasContainers[pageId]?.[canvasId]) {
+      console.log(`썸네일 생성 실패: 캔버스 컨테이너 없음 ${canvasId}`);
       return;
     }
     const { canvasesAtom } = await import("./canvasStore");
     const canvases = get(canvasesAtom);
     const canvas = canvases.find((c) => c.id === canvasId);
-    if (!canvas) return;
+    if (!canvas) {
+      console.log(`썸네일 생성 실패: 캔버스 데이터 없음 ${canvasId}`);
+      return;
+    }
 
     const container = state.canvasContainers[pageId][canvasId];
+    console.log(`썸네일 생성: 컨테이너 자식 수 ${container.children.length}`);
+
     const fixedWidth = 400;
     const fixedHeight = 300;
 
@@ -279,8 +341,9 @@ export const initPixiAppAtom = atom(null, async (get, set) => {
     });
 
     setTimeout(() => {
+      console.log("PIXI 초기화 완료 후 복원 시작");
       set(retryAllStrokeRestorationsAtom);
-    }, 500);
+    }, 1000);
 
     await set(updateAllThumbnailsAtom);
   } catch (error) {

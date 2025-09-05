@@ -4,9 +4,13 @@ import {
   DrawingPoint,
 } from "@/components/Workspace/Stage/BrushEngine";
 import { EraserEngine } from "@/components/Workspace/Stage/EraserEngine";
-import { BrushStroke, LayerPersistentData } from "@/types/layer";
-import { BrushSettings } from "@/types/brush";
-import { EraserSettings } from "@/types/eraser";
+import type {
+  BrushStroke,
+  LayerPersistentData,
+  BrushDabData,
+  BrushSettings,
+  EraserSettings,
+} from "@/types/layer";
 
 const DEFAULT_BRUSH_SETTINGS: BrushSettings = {
   radius: 10,
@@ -27,9 +31,9 @@ const DEFAULT_BRUSH_SETTINGS: BrushSettings = {
   speedOpacity: 0,
   randomRadius: 0,
   strokeThreshold: 0,
-  strokeDuration: 4.0,
-  slowTracking: 0,
-  slowTrackingPerDab: 0,
+  strokeDuration: 4,
+  slowTracking: 0.65,
+  slowTrackingPerDab: 0.8,
   colorMixing: 0,
   eraser: 0,
   lockAlpha: 0,
@@ -41,7 +45,8 @@ const DEFAULT_ERASER_SETTINGS: EraserSettings = {
   size: 20,
   opacity: 1.0,
   hardness: 0.9,
-  pressure: true,
+  pressure: false,
+  radius: 10,
 };
 
 export const restoreLayerFromBrushData = async (
@@ -56,12 +61,11 @@ export const restoreLayerFromBrushData = async (
     return;
   }
 
-  const tempBrushEngine = new BrushEngine(
-    app,
-    DEFAULT_BRUSH_SETTINGS,
-    () => {}
-  );
-  const tempEraserEngine = new EraserEngine(app, DEFAULT_ERASER_SETTINGS);
+  console.log("복원 시작:", {
+    strokeCount: persistentData.brushStrokes.length,
+    firstStroke: persistentData.brushStrokes[0],
+    hasRenderData: persistentData.brushStrokes[0]?.renderData?.length > 0,
+  });
 
   const clearContainer = new PIXI.Container();
   const clearGraphics = new PIXI.Graphics();
@@ -78,65 +82,127 @@ export const restoreLayerFromBrushData = async (
 
   clearContainer.destroy({ children: true });
 
-  tempBrushEngine.setSharedRenderTexture(renderTexture);
-  tempEraserEngine.setSharedRenderTexture(renderTexture);
-
   for (const stroke of persistentData.brushStrokes) {
-    if (stroke.points.length === 0) continue;
+    console.log("스트로크 복원:", {
+      id: stroke.id,
+      hasRenderData: !!stroke.renderData,
+      renderDataLength: stroke.renderData?.length || 0,
+      pointsLength: stroke.points.length,
+    });
 
-    const isEraser = stroke.brushSettings.eraser === 1;
-
-    if (isEraser) {
-      const eraserSettings: EraserSettings = {
-        size: stroke.brushSettings.radius,
-        opacity: stroke.brushSettings.opacity,
-        hardness: stroke.brushSettings.hardness,
-        pressure: stroke.brushSettings.pressureOpacity > 0,
-      };
-      tempEraserEngine.updateSettings(eraserSettings);
-
-      for (let i = 0; i < stroke.points.length; i++) {
-        const point = stroke.points[i];
-        const drawingPoint: DrawingPoint = {
-          x: point.x,
-          y: point.y,
-          pressure: point.pressure,
-          timestamp: point.timestamp,
-        };
-
-        if (i === 0) {
-          tempEraserEngine.startStroke(drawingPoint);
-        } else if (i === stroke.points.length - 1) {
-          tempEraserEngine.continueStroke(drawingPoint);
-          tempEraserEngine.endStroke();
-        } else {
-          tempEraserEngine.continueStroke(drawingPoint);
-        }
-      }
-    } else {
-      tempBrushEngine.updateSettings(stroke.brushSettings);
-
-      for (let i = 0; i < stroke.points.length; i++) {
-        const point = stroke.points[i];
-        const drawingPoint: DrawingPoint = {
-          x: point.x,
-          y: point.y,
-          pressure: point.pressure,
-          timestamp: point.timestamp,
-        };
-
-        if (i === 0) {
-          tempBrushEngine.startStroke(drawingPoint);
-        } else if (i === stroke.points.length - 1) {
-          tempBrushEngine.continueStroke(drawingPoint);
-          tempBrushEngine.endStroke();
-        } else {
-          tempBrushEngine.continueStroke(drawingPoint);
-        }
-      }
+    if (stroke.renderData && stroke.renderData.length > 0) {
+      console.log("renderData 복원 사용");
+      restoreFromRenderData(
+        app,
+        stroke.renderData,
+        renderTexture,
+        stroke.brushSettings.eraser === 1
+      );
+    } else if (stroke.points.length > 0) {
+      console.log("fallback 복원 사용");
+      fallbackRestore(app, stroke, renderTexture);
     }
   }
 
-  tempBrushEngine.cleanup();
-  tempEraserEngine.cleanup();
+  console.log("복원 완료");
 };
+
+function restoreFromRenderData(
+  app: PIXI.Application,
+  renderData: BrushDabData[],
+  renderTexture: PIXI.RenderTexture,
+  isEraser: boolean = false
+): void {
+  console.log("renderData 복원 시작:", {
+    dabCount: renderData.length,
+    isEraser,
+  });
+
+  for (const dabData of renderData) {
+    const graphics = new PIXI.Graphics();
+
+    if (isEraser) {
+      graphics.circle(0, 0, dabData.radius);
+      graphics.fill({ color: 0xffffff, alpha: 1 });
+      graphics.x = dabData.x;
+      graphics.y = dabData.y;
+      graphics.blendMode = "erase";
+      graphics.alpha = dabData.opacity;
+    } else {
+      const color = parseInt(dabData.color.replace("#", ""), 16);
+      graphics.circle(0, 0, dabData.radius);
+      graphics.fill({ color, alpha: dabData.opacity });
+      graphics.x = dabData.x;
+      graphics.y = dabData.y;
+    }
+
+    app.renderer.render({
+      container: graphics,
+      target: renderTexture,
+      clear: false,
+    });
+
+    graphics.destroy();
+  }
+
+  console.log("renderData 복원 완료");
+}
+
+function fallbackRestore(
+  app: PIXI.Application,
+  stroke: BrushStroke,
+  renderTexture: PIXI.RenderTexture
+): void {
+  console.log("fallback 복원 시작:", {
+    isEraser: stroke.brushSettings.eraser === 1,
+    pointsCount: stroke.points.length,
+  });
+
+  const isEraser = stroke.brushSettings.eraser === 1;
+
+  if (isEraser) {
+    for (const point of stroke.points) {
+      const eraser = new PIXI.Graphics();
+      const radius = point.actualRadius || stroke.brushSettings.radius || 10;
+      const opacity = point.actualOpacity || stroke.brushSettings.opacity || 1;
+
+      eraser.circle(0, 0, radius);
+      eraser.fill({ color: 0xffffff, alpha: 1 });
+      eraser.x = point.x;
+      eraser.y = point.y;
+      eraser.blendMode = "erase";
+      eraser.alpha = opacity;
+
+      app.renderer.render({
+        container: eraser,
+        target: renderTexture,
+        clear: false,
+      });
+
+      eraser.destroy();
+    }
+  } else {
+    for (const point of stroke.points) {
+      const brush = new PIXI.Graphics();
+      const color = stroke.brushSettings.color || "#000000";
+      const colorInt = parseInt(color.replace("#", ""), 16);
+      const radius = point.actualRadius || stroke.brushSettings.radius || 10;
+      const opacity = point.actualOpacity || stroke.brushSettings.opacity || 1;
+
+      brush.circle(0, 0, radius);
+      brush.fill({ color: colorInt, alpha: opacity });
+      brush.x = point.x;
+      brush.y = point.y;
+
+      app.renderer.render({
+        container: brush,
+        target: renderTexture,
+        clear: false,
+      });
+
+      brush.destroy();
+    }
+  }
+
+  console.log("fallback 복원 완료");
+}

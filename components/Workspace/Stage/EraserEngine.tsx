@@ -1,6 +1,6 @@
 import * as PIXI from "pixi.js";
 import { EraserSettings } from "@/types/eraser";
-import { BrushStroke, BrushPoint } from "@/types/layer";
+import { BrushStroke, BrushPoint, BrushDabData } from "@/types/layer";
 
 export interface DrawingPoint {
   x: number;
@@ -51,7 +51,7 @@ export class EraserEngine {
         .substr(2, 9)}`,
       points: [],
       brushSettings: {
-        radius: this.settings.radius,
+        radius: this.settings.size / 2,
         opacity: this.settings.opacity,
         hardness: this.settings.hardness,
         color: "#000000",
@@ -86,6 +86,7 @@ export class EraserEngine {
         maxX: point.x,
         maxY: point.y,
       },
+      renderData: [],
     };
 
     this.addPointToCurrentStroke(point);
@@ -109,19 +110,6 @@ export class EraserEngine {
       this.currentBrushStroke.duration =
         Date.now() - this.currentBrushStroke.timestamp;
 
-      console.log("🧽 EraserEngine 스트로크 완성:", {
-        id: this.currentBrushStroke.id,
-        pointsCount: this.currentBrushStroke.points.length,
-        firstPoint: this.currentBrushStroke.points[0],
-        lastPoint:
-          this.currentBrushStroke.points[
-            this.currentBrushStroke.points.length - 1
-          ],
-        duration: this.currentBrushStroke.duration,
-        bounds: this.currentBrushStroke.bounds,
-        brushSettings: this.currentBrushStroke.brushSettings,
-      });
-
       if (this.onStrokeDataComplete) {
         this.onStrokeDataComplete({ ...this.currentBrushStroke });
       }
@@ -140,8 +128,11 @@ export class EraserEngine {
   private drawPoint(point: DrawingPoint): void {
     if (!this.renderTexture) return;
 
-    const eraser = new PIXI.Graphics();
     const eraserRadius = this.settings.size / 2;
+
+    this.saveDabData(point.x, point.y, eraserRadius, this.settings.opacity);
+
+    const eraser = new PIXI.Graphics();
     eraser.beginFill(0xffffff, 1);
     eraser.drawCircle(0, 0, eraserRadius);
     eraser.endFill();
@@ -237,12 +228,14 @@ export class EraserEngine {
   private addPointToCurrentStroke(point: DrawingPoint): void {
     if (!this.currentBrushStroke) return;
 
+    const eraserRadius = this.settings.size / 2;
+
     const brushPoint: BrushPoint = {
       x: point.x,
       y: point.y,
       pressure: point.pressure || 0.5,
       timestamp: point.timestamp || Date.now(),
-      actualRadius: this.settings.radius,
+      actualRadius: eraserRadius,
       actualOpacity: this.settings.opacity,
       speed: 0,
       direction: 0,
@@ -266,5 +259,27 @@ export class EraserEngine {
       this.currentBrushStroke.bounds.maxY,
       point.y
     );
+  }
+
+  private saveDabData(
+    x: number,
+    y: number,
+    radius: number,
+    opacity: number
+  ): void {
+    if (!this.currentBrushStroke) return;
+
+    const dabData: BrushDabData = {
+      x,
+      y,
+      radius,
+      opacity,
+      color: "#000000",
+      hardness: this.settings.hardness,
+      roundness: 1.0,
+      angle: 0.0,
+    };
+
+    this.currentBrushStroke.renderData!.push(dabData);
   }
 }
