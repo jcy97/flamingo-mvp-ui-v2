@@ -76,6 +76,7 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
   useEffect(() => {
     const initializePixi = async () => {
       if (!workspaceData) return;
+      console.log(workspaceData);
       await initPixiApp();
     };
 

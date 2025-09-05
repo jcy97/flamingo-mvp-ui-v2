@@ -36,6 +36,7 @@ const initializePixiLayerGraphics = async (
           layerId: layer.id,
           width: canvas.width,
           height: canvas.height,
+          layerData: layer.data,
         });
 
         await new Promise((resolve) => setTimeout(resolve, 10));
@@ -162,6 +163,17 @@ export const syncWorkspaceToStoresAtom = atom(
               pixiSprite: null,
               renderTexture: null,
               contentBounds: null,
+              persistentData: layer.layer_data
+                ? {
+                    brushStrokes: layer.layer_data.brushStrokes || [],
+                    contentBounds: layer.layer_data.contentBounds || {
+                      x: 0,
+                      y: 0,
+                      width: 0,
+                      height: 0,
+                    },
+                  }
+                : undefined,
             },
             createdAt: new Date(),
             updatedAt: new Date(),

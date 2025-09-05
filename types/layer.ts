@@ -1,5 +1,6 @@
 import * as PIXI from "pixi.js";
 import { BlendMode } from "@/constants/blendModes";
+import { BrushSettings } from "@/types/brush";
 
 export interface Layer {
   id: string;
@@ -18,6 +19,41 @@ export interface Layer {
 
 export type LayerType = "brush" | "text" | "shape" | "image" | "speechBubble";
 
+export interface BrushStroke {
+  id: string;
+  points: BrushPoint[];
+  brushSettings: BrushSettings;
+  timestamp: number;
+  duration: number;
+  bounds: {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+  };
+}
+
+export interface BrushPoint {
+  x: number;
+  y: number;
+  pressure: number;
+  timestamp: number;
+  actualRadius?: number;
+  actualOpacity?: number;
+  speed?: number;
+  direction?: number;
+}
+
+export interface LayerPersistentData {
+  brushStrokes: BrushStroke[];
+  contentBounds: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+}
+
 export interface LayerData {
   pixiSprite: PIXI.Sprite | null;
   renderTexture: PIXI.RenderTexture | null;
@@ -27,6 +63,7 @@ export interface LayerData {
     maxX: number;
     maxY: number;
   } | null;
+  persistentData?: LayerPersistentData;
 }
 
 export interface Stroke {

@@ -1,6 +1,6 @@
 import { atom } from "jotai";
 import * as PIXI from "pixi.js";
-import { Layer, LayerData, LayerType } from "@/types/layer";
+import { Layer, LayerData, LayerType, BrushStroke } from "@/types/layer";
 import { BlendMode } from "@/constants/blendModes";
 import { currentCanvasIdAtom } from "./canvasStore";
 import {
@@ -798,6 +798,90 @@ export const cleanupCanvasLayersAtom = atom(
 
     const updatedLayers = layers.filter((layer) => layer.canvasId !== canvasId);
     set(layersAtom, updatedLayers);
+  }
+);
+
+export const addBrushStrokeAtom = atom(
+  null,
+  async (
+    get,
+    set,
+    { layerId, strokeData }: { layerId: string; strokeData: BrushStroke }
+  ) => {
+    console.log("💾 브러쉬 데이터 저장:", {
+      layerId,
+      strokeId: strokeData.id,
+      pointsCount: strokeData.points.length,
+      firstPoint: strokeData.points[0],
+      lastPoint: strokeData.points[strokeData.points.length - 1],
+      brushSettings: strokeData.brushSettings,
+      duration: strokeData.duration,
+      bounds: strokeData.bounds,
+    });
+
+    const layers = get(layersAtom);
+
+    const updatedLayers = layers.map((layer) => {
+      if (layer.id === layerId) {
+        const currentPersistentData = layer.data.persistentData || {
+          brushStrokes: [],
+          contentBounds: { x: 0, y: 0, width: 0, height: 0 },
+        };
+
+        const updatedPersistentData = {
+          ...currentPersistentData,
+          brushStrokes: [...currentPersistentData.brushStrokes, strokeData],
+        };
+
+        return {
+          ...layer,
+          data: {
+            ...layer.data,
+            persistentData: updatedPersistentData,
+          },
+          updatedAt: new Date(),
+        };
+      }
+      return layer;
+    });
+
+    set(layersAtom, updatedLayers);
+
+    try {
+      const { currentProjectIdAtom, currentPageIdAtom } = await import(
+        "./pageStore"
+      );
+      const { currentCanvasIdAtom } = await import("./canvasStore");
+
+      const currentProjectId = get(currentProjectIdAtom);
+      const currentPageId = get(currentPageIdAtom);
+      const currentCanvasId = get(currentCanvasIdAtom);
+
+      if (currentProjectId && currentPageId && currentCanvasId) {
+        const { layerApi } = await import("@/lib/api/layer");
+        const layer = updatedLayers.find((l) => l.id === layerId);
+
+        if (layer && layer.data.persistentData) {
+          console.log("🌐 백엔드 전송 데이터:", {
+            layerId,
+            totalStrokes: layer.data.persistentData.brushStrokes.length,
+            layerData: layer.data.persistentData,
+          });
+
+          await layerApi.updateLayer(
+            currentProjectId,
+            currentPageId,
+            currentCanvasId,
+            layerId,
+            {
+              layer_data: layer.data.persistentData,
+            }
+          );
+        }
+      }
+    } catch (error) {
+      console.error("스트로크 저장 실패:", error);
+    }
   }
 );
 

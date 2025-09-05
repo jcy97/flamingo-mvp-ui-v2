@@ -51,6 +51,7 @@ import {
   addLayerAtom,
   autoSelectFirstLayerAtom,
   updateLayerAtom,
+  addBrushStrokeAtom,
 } from "@/stores/layerStore";
 import {
   selectionStateAtom,
@@ -130,6 +131,7 @@ function Stage() {
   const addLayer = useSetAtom(addLayerAtom);
   const autoSelectFirstLayer = useSetAtom(autoSelectFirstLayerAtom);
   const refreshCanvasThumbnail = useSetAtom(refreshCanvasThumbnailAtom);
+  const addBrushStroke = useSetAtom(addBrushStrokeAtom);
 
   const updateLayer = useSetAtom(updateLayerAtom);
 
@@ -609,6 +611,20 @@ function Stage() {
           handleStrokeComplete
         );
         eraserEngineRef.current = new EraserEngine(app, eraserSettings);
+
+        brushEngineRef.current.setOnStrokeDataComplete((strokeData) => {
+          const currentActiveLayerId = activeLayerRef.current?.id;
+          if (currentActiveLayerId) {
+            addBrushStroke({ layerId: currentActiveLayerId, strokeData });
+          }
+        });
+
+        eraserEngineRef.current.setOnStrokeDataComplete((strokeData) => {
+          const currentActiveLayerId = activeLayerRef.current?.id;
+          if (currentActiveLayerId) {
+            addBrushStroke({ layerId: currentActiveLayerId, strokeData });
+          }
+        });
         textEngineRef.current = new TextEngine(app, textSettings);
         textEngineRef.current.setOnLayerDelete(deleteLayer);
         textEngineRef.current.setOnThumbnailUpdate(() => {

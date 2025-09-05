@@ -70,6 +70,49 @@ const validateTextureSize = (
   }
 };
 
+// 중복 복원 방지를 위한 플래그
+let isRestoringStrokes = false;
+const restoredLayers = new Set<string>();
+
+export const retryAllStrokeRestorationsAtom = atom(null, async (get, set) => {
+  if (isRestoringStrokes) {
+    return;
+  }
+  const state = get(pixiStateAtom);
+  if (!state.app) {
+    return;
+  }
+
+  isRestoringStrokes = true;
+
+  const { layersAtom } = await import("./layerStore");
+  const layers = get(layersAtom);
+  const { restoreLayerFromBrushData } = await import("@/utils/strokeRestore");
+
+  for (const layer of layers) {
+    if (
+      layer.data.persistentData?.brushStrokes?.length > 0 &&
+      !restoredLayers.has(layer.id)
+    ) {
+      const layerGraphic = state.layerGraphics[layer.canvasId]?.[layer.id];
+      if (layerGraphic?.renderTexture) {
+        try {
+          await restoreLayerFromBrushData(
+            state.app,
+            layer.data.persistentData,
+            layerGraphic.renderTexture
+          );
+          restoredLayers.add(layer.id);
+        } catch (error) {
+          console.error(`레이어 ${layer.id} 복원 실패:`, error);
+        }
+      }
+    }
+  }
+
+  isRestoringStrokes = false;
+});
+
 export const generateCanvasThumbnailAtom = atom(
   null,
   async (
@@ -234,6 +277,10 @@ export const initPixiAppAtom = atom(null, async (get, set) => {
       ...updatedState,
       isFullyReady: true,
     });
+
+    setTimeout(() => {
+      set(retryAllStrokeRestorationsAtom);
+    }, 500);
 
     await set(updateAllThumbnailsAtom);
   } catch (error) {
@@ -415,11 +462,13 @@ export const createLayerGraphicAtom = atom(
       layerId,
       width,
       height,
+      layerData,
     }: {
       canvasId: string;
       layerId: string;
       width?: number;
       height?: number;
+      layerData?: any;
     }
   ) => {
     const state = get(pixiStateAtom);
@@ -494,6 +543,17 @@ export const createLayerGraphicAtom = atom(
           },
         },
       });
+
+      let targetLayerData = layerData;
+
+      if (!targetLayerData) {
+        const { layersAtom } = await import("./layerStore");
+        const layers = get(layersAtom);
+        const layer = layers.find((l) => l.id === layerId);
+        targetLayerData = layer?.data;
+      }
+
+      // 즉시 복원은 제거 - 오직 retryAllStrokeRestorationsAtom에서만 복원
     } catch (error) {
       console.error(`레이어 그래픽 생성 실패 ${canvasId}/${layerId}:`, error);
 

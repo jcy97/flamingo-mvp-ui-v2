@@ -1,5 +1,6 @@
 import * as PIXI from "pixi.js";
 import { BrushSettings, BrushState } from "@/types/brush";
+import { BrushStroke, BrushPoint } from "@/types/layer";
 import { Bounds } from "@/types/common";
 import { worldToScreen } from "@/utils/coordinate";
 
@@ -19,6 +20,9 @@ export class BrushEngine {
   private lastTime = performance.now();
   private strokeStartTime = 0;
   private strokeDistance = 0;
+
+  private currentStroke: BrushStroke | null = null;
+  private onStrokeDataComplete?: (strokeData: BrushStroke) => void;
 
   //트랜스포머용 Bounds와 콜백 함수
   private currentStrokeBounds: Bounds | null = null;
@@ -85,6 +89,10 @@ export class BrushEngine {
     this.settings = { ...initialSettings };
 
     this.onStrokeComplete = onStrokeComplete;
+  }
+
+  public setOnStrokeDataComplete(callback: (strokeData: BrushStroke) => void) {
+    this.onStrokeDataComplete = callback;
   }
 
   public updateSettings(newSettings: BrushSettings): void {
@@ -381,6 +389,22 @@ export class BrushEngine {
     this.states.smudgeColor = { ...color };
 
     const dynamics = this.calculateDynamics(this.states.pressure, 0, 0);
+
+    this.currentStroke = {
+      id: `stroke-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      points: [],
+      brushSettings: { ...this.settings },
+      timestamp: Date.now(),
+      duration: 0,
+      bounds: {
+        minX: point.x,
+        minY: point.y,
+        maxX: point.x,
+        maxY: point.y,
+      },
+    };
+
+    this.addPointToCurrentStroke(point, dynamics);
     this.drawDab(point.x, point.y, dynamics, color);
   }
 
@@ -522,16 +546,40 @@ export class BrushEngine {
     this.states.actualY = actualY;
     this.lastActualX = actualX;
     this.lastActualY = actualY;
+
+    this.addPointToCurrentStroke(point, dynamics);
   }
 
   public endStroke(): void {
     this.isDrawing = false;
+
+    if (this.currentStroke) {
+      this.currentStroke.duration = Date.now() - this.currentStroke.timestamp;
+
+      console.log("🖌️ BrushEngine 스트로크 완성:", {
+        id: this.currentStroke.id,
+        pointsCount: this.currentStroke.points.length,
+        firstPoint: this.currentStroke.points[0],
+        lastPoint:
+          this.currentStroke.points[this.currentStroke.points.length - 1],
+        duration: this.currentStroke.duration,
+        bounds: this.currentStroke.bounds,
+        brushSettings: this.currentStroke.brushSettings,
+      });
+
+      if (this.onStrokeDataComplete) {
+        this.onStrokeDataComplete({ ...this.currentStroke });
+      }
+    }
+
     if (
       this.currentStrokeBounds &&
       this.currentStrokeBounds.minX !== Infinity
     ) {
       this.onStrokeComplete(this.currentStrokeBounds);
     }
+
+    this.currentStroke = null;
     this.currentStrokeBounds = null;
   }
 
@@ -562,5 +610,39 @@ export class BrushEngine {
   public adjustBrushOpacity(delta: number): void {
     const newOpacity = Math.max(0, Math.min(1, this.settings.opacity + delta));
     this.updateSettings({ ...this.settings, opacity: newOpacity });
+  }
+
+  private addPointToCurrentStroke(point: DrawingPoint, dynamics: any): void {
+    if (!this.currentStroke) return;
+
+    const brushPoint: BrushPoint = {
+      x: point.x,
+      y: point.y,
+      pressure: point.pressure || 0.5,
+      timestamp: point.timestamp || Date.now(),
+      actualRadius: this.states.actualRadius,
+      actualOpacity: this.states.actualOpacity,
+      speed: this.states.speed,
+      direction: this.states.direction,
+    };
+
+    this.currentStroke.points.push(brushPoint);
+
+    this.currentStroke.bounds.minX = Math.min(
+      this.currentStroke.bounds.minX,
+      point.x
+    );
+    this.currentStroke.bounds.minY = Math.min(
+      this.currentStroke.bounds.minY,
+      point.y
+    );
+    this.currentStroke.bounds.maxX = Math.max(
+      this.currentStroke.bounds.maxX,
+      point.x
+    );
+    this.currentStroke.bounds.maxY = Math.max(
+      this.currentStroke.bounds.maxY,
+      point.y
+    );
   }
 }

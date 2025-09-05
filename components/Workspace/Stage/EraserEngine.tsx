@@ -1,5 +1,6 @@
 import * as PIXI from "pixi.js";
 import { EraserSettings } from "@/types/eraser";
+import { BrushStroke, BrushPoint } from "@/types/layer";
 
 export interface DrawingPoint {
   x: number;
@@ -17,10 +18,16 @@ export class EraserEngine {
   private activeLayer: PIXI.Container | null = null;
   private strokePath: DrawingPoint[] = [];
   private renderTexture: PIXI.RenderTexture | null = null;
+  private currentBrushStroke: BrushStroke | null = null;
+  private onStrokeDataComplete?: (strokeData: BrushStroke) => void;
 
   constructor(app: PIXI.Application, initialSettings: EraserSettings) {
     this.app = app;
     this.settings = { ...initialSettings };
+  }
+
+  public setOnStrokeDataComplete(callback: (strokeData: BrushStroke) => void) {
+    this.onStrokeDataComplete = callback;
   }
 
   public updateSettings(newSettings: EraserSettings): void {
@@ -37,6 +44,51 @@ export class EraserEngine {
     this.lastPoint = { ...point, timestamp: Date.now() };
     this.currentStroke = [this.lastPoint];
     this.strokePath = [this.lastPoint];
+
+    this.currentBrushStroke = {
+      id: `eraser-stroke-${Date.now()}-${Math.random()
+        .toString(36)
+        .substr(2, 9)}`,
+      points: [],
+      brushSettings: {
+        radius: this.settings.radius,
+        opacity: this.settings.opacity,
+        hardness: this.settings.hardness,
+        color: "#000000",
+        pressureOpacity: this.settings.pressure ? 1.0 : 0.0,
+        pressureSize: this.settings.pressure ? 1.0 : 0.0,
+        speedSize: 0,
+        smudgeLength: 0,
+        smudgeRadius: 1.0,
+        spacing: 1.0,
+        jitter: 0,
+        angle: 0,
+        roundness: 1,
+        dabsPerSecond: 0,
+        dabsPerRadius: 0,
+        speedOpacity: 0,
+        randomRadius: 0,
+        strokeThreshold: 0,
+        strokeDuration: 0,
+        slowTracking: 0,
+        slowTrackingPerDab: 0,
+        colorMixing: 0,
+        eraser: 1,
+        lockAlpha: 0,
+        colorizeMode: 0,
+        snapToPixel: 0,
+      },
+      timestamp: Date.now(),
+      duration: 0,
+      bounds: {
+        minX: point.x,
+        minY: point.y,
+        maxX: point.x,
+        maxY: point.y,
+      },
+    };
+
+    this.addPointToCurrentStroke(point);
     this.drawPoint(point);
   }
 
@@ -45,15 +97,40 @@ export class EraserEngine {
     const currentPoint = { ...point, timestamp: Date.now() };
     this.currentStroke.push(currentPoint);
     this.strokePath.push(currentPoint);
+    this.addPointToCurrentStroke(currentPoint);
     this.drawInterpolatedLine(this.lastPoint, currentPoint);
     this.lastPoint = currentPoint;
   }
 
   public endStroke(): void {
     this.isDrawing = false;
+
+    if (this.currentBrushStroke) {
+      this.currentBrushStroke.duration =
+        Date.now() - this.currentBrushStroke.timestamp;
+
+      console.log("🧽 EraserEngine 스트로크 완성:", {
+        id: this.currentBrushStroke.id,
+        pointsCount: this.currentBrushStroke.points.length,
+        firstPoint: this.currentBrushStroke.points[0],
+        lastPoint:
+          this.currentBrushStroke.points[
+            this.currentBrushStroke.points.length - 1
+          ],
+        duration: this.currentBrushStroke.duration,
+        bounds: this.currentBrushStroke.bounds,
+        brushSettings: this.currentBrushStroke.brushSettings,
+      });
+
+      if (this.onStrokeDataComplete) {
+        this.onStrokeDataComplete({ ...this.currentBrushStroke });
+      }
+    }
+
     this.lastPoint = null;
     this.currentStroke = [];
     this.strokePath = [];
+    this.currentBrushStroke = null;
   }
 
   public isCurrentlyDrawing(): boolean {
@@ -155,5 +232,39 @@ export class EraserEngine {
       Math.min(1, this.settings.hardness + delta)
     );
     this.updateSettings({ ...this.settings, hardness: newHardness });
+  }
+
+  private addPointToCurrentStroke(point: DrawingPoint): void {
+    if (!this.currentBrushStroke) return;
+
+    const brushPoint: BrushPoint = {
+      x: point.x,
+      y: point.y,
+      pressure: point.pressure || 0.5,
+      timestamp: point.timestamp || Date.now(),
+      actualRadius: this.settings.radius,
+      actualOpacity: this.settings.opacity,
+      speed: 0,
+      direction: 0,
+    };
+
+    this.currentBrushStroke.points.push(brushPoint);
+
+    this.currentBrushStroke.bounds.minX = Math.min(
+      this.currentBrushStroke.bounds.minX,
+      point.x
+    );
+    this.currentBrushStroke.bounds.minY = Math.min(
+      this.currentBrushStroke.bounds.minY,
+      point.y
+    );
+    this.currentBrushStroke.bounds.maxX = Math.max(
+      this.currentBrushStroke.bounds.maxX,
+      point.x
+    );
+    this.currentBrushStroke.bounds.maxY = Math.max(
+      this.currentBrushStroke.bounds.maxY,
+      point.y
+    );
   }
 }
