@@ -25,6 +25,7 @@ interface WorkspaceData {
       layers: Array<{
         id: string;
         name: string;
+        type: string;
         visible: boolean;
         locked: boolean;
         opacity: number;

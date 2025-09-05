@@ -10,6 +10,7 @@ import type {
   BrushDabData,
   BrushSettings,
   EraserSettings,
+  TextObject,
 } from "@/types/layer";
 
 const DEFAULT_BRUSH_SETTINGS: BrushSettings = {
@@ -205,4 +206,68 @@ function fallbackRestore(
   }
 
   console.log("fallback 복원 완료");
+}
+
+export const restoreTextFromData = async (
+  app: PIXI.Application,
+  textObjects: TextObject[],
+  renderTexture: PIXI.RenderTexture
+): Promise<PIXI.Text[]> => {
+  const restoredTexts: PIXI.Text[] = [];
+
+  for (const textObj of textObjects) {
+    const pixiText = createPixiTextFromData(textObj);
+
+    app.renderer.render({
+      container: pixiText,
+      target: renderTexture,
+      clear: false,
+    });
+
+    restoredTexts.push(pixiText);
+  }
+
+  return restoredTexts;
+};
+
+function createPixiTextFromData(textObj: TextObject): PIXI.Text {
+  try {
+    const style = new PIXI.TextStyle({
+      fontSize: textObj.style.fontSize,
+      fontFamily: textObj.style.fontFamily,
+      fill: textObj.style.fill,
+      letterSpacing: textObj.style.letterSpacing,
+      lineHeight: textObj.style.fontSize * textObj.style.lineHeight,
+      fontWeight: textObj.style.fontWeight,
+      fontStyle: textObj.style.fontStyle,
+      align: textObj.style.align,
+      wordWrap: textObj.style.wordWrap,
+      wordWrapWidth: textObj.style.wordWrapWidth,
+      breakWords: textObj.style.wordWrap,
+    });
+
+    const pixiText = new PIXI.Text(textObj.content, style);
+    pixiText.x = textObj.x;
+    pixiText.y = textObj.y;
+    pixiText.eventMode = "static";
+    pixiText.cursor = "pointer";
+    pixiText.name = `text-${textObj.id}`;
+
+    return pixiText;
+  } catch (error) {
+    console.warn("폰트 로드 실패, fallback 사용:", error);
+    const fallbackStyle = new PIXI.TextStyle({
+      fontFamily: "Arial",
+      fontSize: 16,
+      fill: "#000000",
+    });
+    const pixiText = new PIXI.Text(textObj.content, fallbackStyle);
+    pixiText.x = textObj.x;
+    pixiText.y = textObj.y;
+    pixiText.eventMode = "static";
+    pixiText.cursor = "pointer";
+    pixiText.name = `text-${textObj.id}`;
+
+    return pixiText;
+  }
 }

@@ -56,8 +56,31 @@ export interface BrushDabData {
   angle: number;
 }
 
+export interface TextStyleData {
+  fontSize: number;
+  fontFamily: string;
+  fill: string;
+  letterSpacing: number;
+  lineHeight: number;
+  fontWeight: string;
+  fontStyle: string;
+  align: "left" | "center" | "right" | "justify";
+  wordWrap: boolean;
+  wordWrapWidth: number;
+}
+
+export interface TextObject {
+  id: string;
+  content: string;
+  x: number;
+  y: number;
+  style: TextStyleData;
+  timestamp: number;
+}
+
 export interface LayerPersistentData {
   brushStrokes: BrushStroke[];
+  textObjects: TextObject[];
   contentBounds: {
     x: number;
     y: number;

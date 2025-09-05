@@ -4,6 +4,7 @@ interface Layer {
   id: string;
   canvas_id: string;
   name: string;
+  type: string;
   visible: boolean;
   locked: boolean;
   opacity: number;
@@ -16,6 +17,7 @@ interface Layer {
 
 interface LayerCreateRequest {
   name: string;
+  type: string;
   visible?: boolean;
   locked?: boolean;
   opacity?: number;
@@ -26,6 +28,7 @@ interface LayerCreateRequest {
 
 interface LayerUpdateRequest {
   name?: string;
+  type?: string;
   visible?: boolean;
   locked?: boolean;
   opacity?: number;

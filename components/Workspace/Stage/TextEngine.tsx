@@ -1,4 +1,4 @@
-import { Layer } from "@/types/layer";
+import { Layer, TextObject, TextStyleData } from "@/types/layer";
 import { TextSettings } from "@/types/text";
 import * as PIXI from "pixi.js";
 import { worldToScreen, worldToScreenPoint } from "@/utils/coordinate";
@@ -12,6 +12,7 @@ export class TextEngine {
   private app: PIXI.Application;
   private activeTextInput: HTMLTextAreaElement | null = null;
   private editingTextLayer: PIXI.Text | null = null;
+  private editingTextId: string | null = null;
   private currentTextLayer: PIXI.Text | null = null;
   private settings: TextSettings;
   private activeLayer: Layer | null = null;
@@ -19,6 +20,7 @@ export class TextEngine {
   private onTextLayerCreated?: (textLayer: PIXI.Text) => void;
   private onLayerDelete?: (layerId: string) => void;
   private onThumbnailUpdate?: () => void;
+  private onTextDataSave?: (layerId: string, textData: TextObject) => void;
   private textObjects: PIXI.Text[] = [];
   private isProcessing: boolean = false;
   private layerTexts: Record<string, PIXI.Text[]> = {};
@@ -47,6 +49,10 @@ export class TextEngine {
     this.currentLayerId = layer.id;
 
     this.textObjects = this.layerTexts[layer.id] || [];
+
+    if (layer.data.persistentData?.textObjects) {
+      this.restoreTextsFromData(layer.data.persistentData.textObjects);
+    }
   }
 
   public setSharedRenderTexture(
@@ -65,6 +71,12 @@ export class TextEngine {
 
   public setOnThumbnailUpdate(callback: () => void): void {
     this.onThumbnailUpdate = callback;
+  }
+
+  public setOnTextDataSave(
+    callback: (layerId: string, textData: TextObject) => void
+  ): void {
+    this.onTextDataSave = callback;
   }
 
   public getTextAtPosition(x: number, y: number): PIXI.Text | null {
@@ -166,6 +178,9 @@ export class TextEngine {
     this.newlyCreatedLayerId = null;
 
     this.editingTextLayer = textLayer;
+    this.editingTextId = textLayer.name
+      ? textLayer.name.replace("text-", "")
+      : null;
     this.originalPosition = { x: textLayer.x, y: textLayer.y };
     textLayer.visible = false;
     this.renderAllTextsToTexture();
@@ -302,6 +317,10 @@ export class TextEngine {
         if (this.currentLayerId) {
           this.layerTexts[this.currentLayerId] = [...this.textObjects];
         }
+
+        const textData = this.createTextObjectData(textLayer);
+        this.saveTextToLayer(textData);
+
         this.renderAllTextsToTexture();
         this.scheduleThumbnailUpdate();
       }
@@ -330,10 +349,14 @@ export class TextEngine {
       }
       this.editingTextLayer.visible = true;
       this.updateTextLayerStyle(this.editingTextLayer);
+
+      const textData = this.createTextObjectData(this.editingTextLayer);
+      this.saveTextToLayer(textData);
+
       if (this.currentLayerId) {
         this.layerTexts[this.currentLayerId] = [...this.textObjects];
       }
-      this.renderAllTextsToTexture();
+      this.clearAndReRenderAllTexts();
       this.scheduleThumbnailUpdate();
     } else {
       if (this.editingTextLayer.parent) {
@@ -346,12 +369,13 @@ export class TextEngine {
         this.layerTexts[this.currentLayerId] = [...this.textObjects];
       }
       this.editingTextLayer.destroy();
-      this.renderAllTextsToTexture();
+      this.clearAndReRenderAllTexts();
       this.scheduleThumbnailUpdate();
     }
 
     this.removeTextInput();
     this.editingTextLayer = null;
+    this.editingTextId = null;
     this.originalPosition = null;
   }
 
@@ -380,6 +404,7 @@ export class TextEngine {
     }
     this.removeTextInput();
     this.editingTextLayer = null;
+    this.editingTextId = null;
     this.originalPosition = null;
   }
 
@@ -472,6 +497,40 @@ export class TextEngine {
     }
   }
 
+  private clearAndReRenderAllTexts(): void {
+    if (
+      !this.renderTexture ||
+      !this.activeLayer ||
+      this.activeLayer.type !== "text"
+    )
+      return;
+
+    this.app.renderer.render({
+      container: new PIXI.Container(),
+      target: this.renderTexture,
+      clear: true,
+    });
+
+    for (const textObj of this.textObjects) {
+      if (!textObj.visible) continue;
+
+      try {
+        const textSprite = new PIXI.Text(textObj.text, textObj.style);
+        textSprite.x = textObj.x;
+        textSprite.y = textObj.y;
+
+        this.app.renderer.render({
+          container: textSprite,
+          target: this.renderTexture,
+          clear: false,
+          transform: undefined,
+        });
+
+        textSprite.destroy();
+      } catch (error) {}
+    }
+  }
+
   private renderTextToTexture(textLayer: PIXI.Text): void {
     if (
       !this.renderTexture ||
@@ -518,9 +577,111 @@ export class TextEngine {
     return this.activeTextInput !== null;
   }
 
+  private createTextObjectData(pixiText: PIXI.Text): TextObject {
+    const generateTextId = (): string => {
+      if (typeof crypto !== "undefined" && crypto.randomUUID) {
+        return `text-${crypto.randomUUID()}`;
+      }
+
+      const timestamp = Date.now().toString(36);
+      const random1 = Math.random().toString(36).substring(2, 15);
+      const random2 = Math.random().toString(36).substring(2, 15);
+      return `text-${timestamp}-${random1}-${random2}`;
+    };
+
+    const textId = this.editingTextId || generateTextId();
+
+    return {
+      id: textId,
+      content: pixiText.text,
+      x: pixiText.x,
+      y: pixiText.y,
+      style: {
+        fontSize: pixiText.style.fontSize as number,
+        fontFamily: Array.isArray(pixiText.style.fontFamily)
+          ? (pixiText.style.fontFamily[0] as string)
+          : (pixiText.style.fontFamily as string),
+        fill: this.getFillColorAsString(pixiText.style.fill),
+        letterSpacing: (pixiText.style.letterSpacing as number) || 0,
+        lineHeight:
+          ((pixiText.style.lineHeight as number) ||
+            (pixiText.style.fontSize as number)) /
+          (pixiText.style.fontSize as number),
+        fontWeight: (pixiText.style.fontWeight as string) || "normal",
+        fontStyle: (pixiText.style.fontStyle as string) || "normal",
+        align:
+          (pixiText.style.align as "left" | "center" | "right" | "justify") ||
+          "left",
+        wordWrap: pixiText.style.wordWrap || false,
+        wordWrapWidth: (pixiText.style.wordWrapWidth as number) || 100000,
+      },
+      timestamp: Date.now(),
+    };
+  }
+
+  private saveTextToLayer(textData: TextObject): void {
+    if (this.activeLayer && this.onTextDataSave) {
+      this.onTextDataSave(this.activeLayer.id, textData);
+    }
+  }
+
+  public restoreTextsFromData(textObjects: TextObject[]): void {
+    this.textObjects = [];
+
+    textObjects.forEach((textObj) => {
+      const pixiText = this.createPixiTextFromData(textObj);
+      this.textObjects.push(pixiText);
+    });
+
+    this.renderAllTextsToTexture();
+  }
+
+  private createPixiTextFromData(textObj: TextObject): PIXI.Text {
+    try {
+      const style = new PIXI.TextStyle({
+        fontSize: textObj.style.fontSize,
+        fontFamily: textObj.style.fontFamily,
+        fill: textObj.style.fill,
+        letterSpacing: textObj.style.letterSpacing,
+        lineHeight: textObj.style.fontSize * textObj.style.lineHeight,
+        fontWeight: textObj.style.fontWeight,
+        fontStyle: textObj.style.fontStyle,
+        align: textObj.style.align,
+        wordWrap: textObj.style.wordWrap,
+        wordWrapWidth: textObj.style.wordWrapWidth,
+        breakWords: textObj.style.wordWrap,
+      });
+
+      const pixiText = new PIXI.Text(textObj.content, style);
+      pixiText.x = textObj.x;
+      pixiText.y = textObj.y;
+      pixiText.eventMode = "static";
+      pixiText.cursor = "pointer";
+      pixiText.name = `text-${textObj.id}`;
+
+      return pixiText;
+    } catch (error) {
+      console.warn("폰트 로드 실패, fallback 사용:", error);
+      const fallbackStyle = new PIXI.TextStyle({
+        fontFamily: "Arial",
+        fontSize: 16,
+        fill: "#000000",
+      });
+      const pixiText = new PIXI.Text(textObj.content, fallbackStyle);
+      pixiText.x = textObj.x;
+      pixiText.y = textObj.y;
+      pixiText.eventMode = "static";
+      pixiText.cursor = "pointer";
+      pixiText.name = `text-${textObj.id}`;
+
+      return pixiText;
+    }
+  }
+
   public cleanup(): void {
     this.removeTextInput();
     this.editingTextLayer = null;
+    this.editingTextId = null;
     this.currentTextLayer = null;
     this.activeLayer = null;
     this.renderTexture = null;

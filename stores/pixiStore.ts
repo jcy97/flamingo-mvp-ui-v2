@@ -88,13 +88,16 @@ export const retryAllStrokeRestorationsAtom = atom(null, async (get, set) => {
 
   const { layersAtom } = await import("./layerStore");
   const layers = get(layersAtom);
-  const { restoreLayerFromBrushData } = await import("@/utils/strokeRestore");
+  const { restoreLayerFromBrushData, restoreTextFromData } = await import(
+    "@/utils/strokeRestore"
+  );
   const restoredCanvasIds = new Set<string>();
 
   for (const layer of layers) {
     console.log(`레이어 복원 체크 ${layer.id}:`, {
       hasPersistentData: !!layer.data.persistentData,
       strokeCount: layer.data.persistentData?.brushStrokes?.length || 0,
+      textCount: layer.data.persistentData?.textObjects?.length || 0,
       isAlreadyRestored: restoredLayers.has(layer.id),
       canvasId: layer.canvasId,
     });
@@ -128,6 +131,37 @@ export const retryAllStrokeRestorationsAtom = atom(null, async (get, set) => {
           console.log(`레이어 ${layer.id} 복원 성공`);
         } catch (error) {
           console.error(`레이어 ${layer.id} 복원 실패:`, error);
+        }
+      }
+    }
+
+    if (
+      layer.data.persistentData?.textObjects?.length > 0 &&
+      !restoredLayers.has(layer.id)
+    ) {
+      const layerGraphic = state.layerGraphics[layer.canvasId]?.[layer.id];
+
+      if (layerGraphic?.renderTexture) {
+        try {
+          console.log(`레이어 ${layer.id} 텍스트 복원 시작`);
+          await restoreTextFromData(
+            state.app,
+            layer.data.persistentData.textObjects,
+            layerGraphic.renderTexture
+          );
+
+          if (layerGraphic.pixiSprite) {
+            layerGraphic.pixiSprite.texture = layerGraphic.renderTexture;
+            console.log(
+              `레이어 ${layer.id} 텍스트 스프라이트 텍스처 업데이트 완료`
+            );
+          }
+
+          restoredLayers.add(layer.id);
+          restoredCanvasIds.add(layer.canvasId);
+          console.log(`레이어 ${layer.id} 텍스트 복원 성공`);
+        } catch (error) {
+          console.error(`레이어 ${layer.id} 텍스트 복원 실패:`, error);
         }
       }
     }

@@ -1,6 +1,12 @@
 import { atom } from "jotai";
 import * as PIXI from "pixi.js";
-import { Layer, LayerData, LayerType, BrushStroke } from "@/types/layer";
+import {
+  Layer,
+  LayerData,
+  LayerType,
+  BrushStroke,
+  TextObject,
+} from "@/types/layer";
 import { BlendMode } from "@/constants/blendModes";
 import { currentCanvasIdAtom } from "./canvasStore";
 import {
@@ -143,8 +149,10 @@ export const addLayerAtom = atom(null, async (get, set) => {
       currentCanvasId,
       {
         name: layerName,
+        type: layerType,
         layer_data: {
           brushStrokes: [],
+          textObjects: [],
           contentBounds: { x: 0, y: 0, width: 0, height: 0 },
         },
       }
@@ -159,7 +167,9 @@ export const addLayerAtom = atom(null, async (get, set) => {
       canvasId: layerResponse.data.canvas_id,
       name: layerResponse.data.name,
       order: layerResponse.data.order_index,
-      type: layerType,
+      type: layerResponse.data.type
+        ? (layerResponse.data.type as LayerType)
+        : layerType,
       blendMode: layerResponse.data.blend_mode as any,
       opacity: layerResponse.data.opacity,
       isVisible: layerResponse.data.visible,
@@ -306,32 +316,59 @@ export const addTextLayerAtom = atom(null, async (get, set) => {
 
   const layers = get(layersAtom);
   const layersForCurrentCanvas = get(layersForCurrentCanvasAtom);
-  const newLayerId = `text-layer-${String(Date.now()).slice(-3)}`;
 
   try {
-    const newOrder =
-      layersForCurrentCanvas.length > 0
-        ? Math.max(...layersForCurrentCanvas.map((l) => l.order)) + 1
-        : 0;
+    const { currentProjectIdAtom, currentPageIdAtom } = await import(
+      "./pageStore"
+    );
+    const currentProjectId = get(currentProjectIdAtom) || "proj-webtoon-001";
+    const currentPageId = get(currentPageIdAtom);
+
+    if (!currentPageId) {
+      console.warn("현재 페이지가 선택되지 않았습니다.");
+      return;
+    }
+
+    const textLayers = layersForCurrentCanvas.filter((l) => l.type === "text");
+    const layerName = `텍스트 레이어 ${textLayers.length + 1}`;
+
+    const { layerApi } = await import("@/lib/api/layer");
+
+    const layerResponse = await layerApi.createLayer(
+      currentProjectId,
+      currentPageId,
+      currentCanvasId,
+      {
+        name: layerName,
+        type: "text",
+        layer_data: {
+          brushStrokes: [],
+          textObjects: [],
+          contentBounds: { x: 0, y: 0, width: 0, height: 0 },
+        },
+      }
+    );
+
+    if (!layerResponse.success) {
+      throw new Error("레이어 생성 실패");
+    }
 
     const newLayer: Layer = {
-      id: newLayerId,
-      canvasId: currentCanvasId,
-      name: `텍스트 레이어 ${
-        layersForCurrentCanvas.filter((l) => l.type === "text").length + 1
-      }`,
-      order: newOrder,
+      id: layerResponse.data.id,
+      canvasId: layerResponse.data.canvas_id,
+      name: layerResponse.data.name,
+      order: layerResponse.data.order_index,
       type: "text",
-      blendMode: "normal",
-      opacity: 1,
-      isVisible: true,
-      isLocked: false,
+      blendMode: layerResponse.data.blend_mode as any,
+      opacity: layerResponse.data.opacity,
+      isVisible: layerResponse.data.visible,
+      isLocked: layerResponse.data.locked,
       data: {
         pixiSprite: null!,
         renderTexture: null!,
       },
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: new Date(layerResponse.data.created_at),
+      updatedAt: new Date(layerResponse.data.updated_at),
     };
 
     const updatedLayers = [...layers, newLayer];
@@ -339,18 +376,18 @@ export const addTextLayerAtom = atom(null, async (get, set) => {
 
     await set(createLayerGraphicAtom, {
       canvasId: currentCanvasId,
-      layerId: newLayerId,
+      layerId: newLayer.id,
     });
 
     const updatedPixiState = get(pixiStateAtom);
     const newLayerGraphic =
-      updatedPixiState.layerGraphics?.[currentCanvasId]?.[newLayerId];
+      updatedPixiState.layerGraphics?.[currentCanvasId]?.[newLayer.id];
 
     if (newLayerGraphic?.pixiSprite && newLayerGraphic?.renderTexture) {
       canvasContainer.addChild(newLayerGraphic.pixiSprite);
 
       const finalUpdatedLayers = get(layersAtom).map((layer) =>
-        layer.id === newLayerId
+        layer.id === newLayer.id
           ? {
               ...layer,
               data: {
@@ -364,9 +401,10 @@ export const addTextLayerAtom = atom(null, async (get, set) => {
     }
 
     updateCanvasLayerOrder(get, currentCanvasId);
-    set(setActiveLayerAtom, newLayerId);
+    set(setActiveLayerAtom, newLayer.id);
+    updateThumbnail(set, currentCanvasId);
 
-    return newLayerId;
+    return newLayer.id;
   } catch (error) {
     console.error("텍스트 레이어 생성 실패:", error);
     return null;
@@ -374,7 +412,6 @@ export const addTextLayerAtom = atom(null, async (get, set) => {
 });
 
 export const autoCreateTextLayerAtom = atom(null, async (get, set) => {
-  const currentActiveLayer = get(currentActiveLayerAtom);
   const currentCanvasId = get(currentCanvasIdAtom);
   const pixiState = get(pixiStateAtom);
   const canvasContainer = get(getCanvasContainerAtom);
@@ -385,30 +422,56 @@ export const autoCreateTextLayerAtom = atom(null, async (get, set) => {
 
   const layers = get(layersAtom);
   const layersForCurrentCanvas = get(layersForCurrentCanvasAtom);
-  const newLayerId = `text-layer-${String(Date.now()).slice(-3)}`;
 
   try {
+    const { currentProjectIdAtom, currentPageIdAtom } = await import(
+      "./pageStore"
+    );
+    const currentProjectId = get(currentProjectIdAtom) || "proj-webtoon-001";
+    const currentPageId = get(currentPageIdAtom);
+
+    if (!currentPageId) return null;
+
+    const textLayers = layersForCurrentCanvas.filter((l) => l.type === "text");
+    const layerName = `텍스트 ${textLayers.length + 1}`;
+
+    const { layerApi } = await import("@/lib/api/layer");
+
+    const layerResponse = await layerApi.createLayer(
+      currentProjectId,
+      currentPageId,
+      currentCanvasId,
+      {
+        name: layerName,
+        type: "text",
+        layer_data: {
+          brushStrokes: [],
+          textObjects: [],
+          contentBounds: { x: 0, y: 0, width: 0, height: 0 },
+        },
+      }
+    );
+
+    if (!layerResponse.success) {
+      return null;
+    }
+
     const newLayer: Layer = {
-      id: newLayerId,
-      canvasId: currentCanvasId,
-      name: `Text${
-        layersForCurrentCanvas.filter((l) => l.type === "text").length + 1
-      }`,
-      order:
-        layersForCurrentCanvas.length > 0
-          ? Math.max(...layersForCurrentCanvas.map((l) => l.order)) + 1
-          : 0,
+      id: layerResponse.data.id,
+      canvasId: layerResponse.data.canvas_id,
+      name: layerResponse.data.name,
+      order: layerResponse.data.order_index,
       type: "text",
-      blendMode: "normal",
-      opacity: 1,
-      isVisible: true,
-      isLocked: false,
+      blendMode: layerResponse.data.blend_mode as any,
+      opacity: layerResponse.data.opacity,
+      isVisible: layerResponse.data.visible,
+      isLocked: layerResponse.data.locked,
       data: {
         pixiSprite: null!,
         renderTexture: null!,
       },
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: new Date(layerResponse.data.created_at),
+      updatedAt: new Date(layerResponse.data.updated_at),
     };
 
     const updatedLayers = [...layers, newLayer];
@@ -416,18 +479,18 @@ export const autoCreateTextLayerAtom = atom(null, async (get, set) => {
 
     await set(createLayerGraphicAtom, {
       canvasId: currentCanvasId,
-      layerId: newLayerId,
+      layerId: newLayer.id,
     });
 
     const updatedPixiState = get(pixiStateAtom);
     const newLayerGraphic =
-      updatedPixiState.layerGraphics?.[currentCanvasId]?.[newLayerId];
+      updatedPixiState.layerGraphics?.[currentCanvasId]?.[newLayer.id];
 
     if (newLayerGraphic?.pixiSprite && newLayerGraphic?.renderTexture) {
       canvasContainer.addChild(newLayerGraphic.pixiSprite);
 
       const finalUpdatedLayers = get(layersAtom).map((layer) =>
-        layer.id === newLayerId
+        layer.id === newLayer.id
           ? {
               ...layer,
               data: {
@@ -441,9 +504,9 @@ export const autoCreateTextLayerAtom = atom(null, async (get, set) => {
     }
 
     updateCanvasLayerOrder(get, currentCanvasId);
-    set(setActiveLayerAtom, newLayerId);
+    set(setActiveLayerAtom, newLayer.id);
 
-    return newLayerId;
+    return newLayer.id;
   } catch {
     return null;
   }
@@ -814,6 +877,7 @@ export const addBrushStrokeAtom = atom(
       if (layer.id === layerId) {
         const currentPersistentData = layer.data.persistentData || {
           brushStrokes: [],
+          textObjects: [],
           contentBounds: { x: 0, y: 0, width: 0, height: 0 },
         };
 
@@ -864,6 +928,85 @@ export const addBrushStrokeAtom = atom(
       }
     } catch (error) {
       console.error("스트로크 저장 실패:", error);
+    }
+  }
+);
+
+export const addTextObjectAtom = atom(
+  null,
+  async (
+    get,
+    set,
+    { layerId, textData }: { layerId: string; textData: TextObject }
+  ) => {
+    const layers = get(layersAtom);
+
+    const updatedLayers = layers.map((layer) => {
+      if (layer.id === layerId) {
+        const currentPersistentData = layer.data.persistentData || {
+          brushStrokes: [],
+          textObjects: [],
+          contentBounds: { x: 0, y: 0, width: 0, height: 0 },
+        };
+
+        const existingTextIndex = currentPersistentData.textObjects.findIndex(
+          (text) => text.id === textData.id
+        );
+
+        let updatedTextObjects = [...currentPersistentData.textObjects];
+        if (existingTextIndex >= 0) {
+          updatedTextObjects[existingTextIndex] = textData;
+        } else {
+          updatedTextObjects.push(textData);
+        }
+
+        const updatedPersistentData = {
+          ...currentPersistentData,
+          textObjects: updatedTextObjects,
+        };
+
+        return {
+          ...layer,
+          data: {
+            ...layer.data,
+            persistentData: updatedPersistentData,
+          },
+          updatedAt: new Date(),
+        };
+      }
+      return layer;
+    });
+
+    set(layersAtom, updatedLayers);
+
+    try {
+      const { currentProjectIdAtom, currentPageIdAtom } = await import(
+        "./pageStore"
+      );
+      const { currentCanvasIdAtom } = await import("./canvasStore");
+
+      const currentProjectId = get(currentProjectIdAtom);
+      const currentPageId = get(currentPageIdAtom);
+      const currentCanvasId = get(currentCanvasIdAtom);
+
+      if (currentProjectId && currentPageId && currentCanvasId) {
+        const { layerApi } = await import("@/lib/api/layer");
+        const layer = updatedLayers.find((l) => l.id === layerId);
+
+        if (layer && layer.data.persistentData) {
+          await layerApi.updateLayer(
+            currentProjectId,
+            currentPageId,
+            currentCanvasId,
+            layerId,
+            {
+              layer_data: layer.data.persistentData,
+            }
+          );
+        }
+      }
+    } catch (error) {
+      console.error("텍스트 저장 실패:", error);
     }
   }
 );

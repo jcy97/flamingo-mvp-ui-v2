@@ -154,7 +154,7 @@ export const syncWorkspaceToStoresAtom = atom(
             canvasId: canvas.id,
             name: layer.name,
             order: layer.order,
-            type: "brush" as const,
+            type: (layer.type as LayerType) || "brush",
             blendMode: layer.blend_mode as any,
             opacity: layer.opacity,
             isVisible: layer.visible,
@@ -166,6 +166,7 @@ export const syncWorkspaceToStoresAtom = atom(
               persistentData: layer.layer_data
                 ? {
                     brushStrokes: layer.layer_data.brushStrokes || [],
+                    textObjects: layer.layer_data.textObjects || [],
                     contentBounds: layer.layer_data.contentBounds || {
                       x: 0,
                       y: 0,

@@ -52,6 +52,7 @@ import {
   autoSelectFirstLayerAtom,
   updateLayerAtom,
   addBrushStrokeAtom,
+  addTextObjectAtom,
 } from "@/stores/layerStore";
 import {
   selectionStateAtom,
@@ -132,6 +133,7 @@ function Stage() {
   const autoSelectFirstLayer = useSetAtom(autoSelectFirstLayerAtom);
   const refreshCanvasThumbnail = useSetAtom(refreshCanvasThumbnailAtom);
   const addBrushStroke = useSetAtom(addBrushStrokeAtom);
+  const addTextObject = useSetAtom(addTextObjectAtom);
 
   const updateLayer = useSetAtom(updateLayerAtom);
 
@@ -631,6 +633,9 @@ function Stage() {
           if (currentCanvasIdRef.current) {
             refreshCanvasThumbnail(currentCanvasIdRef.current!);
           }
+        });
+        textEngineRef.current.setOnTextDataSave((layerId, textData) => {
+          addTextObject({ layerId, textData });
         });
         speechBubbleEngineRef.current = new SpeechBubbleEngine(
           app,
