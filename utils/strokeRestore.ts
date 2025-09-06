@@ -77,15 +77,7 @@ export const restoreLayerFromBrushData = async (
   clearContainer.destroy({ children: true });
 
   for (const stroke of persistentData.brushStrokes) {
-    console.log("스트로크 복원:", {
-      id: stroke.id,
-      hasRenderData: !!stroke.renderData,
-      renderDataLength: stroke.renderData?.length || 0,
-      pointsLength: stroke.points.length,
-    });
-
     if (stroke.renderData && stroke.renderData.length > 0) {
-      console.log("renderData 복원 사용");
       restoreFromRenderData(
         app,
         stroke.renderData,
@@ -93,12 +85,9 @@ export const restoreLayerFromBrushData = async (
         stroke.brushSettings.eraser === 1
       );
     } else if (stroke.points.length > 0) {
-      console.log("fallback 복원 사용");
       fallbackRestore(app, stroke, renderTexture);
     }
   }
-
-  console.log("복원 완료");
 };
 
 function restoreFromRenderData(
@@ -107,11 +96,6 @@ function restoreFromRenderData(
   renderTexture: PIXI.RenderTexture,
   isEraser: boolean = false
 ): void {
-  console.log("renderData 복원 시작:", {
-    dabCount: renderData.length,
-    isEraser,
-  });
-
   for (const dabData of renderData) {
     const graphics = new PIXI.Graphics();
 
@@ -138,8 +122,6 @@ function restoreFromRenderData(
 
     graphics.destroy();
   }
-
-  console.log("renderData 복원 완료");
 }
 
 function fallbackRestore(
@@ -147,11 +129,6 @@ function fallbackRestore(
   stroke: BrushStroke,
   renderTexture: PIXI.RenderTexture
 ): void {
-  console.log("fallback 복원 시작:", {
-    isEraser: stroke.brushSettings.eraser === 1,
-    pointsCount: stroke.points.length,
-  });
-
   const isEraser = stroke.brushSettings.eraser === 1;
 
   if (isEraser) {
@@ -197,8 +174,6 @@ function fallbackRestore(
       brush.destroy();
     }
   }
-
-  console.log("fallback 복원 완료");
 }
 
 export const restoreTextFromData = async (

@@ -56,31 +56,33 @@ function CanvasList() {
 
   return (
     <div className="flex flex-col items-center gap-4 h-full overflow-y-auto p-2 custom-scrollbar">
-      {canvasesForCurrentPage.map((canvas, index) => (
-        <div
-          key={canvas.id}
-          className="relative w-full flex flex-col items-center"
-        >
-          {/* Drop indicator above current item */}
-          {dragOverIndex === index &&
-            draggedIndex !== null &&
-            draggedIndex !== index && (
-              <div className="w-[85%] h-1 bg-primary rounded mb-2 animate-pulse" />
-            )}
+      {canvasesForCurrentPage.map((canvas, index) => {
+        return (
+          <div
+            key={canvas.id}
+            className="relative w-full flex flex-col items-center"
+          >
+            {/* Drop indicator above current item */}
+            {dragOverIndex === index &&
+              draggedIndex !== null &&
+              draggedIndex !== index && (
+                <div className="w-[85%] h-1 bg-primary rounded mb-2 animate-pulse" />
+              )}
 
-          <CanvasItem
-            data={canvas}
-            isSelected={currentCanvasId === canvas.id}
-            onSelect={handleCanvasSelect}
-            isDragging={draggedIndex === index}
-            onDragStart={(e) => handleDragStart(e, index)}
-            onDragEnd={handleDragEnd}
-            onDragOver={(e) => handleDragOver(e, index)}
-            onDragLeave={handleDragLeave}
-            onDrop={(e) => handleDrop(e, index)}
-          />
-        </div>
-      ))}
+            <CanvasItem
+              data={canvas}
+              isSelected={currentCanvasId === canvas.id}
+              onSelect={handleCanvasSelect}
+              isDragging={draggedIndex === index}
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragEnd={handleDragEnd}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, index)}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }
