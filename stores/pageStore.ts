@@ -152,6 +152,14 @@ export const addPageAtom = atom(null, async (get, set) => {
       layerId: newLayer.id,
     });
 
+    const { generateCanvasThumbnailAtom } = await import("./pixiStore");
+    setTimeout(() => {
+      set(generateCanvasThumbnailAtom, {
+        canvasId: newCanvas.id,
+        pageId: newPage.id,
+      });
+    }, 100);
+
     set(switchPageAtom, newPage.id);
   } catch (error) {
     console.error("페이지 추가 실패:", error);
