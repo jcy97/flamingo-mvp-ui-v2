@@ -15,7 +15,7 @@ import {
 } from "@/stores/viewportStore";
 import { ToolbarItemIDs } from "@/constants/toolsbarItems";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   loadWorkspaceDataAtom,
@@ -27,7 +27,7 @@ interface WorkspaceLayoutProps {
   children: React.ReactNode;
 }
 
-export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
+function WorkspaceLayoutContent({ children }: WorkspaceLayoutProps) {
   /****************
     상태관리 
    * **************/
@@ -307,5 +307,13 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
       <Toolsbar />
       <ZoomIndicator />
     </div>
+  );
+}
+
+export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
+  return (
+    <Suspense fallback={<div className="h-screen bg-neutral-600" />}>
+      <WorkspaceLayoutContent>{children}</WorkspaceLayoutContent>
+    </Suspense>
   );
 }
