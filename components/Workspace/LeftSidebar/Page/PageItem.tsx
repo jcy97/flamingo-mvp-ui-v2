@@ -211,13 +211,13 @@ function PageItem({
             <Edit3 size={12} />
             이름 변경
           </button>
-          <button
+          {/* <button
             onClick={handleDuplicateClick}
             className="w-full px-3 py-2 text-left text-sm text-neutral-300 hover:bg-neutral-700 flex items-center gap-2"
           >
             <Copy size={12} />
             복제
-          </button>
+          </button> */}
           <button
             onClick={handleDeleteClick}
             className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-neutral-700 flex items-center gap-2"

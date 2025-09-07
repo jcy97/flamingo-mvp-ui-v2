@@ -385,13 +385,13 @@ function LayerItem({
                     </>
                   )}
                 </button>
-                <button
+                {/* <button
                   onClick={handleDuplicateClick}
                   className="w-full px-3 py-2 text-left text-sm text-neutral-300 hover:bg-neutral-700 flex items-center gap-2"
                 >
                   <Copy size={12} />
                   복제
-                </button>
+                </button> */}
                 <button
                   onClick={handleDeleteClick}
                   disabled={!canDeleteLayer}
