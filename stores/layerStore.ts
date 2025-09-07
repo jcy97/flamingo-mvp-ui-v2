@@ -618,7 +618,7 @@ export const updateLayerAtom = atom(
   }
 );
 
-export const deleteLayerAtom = atom(null, (get, set, layerId: string) => {
+export const deleteLayerAtom = atom(null, async (get, set, layerId: string) => {
   const layers = get(layersAtom);
   const layersForCurrentCanvas = get(layersForCurrentCanvasAtom);
   const targetLayer = layers.find((layer) => layer.id === layerId);
@@ -630,32 +630,57 @@ export const deleteLayerAtom = atom(null, (get, set, layerId: string) => {
     return;
   }
 
-  if (targetLayer?.data.pixiSprite) {
-    if (targetLayer.data.pixiSprite.parent) {
-      targetLayer.data.pixiSprite.parent.removeChild(
-        targetLayer.data.pixiSprite
-      );
-    }
+  if (!targetLayer || !currentCanvasId) return;
 
-    if (targetLayer.data.renderTexture) {
-      targetLayer.data.renderTexture.destroy();
-    }
-
-    targetLayer.data.pixiSprite.destroy();
-  }
-
-  const updatedLayers = layers.filter((layer) => layer.id !== layerId);
-  set(layersAtom, updatedLayers);
-
-  if (activeLayerId === layerId) {
-    const remainingLayers = updatedLayers.filter(
-      (layer) => layer.canvasId === targetLayer?.canvasId
+  try {
+    const { currentProjectIdAtom, currentPageIdAtom } = await import(
+      "./pageStore"
     );
-    set(setActiveLayerAtom, remainingLayers[0]?.id || null);
-  }
+    const currentProjectId = get(currentProjectIdAtom);
+    const currentPageId = get(currentPageIdAtom);
 
-  if (targetLayer) {
+    if (!currentProjectId || !currentPageId) return;
+
+    const { layerApi } = await import("@/lib/api/layer");
+
+    const response = await layerApi.deleteLayer(
+      currentProjectId,
+      currentPageId,
+      currentCanvasId,
+      layerId
+    );
+
+    if (!response.success) {
+      throw new Error("레이어 삭제 실패");
+    }
+
+    if (targetLayer.data.pixiSprite) {
+      if (targetLayer.data.pixiSprite.parent) {
+        targetLayer.data.pixiSprite.parent.removeChild(
+          targetLayer.data.pixiSprite
+        );
+      }
+
+      if (targetLayer.data.renderTexture) {
+        targetLayer.data.renderTexture.destroy();
+      }
+
+      targetLayer.data.pixiSprite.destroy();
+    }
+
+    const updatedLayers = layers.filter((layer) => layer.id !== layerId);
+    set(layersAtom, updatedLayers);
+
+    if (activeLayerId === layerId) {
+      const remainingLayers = updatedLayers.filter(
+        (layer) => layer.canvasId === targetLayer.canvasId
+      );
+      set(setActiveLayerAtom, remainingLayers[0]?.id || null);
+    }
+
     updateThumbnail(set, targetLayer.canvasId);
+  } catch (error) {
+    console.error("레이어 삭제 실패:", error);
   }
 });
 

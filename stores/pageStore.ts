@@ -202,21 +202,37 @@ export const updatePageAtom = atom(
   }
 );
 
-export const deletePageAtom = atom(null, (get, set, pageId: string) => {
+export const deletePageAtom = atom(null, async (get, set, pageId: string) => {
   const pages = get(pagesAtom);
   const currentPageId = get(currentPageIdAtom);
+  const currentProjectId = get(currentProjectIdAtom);
 
   if (pages.length <= 1) return;
+  if (!currentProjectId) return;
 
-  const canvases = get(canvasesAtom);
-  const updatedPages = pages.filter((page) => page.id !== pageId);
-  const updatedCanvases = canvases.filter((canvas) => canvas.pageId !== pageId);
+  try {
+    const { pageApi } = await import("@/lib/api/page");
 
-  set(pagesAtom, updatedPages);
-  set(canvasesAtom, updatedCanvases);
+    const response = await pageApi.deletePage(currentProjectId, pageId);
 
-  if (currentPageId === pageId) {
-    set(currentPageIdAtom, updatedPages[0]?.id || null);
+    if (!response.success) {
+      throw new Error("페이지 삭제 실패");
+    }
+
+    const canvases = get(canvasesAtom);
+    const updatedPages = pages.filter((page) => page.id !== pageId);
+    const updatedCanvases = canvases.filter(
+      (canvas) => canvas.pageId !== pageId
+    );
+
+    set(pagesAtom, updatedPages);
+    set(canvasesAtom, updatedCanvases);
+
+    if (currentPageId === pageId) {
+      set(currentPageIdAtom, updatedPages[0]?.id || null);
+    }
+  } catch (error) {
+    console.error("페이지 삭제 실패:", error);
   }
 });
 

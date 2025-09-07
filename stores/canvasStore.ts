@@ -263,37 +263,63 @@ export const updateCanvasAtom = atom(
   }
 );
 
-export const deleteCanvasAtom = atom(null, (get, set, canvasId: string) => {
-  const canvases = get(canvasesAtom);
-  const targetCanvas = canvases.find((canvas) => canvas.id === canvasId);
-  const canvasesForCurrentPage = get(canvasesForCurrentPageAtom);
-  const currentCanvasId = get(currentCanvasIdAtom);
+export const deleteCanvasAtom = atom(
+  null,
+  async (get, set, canvasId: string) => {
+    const canvases = get(canvasesAtom);
+    const targetCanvas = canvases.find((canvas) => canvas.id === canvasId);
+    const canvasesForCurrentPage = get(canvasesForCurrentPageAtom);
+    const currentCanvasId = get(currentCanvasIdAtom);
 
-  if (canvasesForCurrentPage.length <= 1) {
-    console.warn("마지막 캔버스는 삭제할 수 없습니다.");
-    return;
-  }
+    if (canvasesForCurrentPage.length <= 1) {
+      console.warn("마지막 캔버스는 삭제할 수 없습니다.");
+      return;
+    }
 
-  if (targetCanvas) {
-    set(cleanupCanvasAtom, {
-      pageId: targetCanvas.pageId,
-      canvasId: targetCanvas.id,
-    });
-    set(cleanupCanvasLayersAtom, canvasId);
+    if (!targetCanvas) return;
 
-    const updatedCanvases = canvases.filter((canvas) => canvas.id !== canvasId);
-    set(canvasesAtom, updatedCanvases);
+    try {
+      const { currentProjectIdAtom } = await import("./pageStore");
+      const currentProjectId = get(currentProjectIdAtom);
 
-    if (currentCanvasId === canvasId) {
-      const remainingCanvases = updatedCanvases.filter(
-        (canvas) => canvas.pageId === targetCanvas.pageId
+      if (!currentProjectId) return;
+
+      const { canvasApi } = await import("@/lib/api/canvas");
+
+      const response = await canvasApi.deleteCanvas(
+        currentProjectId,
+        targetCanvas.pageId,
+        canvasId
       );
-      if (remainingCanvases.length > 0) {
-        set(setCurrentCanvasAtom, remainingCanvases[0].id);
+
+      if (!response.success) {
+        throw new Error("캔버스 삭제 실패");
       }
+
+      set(cleanupCanvasAtom, {
+        pageId: targetCanvas.pageId,
+        canvasId: targetCanvas.id,
+      });
+      set(cleanupCanvasLayersAtom, canvasId);
+
+      const updatedCanvases = canvases.filter(
+        (canvas) => canvas.id !== canvasId
+      );
+      set(canvasesAtom, updatedCanvases);
+
+      if (currentCanvasId === canvasId) {
+        const remainingCanvases = updatedCanvases.filter(
+          (canvas) => canvas.pageId === targetCanvas.pageId
+        );
+        if (remainingCanvases.length > 0) {
+          set(setCurrentCanvasAtom, remainingCanvases[0].id);
+        }
+      }
+    } catch (error) {
+      console.error("캔버스 삭제 실패:", error);
     }
   }
-});
+);
 
 export const duplicateCanvasAtom = atom(
   null,
